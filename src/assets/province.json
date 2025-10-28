@@ -1,0 +1,135 @@
+{
+  "provinces": [
+    {
+      "code": "BC",
+      "nom": "Bas-Uélé",
+      "chef_lieu": "Buta"
+    },
+    {
+      "code": "HK",
+      "nom": "Haut-Katanga",
+      "chef_lieu": "Lubumbashi"
+    },
+    {
+      "code": "HL",
+      "nom": "Haut-Lomami",
+      "chef_lieu": "Kamina"
+    },
+    {
+      "code": "HU",
+      "nom": "Haut-Uélé",
+      "chef_lieu": "Isiro"
+    },
+    {
+      "code": "IT",
+      "nom": "Ituri",
+      "chef_lieu": "Bunia"
+    },
+    {
+      "code": "KS",
+      "nom": "Kasaï",
+      "chef_lieu": "Tshikapa"
+    },
+    {
+      "code": "KC",
+      "nom": "Kasaï Central",
+      "chef_lieu": "Kananga"
+    },
+    {
+      "code": "KO",
+      "nom": "Kasaï Oriental",
+      "chef_lieu": "Mbuji-Mayi"
+    },
+    {
+      "code": "KB",
+      "nom": "Kinshasa",
+      "chef_lieu": "Kinshasa"
+    },
+    {
+      "code": "KN",
+      "nom": "Kongo Central",
+      "chef_lieu": "Matadi"
+    },
+    {
+      "code": "KW",
+      "nom": "Kwango",
+      "chef_lieu": "Kenge"
+    },
+    {
+      "code": "KL",
+      "nom": "Kwilu",
+      "chef_lieu": "Bandundu"
+    },
+    {
+      "code": "LO",
+      "nom": "Lomami",
+      "chef_lieu": "Kabinda"
+    },
+    {
+      "code": "LU",
+      "nom": "Lualaba",
+      "chef_lieu": "Kolwezi"
+    },
+    {
+      "code": "MA",
+      "nom": "Mai-Ndombe",
+      "chef_lieu": "Inongo"
+    },
+    {
+      "code": "MN",
+      "nom": "Maniema",
+      "chef_lieu": "Kindu"
+    },
+    {
+      "code": "MO",
+      "nom": "Mongala",
+      "chef_lieu": "Lisala"
+    },
+    {
+      "code": "NK",
+      "nom": "Nord-Kivu",
+      "chef_lieu": "Goma"
+    },
+    {
+      "code": "NU",
+      "nom": "Nord-Ubangi",
+      "chef_lieu": "Gbadolite"
+    },
+    {
+      "code": "SA",
+      "nom": "Sankuru",
+      "chef_lieu": "Lusambo"
+    },
+    {
+      "code": "SU",
+      "nom": "Sud-Kivu",
+      "chef_lieu": "Bukavu"
+    },
+    {
+      "code": "SB",
+      "nom": "Sud-Ubangi",
+      "chef_lieu": "Gemena"
+    },
+    {
+      "code": "TA",
+      "nom": "Tanganyika",
+      "chef_lieu": "Kalemie"
+    },
+    {
+      "code": "TO",
+      "nom": "Tshopo",
+      "chef_lieu": "Kisangani"
+    },
+    {
+      "code": "TS",
+      "nom": "Tshuapa",
+      "chef_lieu": "Boende"
+    },
+    {
+      "code": "EQ",
+      "nom": "Équateur",
+      "chef_lieu": "Mbandaka"
+    }
+  ]
+}
+
