@@ -10,7 +10,9 @@ import {
     FaCalendarAlt,
     FaGraduationCap,
     FaClipboardList,
-    FaIdCard
+    FaIdCard,
+    FaCheckCircle,
+    FaTimesCircle
 } from 'react-icons/fa';
 import { authAPI, validators } from '../api';
 import { saveSession } from '../utils/auth';
@@ -215,12 +217,14 @@ function Inscription() {
                     {/* Error/Success Messages */}
                     {error && (
                         <div className="alert alert-error">
+                            <FaTimesCircle />
                             {error}
                         </div>
                     )}
 
                     {success && (
                         <div className="alert alert-success">
+                            <FaCheckCircle />
                             {success}
                         </div>
                     )}

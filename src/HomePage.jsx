@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
     FaSearch, 
     FaEye, 
@@ -10,9 +10,11 @@ import {
     FaFileAlt,
     FaTags,
     FaChevronLeft,
-    FaChevronRight
+    FaChevronRight,
+    FaHeart,
+    FaTimes
 } from 'react-icons/fa';
-import api from './api';
+import api, { domainesAPI } from './api';
 import { isAuthenticated, getCurrentUser, logout } from './utils/auth';
 import { mockRessources } from './mockData';
 import logoBlancImg from './assets/Logoblanc.png';
@@ -34,7 +36,18 @@ const HomePage = () => {
     const [loadingTypes, setLoadingTypes] = useState(false);
     const [activeTypeFilter, setActiveTypeFilter] = useState('all');
     const [allResources, setAllResources] = useState([]); // Store all resources for filtering
+    const [domaines, setDomaines] = useState([]);
+    const [loadingDomaines, setLoadingDomaines] = useState(false);
+    const [selectedDomain, setSelectedDomain] = useState(null);
     const navigate = useNavigate();
+    const location = useLocation();
+
+    // Function to refresh user data
+    const refreshUserData = () => {
+        const currentUser = getCurrentUser();
+        console.log('Refreshing user data:', currentUser);
+        setUser(currentUser);
+    };
 
     // Helper function to simulate API delay
     const simulateApiCall = (data) => {
@@ -55,6 +68,25 @@ const HomePage = () => {
             console.log('Could not fetch all resources, using paginated data:', error);
             setAllResources(ressources);
             return ressources;
+        }
+    };
+
+    // Fetch domaines function
+    const fetchDomaines = async () => {
+        try {
+            setLoadingDomaines(true);
+            const response = await domainesAPI.getDomaines();
+            console.log('Domaines fetched:', response);
+            
+            // Handle response structure
+            const domainesData = response.results || response.data || response;
+            setDomaines(Array.isArray(domainesData) ? domainesData : []);
+            
+        } catch (error) {
+            console.error('Erreur lors du chargement des domaines:', error);
+            setDomaines([]);
+        } finally {
+            setLoadingDomaines(false);
         }
     };
 
@@ -222,10 +254,57 @@ const HomePage = () => {
             await fetchAllResources(); // Fetch all resources first
             fetchRessources(); // Then fetch paginated resources
             fetchResourceTypes(); // Finally fetch types based on all resources
+            fetchDomaines(); // Fetch domaines
         };
         
         initializeData();
     }, [navigate, useMockData]);
+
+    // Effect to refresh user data when returning to HomePage
+    useEffect(() => {
+        // Refresh user data whenever the location changes and we're on home
+        if (location.pathname === '/home') {
+            refreshUserData();
+        }
+    }, [location.pathname]);
+
+    // Effect to refresh user data when page gains focus (e.g., coming back from profile)
+    useEffect(() => {
+        const handleFocus = () => {
+            // Refresh user data when page becomes visible
+            refreshUserData();
+        };
+
+        const handleVisibilityChange = () => {
+            if (!document.hidden && location.pathname === '/home') {
+                refreshUserData();
+            }
+        };
+
+        const handleAvatarUpdate = (event) => {
+            // Handle avatar update event from Profile component
+            console.log('Avatar updated event received:', event.detail);
+            refreshUserData();
+        };
+
+        const handleProfileUpdate = (event) => {
+            // Handle profile update event from Profile component
+            console.log('Profile updated event received:', event.detail);
+            refreshUserData();
+        };
+
+        window.addEventListener('focus', handleFocus);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('userAvatarUpdated', handleAvatarUpdate);
+        window.addEventListener('userProfileUpdated', handleProfileUpdate);
+
+        return () => {
+            window.removeEventListener('focus', handleFocus);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('userAvatarUpdated', handleAvatarUpdate);
+            window.removeEventListener('userProfileUpdated', handleProfileUpdate);
+        };
+    }, [location.pathname]);
 
 
 
@@ -293,6 +372,41 @@ const HomePage = () => {
     // Handle type filter change
     const handleTypeFilterChange = (type) => {
         setActiveTypeFilter(type);
+    };
+
+    // Handle domain selection
+    const handleDomainSelection = async (domaine) => {
+        if (selectedDomain && selectedDomain.id === domaine.id) {
+            // Deselect if same domain is clicked
+            setSelectedDomain(null);
+            fetchRessources(); // Reload all resources
+        } else {
+            setSelectedDomain(domaine);
+            setLoading(true);
+            try {
+                // Fetch resources for this specific domain
+                const response = await domainesAPI.getResourcesByDomain(domaine.id);
+                const ressourcesData = response.results?.data || response.data || response.results || [];
+                setRessources(Array.isArray(ressourcesData) ? ressourcesData : []);
+                
+                // Reset pagination when filtering by domain
+                setPagination({
+                    next: null,
+                    previous: null,
+                    hasNext: false,
+                    hasPrevious: false
+                });
+            } catch (error) {
+                console.error('Erreur lors du chargement des ressources du domaine:', error);
+                // Filter from all resources as fallback
+                const domainResources = allResources.filter(ressource => 
+                    ressource.domaine?.id === domaine.id
+                );
+                setRessources(domainResources);
+            } finally {
+                setLoading(false);
+            }
+        }
     };
 
     // Pagination handlers
@@ -377,10 +491,14 @@ const HomePage = () => {
                         </div>
                         
                         {/* Avatar utilisateur */}
-                        <div className="homepage-user-avatar">
+                        <div 
+                            className="homepage-user-avatar"
+                            onClick={() => navigate('/profile')}
+                            title="Voir mon profil"
+                        >
                             {user.avatar ? (
                                 <img 
-                                    src={`http://localhost:8000${user.avatar}`} 
+                                    src={`${user.avatar.startsWith('http') ? user.avatar : `http://localhost:8000${user.avatar}`}?t=${Date.now()}`}
                                     alt={`Avatar de ${user.prenom || user.username}`}
                                     className="homepage-avatar-img"
                                     onError={(e) => {
@@ -398,6 +516,13 @@ const HomePage = () => {
                         </div>
                         
                        
+                        <button 
+                            className="homepage-favoris-btn"
+                            onClick={() => navigate('/favoris')}
+                        >
+                            <FaHeart size={14} />
+                            Favoris
+                        </button>
                         
                         <button 
                             className="homepage-logout-btn"
@@ -418,10 +543,22 @@ const HomePage = () => {
                         <input
                             type="text"
                             className="homepage-search-input"
-                            placeholder="Rechercher des ressources..."
+                            placeholder="Tapez votre recherche ici..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
+                        {searchTerm && (
+                            <button
+                                className="homepage-search-clear"
+                                onClick={() => setSearchTerm('')}
+                                title="Effacer la recherche"
+                            >
+                                <FaTimes size={14} />
+                            </button>
+                        )}
+                    </div>
+                    <div className="homepage-search-hint">
+                        Recherche par titre, domaine, sous-domaine, auteur
                     </div>
                 </div>
             </section>
@@ -456,156 +593,219 @@ const HomePage = () => {
                 </div>
             </section>
 
-            {/* Section des ressources */}
-            <main className="homepage-resources-section">`
-                <div className="homepage-resources-content">
-                    {loading && (
-                        <div className="homepage-loading-grid">
-                            {[...Array(8)].map((_, index) => (
-                                <div key={index} className="homepage-loading-card">
-                                    <div className="homepage-loading-image"></div>
-                                    <div className="homepage-loading-content">
-                                        <div className="homepage-loading-title"></div>
-                                        <div className="homepage-loading-subtitle"></div>
-                                        <div className="homepage-loading-badges">
-                                            <div className="homepage-loading-badge"></div>
-                                            <div className="homepage-loading-badge"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-                    {!loading && filteredRessources.length === 0 && (
-                        <div className="homepage-no-results">
-                            <div className="homepage-no-results-icon">📚</div>
-                            <h3 className="homepage-no-results-title">
-                                {searchTerm ? 'Aucune ressource trouvée' : 'Aucune ressource disponible'}
-                            </h3>
-                            <p className="homepage-no-results-text">
-                                {searchTerm ? 
-                                    'Essayez de modifier vos critères de recherche' : 
-                                    'Les ressources seront bientôt disponibles'
-                                }
-                            </p>
-                        </div>
-                    )}
-
-                    {!loading && filteredRessources.length > 0 && (
-                        <div className="homepage-resources-grid">
-                            {filteredRessources.map((ressource) => (
-                                <div 
-                                    key={ressource.id} 
-                                    className="homepage-resource-card"
-                                    onClick={() => navigate(`/ressources/${ressource.id}`)}
+            {/* Section principale avec ressources et domaines */}
+            <main className="homepage-main-section">
+                <div className="homepage-main-content">
+                    {/* Colonne des ressources (gauche) */}
+                    <div className="homepage-resources-column">
+                        <div className="homepage-resources-header">
+                            <h2 className="homepage-section-title">
+                                Ressources 
+                                {selectedDomain && <span className="homepage-domain-filter">- {selectedDomain.nom}</span>}
+                            </h2>
+                            {selectedDomain && (
+                                <button 
+                                    className="homepage-clear-domain-filter"
+                                    onClick={() => handleDomainSelection(selectedDomain)}
+                                    title="Voir toutes les ressources"
                                 >
-                                    {/* Image de couverture compacte */}
-                                    <div className="homepage-resource-image">
-                                        {ressource.couverture ? (
-                                            <img 
-                                                src={`http://localhost:8000${ressource.couverture}`}
-                                                alt={ressource.titre}
-                                                className="homepage-resource-img"
-                                                onError={(e) => {
-                                                    e.target.style.display = 'none';
-                                                    e.target.nextSibling.style.display = 'flex';
-                                                }}
-                                            />
-                                        ) : null}
-                                        <div 
-                                            className="homepage-resource-placeholder"
-                                            style={{display: ressource.couverture ? 'none' : 'flex'}}
-                                        >
-                                            📄
-                                        </div>
-                                        
-                                        {/* Icône de format */}
-                                        <div className="homepage-format-icon">
-                                            {getFormatIcon(ressource.format)}
+                                    ✕ Effacer le filtre
+                                </button>
+                            )}
+                        </div>
+
+                        {loading && (
+                            <div className="homepage-loading-grid">
+                                {[...Array(6)].map((_, index) => (
+                                    <div key={index} className="homepage-loading-card">
+                                        <div className="homepage-loading-image"></div>
+                                        <div className="homepage-loading-content">
+                                            <div className="homepage-loading-title"></div>
+                                            <div className="homepage-loading-subtitle"></div>
+                                            <div className="homepage-loading-badges">
+                                                <div className="homepage-loading-badge"></div>
+                                                <div className="homepage-loading-badge"></div>
+                                            </div>
                                         </div>
                                     </div>
+                                ))}
+                            </div>
+                        )}
 
-                                    {/* Contenu ultra-compact */}
-                                    <div className="homepage-resource-content">
-                                        {/* Titre court */}
-                                        <h3 className="homepage-resource-title">
-                                            {ressource.titre}
-                                        </h3>
+                        {!loading && filteredRessources.length === 0 && (
+                            <div className="homepage-no-results">
+                                <div className="homepage-no-results-icon">📚</div>
+                                <h3 className="homepage-no-results-title">
+                                    {searchTerm ? 'Aucune ressource trouvée' : selectedDomain ? `Aucune ressource dans "${selectedDomain.nom}"` : 'Aucune ressource disponible'}
+                                </h3>
+                                <p className="homepage-no-results-text">
+                                    {searchTerm ? 
+                                        'Essayez de modifier vos critères de recherche' : 
+                                        selectedDomain ?
+                                        'Sélectionnez un autre domaine ou effacez le filtre' :
+                                        'Les ressources seront bientôt disponibles'
+                                    }
+                                </p>
+                            </div>
+                        )}
 
-                                        {/* Informations en ligne */}
-                                        <div className="homepage-resource-badges">
-                                            {/* Domaine */}
-                                            {ressource.domaine?.nom && (
-                                                <span className="homepage-badge homepage-badge-domain">
-                                                    {ressource.domaine.nom}
-                                                </span>
-                                            )}
-
-                                            {/* Langue */}
-                                            {ressource.langue && (
-                                                <span className="homepage-badge homepage-badge-language">
-                                                    {ressource.langue.toUpperCase()}
-                                                </span>
-                                            )}
-
-                                            {/* Type */}
-                                            {ressource.type && (
-                                                <span className="homepage-badge homepage-badge-type">
-                                                    {ressource.type}
-                                                </span>
-                                            )}
+                        {!loading && filteredRessources.length > 0 && (
+                            <div className="homepage-resources-grid">
+                                {filteredRessources.map((ressource) => (
+                                    <div 
+                                        key={ressource.id} 
+                                        className="homepage-resource-card"
+                                        onClick={() => navigate(`/ressources/${ressource.id}`)}
+                                    >
+                                        {/* Image de couverture compacte */}
+                                        <div className="homepage-resource-image">
+                                            {ressource.couverture ? (
+                                                <img 
+                                                    src={`http://localhost:8000${ressource.couverture}`}
+                                                    alt={ressource.titre}
+                                                    className="homepage-resource-img"
+                                                    onError={(e) => {
+                                                        e.target.style.display = 'none';
+                                                        e.target.nextSibling.style.display = 'flex';
+                                                    }}
+                                                />
+                                            ) : null}
+                                            <div 
+                                                className="homepage-resource-placeholder"
+                                                style={{display: ressource.couverture ? 'none' : 'flex'}}
+                                            >
+                                                📄
+                                            </div>
+                                            
+                                            {/* Icône de format */}
+                                            <div className="homepage-format-icon">
+                                                {getFormatIcon(ressource.format)}
+                                            </div>
                                         </div>
 
-                                        {/* Action rapide */}
-                                        <div className="homepage-resource-action">
-                                            <FaEye size={10} />
-                                            <span>Voir détails</span>
+                                        {/* Contenu ultra-compact */}
+                                        <div className="homepage-resource-content">
+                                            {/* Titre court */}
+                                            <h3 className="homepage-resource-title">
+                                                {ressource.titre}
+                                            </h3>
+
+                                            {/* Informations en ligne */}
+                                            <div className="homepage-resource-badges">
+                                                {/* Domaine */}
+                                                {ressource.domaine?.nom && (
+                                                    <span className="homepage-badge homepage-badge-domain">
+                                                        {ressource.domaine.nom}
+                                                    </span>
+                                                )}
+
+                                                {/* Langue */}
+                                                {ressource.langue && (
+                                                    <span className="homepage-badge homepage-badge-language">
+                                                        {ressource.langue.toUpperCase()}
+                                                    </span>
+                                                )}
+
+                                                {/* Type */}
+                                                {ressource.type && (
+                                                    <span className="homepage-badge homepage-badge-type">
+                                                        {ressource.type}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {/* Action rapide */}
+                                            <div className="homepage-resource-action">
+                                                <FaEye size={10} />
+                                                <span>Voir détails</span>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                                ))}
+                            </div>
+                        )}
 
-                    {/* Pagination - Only show when no type filter is active */}
-                    {!loading && filteredRessources.length > 0 && activeTypeFilter === 'all' && (pagination.hasNext || pagination.hasPrevious) && (
-                        <div className="homepage-pagination">
-                            <button 
-                                className={`homepage-pagination-btn ${!pagination.hasPrevious ? 'disabled' : ''}`}
-                                onClick={handlePreviousPage}
-                                disabled={!pagination.hasPrevious}
-                                title={pagination.hasPrevious ? "Page précédente" : "Première page"}
-                            >
-                                <FaChevronLeft size={14} />
-                                <span>Précédent</span>
-                            </button>
-                            
-                            
-                            <button 
-                                className={`homepage-pagination-btn ${!pagination.hasNext ? 'disabled' : ''}`}
-                                onClick={handleNextPage}
-                                disabled={!pagination.hasNext}
-                                title={pagination.hasNext ? "Page suivante" : "Dernière page"}
-                            >
-                                <span>Suivant</span>
-                                <FaChevronRight size={14} />
-                            </button>
-                        </div>
-                    )}
+                        {/* Pagination - Only show when no domain filter is active */}
+                        {!loading && filteredRessources.length > 0 && !selectedDomain && (pagination.hasNext || pagination.hasPrevious) && (
+                            <div className="homepage-pagination">
+                                <button 
+                                    className={`homepage-pagination-btn ${!pagination.hasPrevious ? 'disabled' : ''}`}
+                                    onClick={handlePreviousPage}
+                                    disabled={!pagination.hasPrevious}
+                                    title={pagination.hasPrevious ? "Page précédente" : "Première page"}
+                                >
+                                    <FaChevronLeft size={14} />
+                                    <span>Précédent</span>
+                                </button>
+                                
+                                <button 
+                                    className={`homepage-pagination-btn ${!pagination.hasNext ? 'disabled' : ''}`}
+                                    onClick={handleNextPage}
+                                    disabled={!pagination.hasNext}
+                                    title={pagination.hasNext ? "Page suivante" : "Dernière page"}
+                                >
+                                    <span>Suivant</span>
+                                    <FaChevronRight size={14} />
+                                </button>
+                            </div>
+                        )}
 
-                    {/* Info when type filter is active */}
-                    {!loading && activeTypeFilter !== 'all' && (
-                        <div className="homepage-filter-info">
-                            <p>Affichage de {filteredRessources.length} ressource(s) de type "{resourceTypes.find(t => t.type === activeTypeFilter)?.label}"</p>
-                            <button 
-                                className="homepage-clear-filter"
-                                onClick={() => setActiveTypeFilter('all')}
-                            >
-                                Voir toutes les ressources
-                            </button>
+                        {/* Info when type filter is active */}
+                        {!loading && activeTypeFilter !== 'all' && (
+                            <div className="homepage-filter-info">
+                                <p>Affichage de {filteredRessources.length} ressource(s) de type "{resourceTypes.find(t => t.type === activeTypeFilter)?.label}"</p>
+                                <button 
+                                    className="homepage-clear-filter"
+                                    onClick={() => setActiveTypeFilter('all')}
+                                >
+                                    Voir toutes les ressources
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Colonne des domaines (droite) */}
+                    <div className="homepage-domains-column">
+                        <div className="homepage-domains-header">
+                            <h2 className="homepage-section-title">Domaines</h2>
+                            <p className="homepage-domains-subtitle">Filtrer par domaine</p>
                         </div>
-                    )}
+
+                        {loadingDomaines && (
+                            <div className="homepage-domains-loading">
+                                {[...Array(6)].map((_, index) => (
+                                    <div key={index} className="homepage-domain-skeleton"></div>
+                                ))}
+                            </div>
+                        )}
+
+                        {!loadingDomaines && domaines.length === 0 && (
+                            <div className="homepage-no-domains">
+                                <div className="homepage-no-domains-icon">🏷️</div>
+                                <p>Aucun domaine disponible</p>
+                            </div>
+                        )}
+
+                        {!loadingDomaines && domaines.length > 0 && (
+                            <div className="homepage-domains-list">
+                                {domaines.map((domaine) => (
+                                    <button
+                                        key={domaine.id}
+                                        className={`homepage-domain-item ${selectedDomain && selectedDomain.id === domaine.id ? 'active' : ''}`}
+                                        onClick={() => handleDomainSelection(domaine)}
+                                    >
+                                        <div className="homepage-domain-info">
+                                            <span className="homepage-domain-name">{domaine.nom}</span>
+                                            {domaine.description && (
+                                                <span className="homepage-domain-description">{domaine.description}</span>
+                                            )}
+                                        </div>
+                                       
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </main>
         </div>

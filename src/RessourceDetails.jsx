@@ -13,9 +13,10 @@ import {
     FaFileAlt,
     FaBook,
     FaGlobe,
-    FaMapMarkerAlt
+    FaMapMarkerAlt,
+    FaHeart
 } from 'react-icons/fa';
-import api from './api';
+import api, { favorisAPI } from './api';
 import { mockRessources, simulateApiCall } from './mockData';
 import './index.css';
 
@@ -25,6 +26,8 @@ const RessourceDetails = () => {
     const [ressource, setRessource] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [isFavorite, setIsFavorite] = useState(false);
+    const [favoriteLoading, setFavoriteLoading] = useState(false);
 
     // Récupérer les détails de la ressource
     useEffect(() => {
@@ -39,12 +42,17 @@ const RessourceDetails = () => {
                     console.log('Detail API Response:', response.data);
                     const ressourceData = response.data.data || response.data;
                     setRessource(ressourceData);
+                    
+                    // Check if resource is in favorites
+                    checkFavoriteStatus(ressourceData.id);
                 } catch (apiError) {
                     console.log('API not available for details, using mock data');
                     // Find in mock data
                     const mockData = mockRessources.results.data.find(r => r.id.toString() === id);
                     if (mockData) {
                         setRessource(mockData);
+                        // Check if resource is in favorites
+                        checkFavoriteStatus(mockData.id);
                     } else {
                         setError('Ressource non trouvée');
                     }
@@ -61,6 +69,68 @@ const RessourceDetails = () => {
             fetchRessourceDetails();
         }
     }, [id]);
+
+    // Vérifier le statut des favoris
+    const checkFavoriteStatus = async (ressourceId) => {
+        try {
+            const isInFavorites = await favorisAPI.checkFavori(ressourceId);
+            setIsFavorite(isInFavorites);
+        } catch (error) {
+            console.warn('Erreur lors de la vérification des favoris:', error);
+        }
+    };
+
+    // Gérer l'ajout/suppression des favoris
+    const handleToggleFavorite = async () => {
+        if (!ressource) return;
+        
+        setFavoriteLoading(true);
+        try {
+            if (isFavorite) {
+                // Supprimer des favoris
+                await favorisAPI.removeFavori(ressource.id);
+                setIsFavorite(false);
+                showNotification('Retiré des favoris', 'success');
+            } else {
+                // Ajouter aux favoris
+                await favorisAPI.addFavori(ressource.id);
+                setIsFavorite(true);
+                showNotification('Ajouté aux favoris', 'success');
+            }
+        } catch (error) {
+            console.error('Erreur lors de la gestion des favoris:', error);
+            showNotification(error.message, 'error');
+        } finally {
+            setFavoriteLoading(false);
+        }
+    };
+
+    // Afficher une notification
+    const showNotification = (message, type = 'success') => {
+        const notification = document.createElement('div');
+        notification.className = `favorite-notification ${type}`;
+        notification.innerHTML = `
+            <div class="notification-content">
+                <span class="notification-icon">${type === 'success' ? '✅' : '❌'}</span>
+                <span class="notification-text">${message}</span>
+                <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Supprimer automatiquement après 3 secondes
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.style.opacity = '0';
+                setTimeout(() => {
+                    if (notification.parentElement) {
+                        notification.remove();
+                    }
+                }, 300);
+            }
+        }, 3000);
+    };
 
     // Fonction pour obtenir l'icône selon le format
     const getFormatIcon = (format) => {
@@ -113,9 +183,54 @@ const RessourceDetails = () => {
         return 'AUTRES';
     };
 
+    // Fonction pour enregistrer une consultation
+    const recordConsultation = async (ressourceId) => {
+        try {
+            console.log('🔄 Enregistrement consultation pour ressource:', ressourceId);
+            const response = await api.post('/consultations/', {
+                ressource_id: ressourceId
+            });
+            console.log('✅ Consultation enregistrée:', response.data);
+        } catch (error) {
+            console.error('❌ Erreur lors de l\'enregistrement de la consultation:', error.response?.data || error.message);
+            // Ne pas bloquer l'action si l'enregistrement échoue
+        }
+    };
+
+    // Fonction pour enregistrer un téléchargement
+    const recordDownload = async (ressourceId) => {
+        try {
+            console.log('🔄 Enregistrement téléchargement pour ressource:', ressourceId);
+            const response = await api.post('/downloads/', {
+                ressource_id: ressourceId
+            });
+            console.log('✅ Téléchargement enregistré:', response.data);
+        } catch (error) {
+            console.error('❌ Erreur lors de l\'enregistrement du téléchargement:', error.response?.data || error.message);
+            // Ne pas bloquer l'action si l'enregistrement échoue
+        }
+    };
+
+    // Fonction pour ouvrir/consulter un fichier
+    const handleOpen = async (fileUrl) => {
+        try {
+            // Enregistrer la consultation
+            await recordConsultation(ressource.id);
+            
+            // Ouvrir le fichier dans un nouvel onglet
+            const fullUrl = fileUrl.startsWith('http') ? fileUrl : `http://localhost:8000${fileUrl}`;
+            window.open(fullUrl, '_blank');
+        } catch (error) {
+            console.error('Erreur lors de l\'ouverture du fichier:', error);
+        }
+    };
+
     // Fonction pour télécharger un fichier automatiquement
     const handleDownload = async (fileUrl, filename) => {
         try {
+            // Enregistrer le téléchargement
+            await recordDownload(ressource.id);
+            
             const fullUrl = fileUrl.startsWith('http') ? fileUrl : `http://localhost:8000${fileUrl}`;
             
             // Déterminer l'extension du fichier
@@ -280,9 +395,22 @@ const RessourceDetails = () => {
                         <FaArrowLeft />
                         Retour aux ressources
                     </button>
-                    <h1 className="ressource-details-title">
-                        {ressource.titre}
-                    </h1>
+                    <div className="ressource-details-title-section">
+                        <h1 className="ressource-details-title">
+                            {ressource.titre}
+                        </h1>
+                        <button 
+                            className={`favorite-btn ${isFavorite ? 'active' : ''} ${favoriteLoading ? 'loading' : ''}`}
+                            onClick={handleToggleFavorite}
+                            disabled={favoriteLoading}
+                            title={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                        >
+                            <FaHeart />
+                            <span className="favorite-btn-text">
+                                {favoriteLoading ? 'Chargement...' : (isFavorite ? 'Favoris' : 'Ajouter')}
+                            </span>
+                        </button>
+                    </div>
                     {ressource.sous_titre && (
                         <p className="ressource-details-subtitle">
                             {ressource.sous_titre}
@@ -365,7 +493,7 @@ const RessourceDetails = () => {
                                             
                                             <div className="file-card-actions">
                                                 <button
-                                                    onClick={() => handleOpenFile(fichier.fichier)}
+                                                    onClick={() => handleOpen(fichier.fichier)}
                                                     className="file-action-btn file-open-btn"
                                                 >
                                                     <FaEye />
@@ -594,27 +722,7 @@ const RessourceDetails = () => {
                             </div>
                         </div>
 
-                        {/* Information sur le téléchargement automatique */}
-                        <div className="auto-download-info">
-                            <div className="auto-download-header">
-                                <h4>⚡ Téléchargement automatique</h4>
-                            </div>
-                            <div className="auto-download-content">
-                                <p>✅ <strong>Un clic = téléchargement immédiat</strong></p>
-                                <p>Les fichiers sont automatiquement nommés selon leur type :</p>
-                                <div className="folder-structure">
-                                    <div className="folder-item">📁 Téléchargements/</div>
-                                    <div className="folder-item">┣ 📹 BNN_VIDEOS_[nom].mp4</div>
-                                    <div className="folder-item">┣ 🎵 BNN_AUDIO_[nom].mp3</div>
-                                    <div className="folder-item">┣ 📚 BNN_LIVRES_[nom].pdf</div>
-                                    <div className="folder-item">┣ 🖼️ BNN_IMAGES_[nom].jpg</div>
-                                    <div className="folder-item">┗ 📄 BNN_AUTRES_[nom].*</div>
-                                </div>
-                                <div className="browser-note">
-                                    <p>💡 <strong>Organisation :</strong> Créez des dossiers dans Téléchargements selon les préfixes pour organiser vos fichiers BNN !</p>
-                                </div>
-                            </div>
-                        </div>
+                       
                     </div>
                 </div>
             </div>

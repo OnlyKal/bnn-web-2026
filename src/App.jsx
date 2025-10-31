@@ -2,12 +2,14 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Connexion from './UTILISATEURS/Connexion.jsx';
 import Inscription from './UTILISATEURS/Inscription.jsx';
+import ResetPassword from './UTILISATEURS/ResetPassword.jsx';
 import Provinces from './UTILISATEURS/Provinces.jsx';
 import TypeUtilisateurs from './UTILISATEURS/TypeUtilisateurs.jsx';
 import SelectUniversite from './UTILISATEURS/SelectUniversite.jsx';
 import HomePage from './HomePage.jsx';
 import Profile from './Profile.jsx';
 import RessourceDetails from './RessourceDetails.jsx';
+import FavorisPage from './FavorisPage.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import { isAuthenticated } from './utils/auth.js';
 
@@ -24,6 +26,7 @@ function App() {
             } 
           />
           <Route path="/register" element={<Inscription />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/provinces" element={<Provinces />} />
           <Route path="/user-types" element={<TypeUtilisateurs />} />
           <Route path="/select-universite" element={<SelectUniversite />} />
@@ -50,6 +53,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <RessourceDetails />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/favoris" 
+            element={
+              <ProtectedRoute>
+                <FavorisPage />
               </ProtectedRoute>
             } 
           />
@@ -85,3 +96,8 @@ function App() {
 }
 
 export default App;
+
+
+
+
+

@@ -1,6 +1,7 @@
 
 import logo from '../Images/logoblan.png';
-import { BiSolidUser, BiSolidLock } from 'react-icons/bi';
+import bgVideo from '../assets/bgvideo.mp4';
+import { BiSolidUser, BiSolidLock, BiSolidCheckCircle, BiSolidErrorCircle } from 'react-icons/bi';
 import { BsEyeFill, BsEyeSlash, BsEyeSlashFill } from 'react-icons/bs';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -83,12 +84,23 @@ function Connexion() {
     };
 
     return <div className="page-connexion page">
+        {/* Background Video */}
+        <video 
+            autoPlay 
+            muted 
+            loop 
+            className="background-video"
+        >
+            <source src={bgVideo} type="video/mp4" />
+        </video>
+        
         <div className='card-connexion'>
             <img src={logo} alt="Logo" height={80} width={220} className="logo-connexion" />
             
             {/* Error message */}
             {error && (
                 <div className="alert alert-error">
+                    <BiSolidErrorCircle />
                     {error}
                 </div>
             )}
@@ -96,12 +108,16 @@ function Connexion() {
             {/* Success message */}
             {success && (
                 <div className="alert alert-success">
+                    <BiSolidCheckCircle />
                     {success}
                 </div>
             )}
 
             <div className="input-connexion">
-                <BiSolidUser className='icon-connexion' />
+                <BiSolidUser 
+                    className='icon-connexion' 
+                    style={{color: '#000000', fill: '#000000'}}
+                />
                 <input 
                     type="text" 
                     value={username} 
@@ -112,7 +128,10 @@ function Connexion() {
                 />
             </div>
             <div className="input-connexion">
-                <BiSolidLock className='icon-connexion' />
+                <BiSolidLock 
+                    className='icon-connexion' 
+                    style={{color: '#000000', fill: '#000000'}}
+                />
                 <input 
                     type={afficherPassword == "vrai"? "text":"password"}  
                     value={password} 
@@ -129,7 +148,12 @@ function Connexion() {
                 </div>
 
             </div>
-            <a href="/reset-password" className="forgot-password">Mot de passe oublié ?</a>
+            <div 
+                className="forgot-password"
+                onClick={() => navigate('/reset-password')}
+            >
+                Mot de passe oublié ?
+            </div>
             <button 
                 className="button-connexion" 
                 onClick={handleLogin}
