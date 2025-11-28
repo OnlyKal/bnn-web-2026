@@ -18,6 +18,7 @@ import api, { domainesAPI } from './api';
 import { isAuthenticated, getCurrentUser, logout } from './utils/auth';
 import { mockRessources } from './mockData';
 import logoBlancImg from './assets/Logoblanc.png';
+import { getMediaUrl, getFileUrl } from './config';
 
 const HomePage = () => {
     const [user, setUser] = useState(null);
@@ -447,8 +448,8 @@ const HomePage = () => {
 
     const handleDownloadResource = (ressource) => {
         if (ressource.fichiers && ressource.fichiers.length > 0) {
-            // Construct full URL for the file
-            const fileUrl = `http://localhost:8000${ressource.fichiers[0].fichier}`;
+            // Construct full URL for the file using helper function
+            const fileUrl = getFileUrl(ressource.fichiers[0].fichier);
             const link = document.createElement('a');
             link.href = fileUrl;
             link.download = ressource.fichiers[0].titre || ressource.titre;
@@ -498,7 +499,7 @@ const HomePage = () => {
                         >
                             {user.avatar ? (
                                 <img 
-                                    src={`${user.avatar.startsWith('http') ? user.avatar : `http://localhost:8000${user.avatar}`}?t=${Date.now()}`}
+                                    src={`${getMediaUrl(user.avatar)}?t=${Date.now()}`}
                                     alt={`Avatar de ${user.prenom || user.username}`}
                                     className="homepage-avatar-img"
                                     onError={(e) => {
@@ -661,7 +662,7 @@ const HomePage = () => {
                                         <div className="homepage-resource-image">
                                             {ressource.couverture ? (
                                                 <img 
-                                                    src={`http://localhost:8000${ressource.couverture}`}
+                                                    src={getMediaUrl(ressource.couverture)}
                                                     alt={ressource.titre}
                                                     className="homepage-resource-img"
                                                     onError={(e) => {

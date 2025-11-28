@@ -1,10 +1,10 @@
 import axios from 'axios';
 import { getSession, clearSession } from './utils/auth';
+import { API_BASE_URL } from './config';
 
 // Base API configuration
-const API_BASE_URL = 'http://localhost:8000/api/bnn'; // Adjust this URL as needed
+// API_BASE_URL is now imported from config.js
 
-// Special API instance for avatar upload (longer timeout)
 const avatarApi = axios.create({
     baseURL: API_BASE_URL, // Use same base URL
     timeout: 30000, // Longer timeout for file uploads

@@ -19,6 +19,7 @@ import {
 import api, { favorisAPI } from './api';
 import { mockRessources, simulateApiCall } from './mockData';
 import './index.css';
+import { getMediaUrl, getFileUrl } from './config';
 
 const RessourceDetails = () => {
     const { id } = useParams();
@@ -218,7 +219,7 @@ const RessourceDetails = () => {
             await recordConsultation(ressource.id);
             
             // Ouvrir le fichier dans un nouvel onglet
-            const fullUrl = fileUrl.startsWith('http') ? fileUrl : `http://localhost:8000${fileUrl}`;
+            const fullUrl = getFileUrl(fileUrl);
             window.open(fullUrl, '_blank');
         } catch (error) {
             console.error('Erreur lors de l\'ouverture du fichier:', error);
@@ -231,7 +232,7 @@ const RessourceDetails = () => {
             // Enregistrer le téléchargement
             await recordDownload(ressource.id);
             
-            const fullUrl = fileUrl.startsWith('http') ? fileUrl : `http://localhost:8000${fileUrl}`;
+            const fullUrl = getFileUrl(fileUrl);
             
             // Déterminer l'extension du fichier
             const fileExtension = filename ? filename.split('.').pop() : fileUrl.split('.').pop();
@@ -321,7 +322,7 @@ const RessourceDetails = () => {
 
     // Fonction pour ouvrir un fichier
     const handleOpenFile = (fileUrl) => {
-        const fullUrl = fileUrl.startsWith('http') ? fileUrl : `http://localhost:8000${fileUrl}`;
+        const fullUrl = getFileUrl(fileUrl);
         window.open(fullUrl, '_blank');
     };
 
@@ -428,7 +429,7 @@ const RessourceDetails = () => {
                         {ressource.couverture && (
                             <div className="ressource-details-cover">
                                 <img 
-                                    src={ressource.couverture.startsWith('http') ? ressource.couverture : `http://localhost:8000${ressource.couverture}`}
+                                    src={getMediaUrl(ressource.couverture)}
                                     alt={ressource.titre}
                                     onError={(e) => {
                                         e.target.style.display = 'none';

@@ -23,6 +23,7 @@ import {
 import { getCurrentUser, logout, isAuthenticated, saveSession, getSession } from './utils/auth';
 import { userAPI, fileUtils, validators } from './api';
 import logoBlancImg from './assets/Logoblanc.png';
+import { getMediaUrl } from './config';
 
 function Profile() {
     const [user, setUser] = useState(null);
@@ -367,7 +368,7 @@ function Profile() {
                                             />
                                         ) : user.avatar ? (
                                             <img 
-                                                src={user.avatar.startsWith('http') ? user.avatar : `http://localhost:8000${user.avatar}`}
+                                                src={getMediaUrl(user.avatar)}
                                                 alt={`Avatar de ${user.prenom || user.username}`}
                                                 className="profile-avatar"
                                                 onError={(e) => {

@@ -14,6 +14,7 @@ import {
 } from 'react-icons/fa';
 import { favorisAPI } from './api';
 import { isAuthenticated, getCurrentUser } from './utils/auth';
+import { getMediaUrl } from './config';
 
 const FavorisPage = () => {
     const [favoris, setFavoris] = useState([]);
@@ -260,7 +261,7 @@ const FavorisPage = () => {
                                     <div className="favoris-card-image">
                                         {ressource.couverture ? (
                                             <img 
-                                                src={ressource.couverture.startsWith('http') ? ressource.couverture : `http://localhost:8000${ressource.couverture}`}
+                                                src={getMediaUrl(ressource.couverture)}
                                                 alt={ressource.titre}
                                                 onError={(e) => {
                                                     e.target.style.display = 'none';

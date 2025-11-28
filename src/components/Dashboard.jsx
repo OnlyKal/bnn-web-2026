@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { getAuthHeader, getCurrentUser, logout, isAuthenticated } from '../utils/auth';
+import { API_BASE_URL, getMediaUrl } from '../config';
 
 /**
  * Example component showing how to use authentication throughout the app
@@ -28,7 +29,7 @@ function Dashboard() {
 
     const fetchProtectedData = async () => {
         try {
-            const response = await axios.get('http://localhost:8000/api/bnn/protected-endpoint/', {
+            const response = await axios.get(`${API_BASE_URL}/protected-endpoint/`, {
                 headers: getAuthHeader()
             });
             
@@ -63,7 +64,7 @@ function Dashboard() {
                             Bienvenue, {user.prenom || user.username}!
                             {user.avatar_url && (
                                 <img 
-                                    src={`http://localhost:8000${user.avatar_url}`} 
+                                    src={getMediaUrl(user.avatar_url)} 
                                     alt="Avatar" 
                                     style={{ width: '32px', height: '32px', borderRadius: '50%', marginLeft: '0.5rem' }}
                                 />

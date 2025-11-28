@@ -1,8 +1,9 @@
 import axios from 'axios';
 import { getAuthHeader, logout } from '../utils/auth';
+import { API_BASE_URL } from '../config';
 
 // Base URL for API
-const API_BASE_URL = 'http://localhost:8000/api/bnn';
+// API_BASE_URL is now imported from config.js
 
 // Create axios instance
 const api = axios.create({

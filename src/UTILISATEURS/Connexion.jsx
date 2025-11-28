@@ -45,32 +45,41 @@ function Connexion() {
                 password: password
             });
 
-            if (response.status === 200) {
+            // Normalize different API response shapes: token may be at response.token, response.data.token, or response.access
+            const token = response?.token || response?.data?.token || response?.access || null;
+            const userData = response?.data || response?.user || response;
+
+            if (token) {
                 // Save session
-                saveSession(response.token, response.data);
-                
+                saveSession(token, userData);
+
                 setSuccess(response.message || 'Connexion réussie !');
-                
+
                 // Clear form
                 setUsername('');
                 setPassword('');
-                
+
                 // Redirect to HomePage after successful login
                 setTimeout(() => {
-                    console.log('User logged in successfully:', response.data);
+                    console.log('User logged in successfully:', userData);
                     navigate('/home');
                 }, 1000);
             } else {
-                setError(response.message || 'Échec de la connexion');
+                // Show API message if provided, otherwise standardize the message
+                setError(response?.message || "Nom d'utilisateur ou mot de passe incorrect.");
             }
         } catch (err) {
             console.error('Login error:', err);
             if (err.response) {
-                // Server responded with error status
-                const errorMessage = err.response.data?.message || 
-                                   err.response.data?.error || 
-                                   'Erreur de connexion';
-                setError(errorMessage);
+                // If server indicates unauthorized/invalid credentials, show standardized message
+                if (err.response.status === 401 || err.response.status === 400) {
+                    setError("Nom d'utilisateur ou mot de passe incorrect.");
+                } else {
+                    const errorMessage = err.response.data?.message || 
+                                       err.response.data?.error || 
+                                       'Erreur de connexion';
+                    setError(errorMessage);
+                }
             } else if (err.request) {
                 // Network error
                 setError('Erreur de réseau. Vérifiez votre connexion internet.');
