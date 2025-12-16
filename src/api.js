@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { getSession, clearSession } from './utils/auth';
+import { getSession, clearSession, saveSession } from './utils/auth';
 import { API_BASE_URL } from './config';
 
 // Base API configuration
@@ -32,7 +32,7 @@ avatarApi.interceptors.request.use(
 // Create axios instance
 const api = axios.create({
     baseURL: API_BASE_URL,
-    timeout: 10000,
+    timeout: 30000, // Increased from 10s to 30s for heavy API calls like /ressource/all/
     headers: {
         'Content-Type': 'application/json',
     },
@@ -54,15 +54,76 @@ api.interceptors.request.use(
     }
 );
 
-// Response interceptor for error handling
+// Response interceptor for error handling and automatic token refresh
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+    failedQueue.forEach(prom => {
+        if (error) {
+            prom.reject(error);
+        } else {
+            prom.resolve(token);
+        }
+    });
+    
+    isRefreshing = false;
+    failedQueue = [];
+};
+
 api.interceptors.response.use(
     (response) => response,
-    (error) => {
-        // If unauthorized, clear session and redirect to login
-        if (error.response?.status === 401) {
-            clearSession();
-            window.location.href = '/login';
+    async (error) => {
+        const originalRequest = error.config;
+        
+        // If unauthorized and not already retrying
+        if (error.response?.status === 401 && !originalRequest._retry) {
+            if (isRefreshing) {
+                // Queue the request
+                return new Promise((resolve, reject) => {
+                    failedQueue.push({ resolve, reject });
+                }).then(token => {
+                    originalRequest.headers.Authorization = `Bearer ${token}`;
+                    return api(originalRequest);
+                }).catch(err => Promise.reject(err));
+            }
+            
+            originalRequest._retry = true;
+            isRefreshing = true;
+            
+            try {
+                console.log('🔄 Attempting to refresh token...');
+                const response = await api.post('/auth/refresh/');
+                const newToken = response.data.token || response.data;
+                
+                // Get current user data
+                const { userData } = getSession();
+                
+                // Save new token
+                saveSession(newToken, userData);
+                
+                console.log('✅ Token refreshed successfully');
+                
+                // Update original request with new token
+                originalRequest.headers.Authorization = `Bearer ${newToken}`;
+                
+                // Process queued requests
+                processQueue(null, newToken);
+                
+                // Retry original request
+                return api(originalRequest);
+            } catch (refreshError) {
+                console.error('❌ Token refresh failed:', refreshError);
+                
+                // Clear session and redirect to login
+                clearSession();
+                processQueue(refreshError, null);
+                window.location.href = '/login';
+                
+                return Promise.reject(refreshError);
+            }
         }
+        
         return Promise.reject(error);
     }
 );
@@ -326,8 +387,8 @@ export const validators = {
     },
 
     validatePassword: (password) => {
-        // Must be at least 8 characters
-        return password && password.length >= 8;
+        // Must be at least 4 characters
+        return password && password.length >= 4;
     },
 
     validatePasswordChange: (oldPassword, newPassword, confirmPassword) => {

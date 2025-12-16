@@ -37,29 +37,82 @@ const RessourceDetails = () => {
                 setLoading(true);
                 setError('');
                 
-                // Try API first, then mock data
+                console.log('🔍 Fetching ressource details for ID:', id);
+                
+                // Use the same API endpoint as HomePage - /ressources/
                 try {
-                    const response = await api.get(`/ressource/${id}/`);
-                    console.log('Detail API Response:', response.data);
-                    const ressourceData = response.data.data || response.data;
-                    setRessource(ressourceData);
+                    const response = await api.get('/ressources/');
+                    console.log('Got resources from /ressources/, searching for ID:', id);
                     
-                    // Check if resource is in favorites
-                    checkFavoriteStatus(ressourceData.id);
-                } catch (apiError) {
-                    console.log('API not available for details, using mock data');
-                    // Find in mock data
-                    const mockData = mockRessources.results.data.find(r => r.id.toString() === id);
+                    let ressourceData = null;
+                    
+                    // Handle the same structure as HomePage
+                    if (response.data.results && response.data.results.data && Array.isArray(response.data.results.data)) {
+                        ressourceData = response.data.results.data.find(r => r.id.toString() === id);
+                    } else if (Array.isArray(response.data.data)) {
+                        ressourceData = response.data.data.find(r => r.id.toString() === id);
+                    } else if (Array.isArray(response.data)) {
+                        ressourceData = response.data.find(r => r.id.toString() === id);
+                    }
+                    
+                    if (ressourceData && ressourceData.id) {
+                        console.log('✅ Ressource found:', ressourceData);
+                        setRessource(ressourceData);
+                        checkFavoriteStatus(ressourceData.id);
+                        return;
+                    } else {
+                        console.warn('Ressource not found in current page, trying to search by type or fetch specific page');
+                        // If not found in first page, try other sources
+                        throw new Error('Not found in first page');
+                    }
+                } catch (error) {
+                    console.warn('Could not find in /ressources/:', error.message);
+                    
+                    // Try /ressource/all/ as backup
+                    try {
+                        console.log('Trying /ressource/all/ ...');
+                        const response = await api.get('/ressource/all/');
+                        
+                        let ressourceData = null;
+                        if (response.data.results && response.data.results.data && Array.isArray(response.data.results.data)) {
+                            ressourceData = response.data.results.data.find(r => r.id.toString() === id);
+                        } else if (Array.isArray(response.data.data)) {
+                            ressourceData = response.data.data.find(r => r.id.toString() === id);
+                        } else if (Array.isArray(response.data)) {
+                            ressourceData = response.data.find(r => r.id.toString() === id);
+                        }
+                        
+                        if (ressourceData && ressourceData.id) {
+                            console.log('✅ Ressource found in /ressource/all/:', ressourceData);
+                            setRessource(ressourceData);
+                            checkFavoriteStatus(ressourceData.id);
+                            return;
+                        }
+                    } catch (error2) {
+                        console.warn('Could not fetch from /ressource/all/:', error2.message);
+                    }
+                    
+                    // Last resort: Try mock data
+                    console.log('Trying mock data...');
+                    let mockData = null;
+                    
+                    if (mockRessources.results && mockRessources.results.data) {
+                        mockData = mockRessources.results.data.find(r => r.id.toString() === id);
+                    } else if (Array.isArray(mockRessources)) {
+                        mockData = mockRessources.find(r => r.id.toString() === id);
+                    }
+                    
                     if (mockData) {
+                        console.log('✅ Ressource found in mock data:', mockData);
                         setRessource(mockData);
-                        // Check if resource is in favorites
                         checkFavoriteStatus(mockData.id);
                     } else {
+                        console.error('❌ Ressource not found anywhere. ID:', id);
                         setError('Ressource non trouvée');
                     }
                 }
             } catch (error) {
-                console.error('Erreur lors du chargement des détails:', error);
+                console.error('❌ Erreur lors du chargement des détails:', error);
                 setError('Erreur lors du chargement des détails');
             } finally {
                 setLoading(false);
@@ -74,10 +127,16 @@ const RessourceDetails = () => {
     // Vérifier le statut des favoris
     const checkFavoriteStatus = async (ressourceId) => {
         try {
+            if (!ressourceId) {
+                console.warn('No ressource ID provided for favorite check');
+                return;
+            }
             const isInFavorites = await favorisAPI.checkFavori(ressourceId);
             setIsFavorite(isInFavorites);
         } catch (error) {
             console.warn('Erreur lors de la vérification des favoris:', error);
+            // Don't block display on favorite check error
+            setIsFavorite(false);
         }
     };
 

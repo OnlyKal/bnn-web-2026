@@ -68,7 +68,7 @@ function Inscription() {
         // Format validation
         if (!validators.validateUsername(formData.username)) return "Le nom d'utilisateur doit contenir 3-20 caractères (lettres, chiffres, _)";
         if (!validators.validateEmail(formData.email)) return "Format d'email invalide";
-        if (!validators.validatePassword(formData.password)) return "Le mot de passe doit commencer par 4";
+        if (!validators.validatePassword(formData.password)) return "Le mot de passe doit contenir au moins 4 caractères";
         if (!validators.validatePhone(formData.telephone)) return "Le téléphone doit commencer par +243 suivi de 9 chiffres (ex: +243999999999)";
 
         // Password confirmation

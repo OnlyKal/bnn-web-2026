@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FaSearch, FaUniversity, FaBuilding } from 'react-icons/fa';
 import { isAuthenticated, logout } from '../utils/auth';
+import { getAssetUrl } from '../config';
 import etablissementsData from '../assets/etab.json';
 
 function SelectUniversite() {
@@ -141,7 +142,7 @@ function SelectUniversite() {
                   <div className="universite-logo">
                     {u.path ? (
                       <img 
-                        src={`/src/assets/${u.path}`} 
+                        src={getAssetUrl(u.path)} 
                         alt={`Logo ${u.name}`}
                         className="logo-image"
                         onError={(e) => {
