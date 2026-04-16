@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
     FaArrowLeft, 
     FaDownload, 
@@ -14,35 +14,62 @@ import {
     FaBook,
     FaGlobe,
     FaMapMarkerAlt,
-    FaHeart
+    FaHeart,
+    FaMarkdown,
+    FaFileCode,
+    FaArrowAltCircleDown
 } from 'react-icons/fa';
 import api, { favorisAPI } from './api';
 import { mockRessources, simulateApiCall } from './mockData';
 import './index.css';
 import { getMediaUrl, getFileUrl } from './config';
+import { getSession } from './utils/auth';
+import { EpubViewer } from 'react-epub-viewer';
 
 const RessourceDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
     const [ressource, setRessource] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [isFavorite, setIsFavorite] = useState(false);
     const [favoriteLoading, setFavoriteLoading] = useState(false);
+    const [viewerOpen, setViewerOpen] = useState(false);
+    const [viewerType, setViewerType] = useState(null);
+    const [viewerUrl, setViewerUrl] = useState('');
+    const [viewerTitle, setViewerTitle] = useState('');
+    const [viewerLoading, setViewerLoading] = useState(false);
+    const [viewerError, setViewerError] = useState('');
+    const [viewerObjectUrl, setViewerObjectUrl] = useState('');
+    const [viewerEpubHeaders, setViewerEpubHeaders] = useState({});
+    const [epubRenderKey, setEpubRenderKey] = useState(0);
+    const [epubReady, setEpubReady] = useState(false);
+    const epubViewerRef = useRef(null);
 
-    // Récupérer les détails de la ressource
+    // Récupérer les détails de la ressource depuis le state ou depuis l'API en dernier recours
     useEffect(() => {
         const fetchRessourceDetails = async () => {
             try {
                 setLoading(true);
                 setError('');
                 
-                console.log('🔍 Fetching ressource details for ID:', id);
+                // Essayer d'obtenir la ressource depuis le state passé par la navigation
+                if (location.state?.ressource) {
+                    // console.log('✅ Ressource trouvée dans le state:', location.state.ressource);
+                    setRessource(location.state.ressource);
+                    checkFavoriteStatus(location.state.ressource.id);
+                    setLoading(false);
+                    return;
+                }
+                
+                // Si pas dans le state, essayer l'API (fallback)
+                // console.log('🔍 Ressource non trouvée dans le state, tentative API...');
                 
                 // Use the same API endpoint as HomePage - /ressources/
                 try {
                     const response = await api.get('/ressources/');
-                    console.log('Got resources from /ressources/, searching for ID:', id);
+                    // console.log('Got resources from /ressources/, searching for ID:', id);
                     
                     let ressourceData = null;
                     
@@ -56,7 +83,7 @@ const RessourceDetails = () => {
                     }
                     
                     if (ressourceData && ressourceData.id) {
-                        console.log('✅ Ressource found:', ressourceData);
+                        // console.log('✅ Ressource found from API:', ressourceData);
                         setRessource(ressourceData);
                         checkFavoriteStatus(ressourceData.id);
                         return;
@@ -70,7 +97,7 @@ const RessourceDetails = () => {
                     
                     // Try /ressource/all/ as backup
                     try {
-                        console.log('Trying /ressource/all/ ...');
+                        // console.log('Trying /ressource/all/ ...');
                         const response = await api.get('/ressource/all/');
                         
                         let ressourceData = null;
@@ -83,7 +110,7 @@ const RessourceDetails = () => {
                         }
                         
                         if (ressourceData && ressourceData.id) {
-                            console.log('✅ Ressource found in /ressource/all/:', ressourceData);
+                            // console.log('✅ Ressource found in /ressource/all/:', ressourceData);
                             setRessource(ressourceData);
                             checkFavoriteStatus(ressourceData.id);
                             return;
@@ -93,7 +120,7 @@ const RessourceDetails = () => {
                     }
                     
                     // Last resort: Try mock data
-                    console.log('Trying mock data...');
+                    // console.log('Trying mock data...');
                     let mockData = null;
                     
                     if (mockRessources.results && mockRessources.results.data) {
@@ -103,7 +130,7 @@ const RessourceDetails = () => {
                     }
                     
                     if (mockData) {
-                        console.log('✅ Ressource found in mock data:', mockData);
+                        // console.log('✅ Ressource found in mock data:', mockData);
                         setRessource(mockData);
                         checkFavoriteStatus(mockData.id);
                     } else {
@@ -122,7 +149,7 @@ const RessourceDetails = () => {
         if (id) {
             fetchRessourceDetails();
         }
-    }, [id]);
+    }, [id, location.state]);
 
     // Vérifier le statut des favoris
     const checkFavoriteStatus = async (ressourceId) => {
@@ -246,11 +273,11 @@ const RessourceDetails = () => {
     // Fonction pour enregistrer une consultation
     const recordConsultation = async (ressourceId) => {
         try {
-            console.log('🔄 Enregistrement consultation pour ressource:', ressourceId);
+            // console.log('🔄 Enregistrement consultation pour ressource:', ressourceId);
             const response = await api.post('/consultations/', {
                 ressource_id: ressourceId
             });
-            console.log('✅ Consultation enregistrée:', response.data);
+            // console.log('✅ Consultation enregistrée:', response.data);
         } catch (error) {
             console.error('❌ Erreur lors de l\'enregistrement de la consultation:', error.response?.data || error.message);
             // Ne pas bloquer l'action si l'enregistrement échoue
@@ -260,25 +287,169 @@ const RessourceDetails = () => {
     // Fonction pour enregistrer un téléchargement
     const recordDownload = async (ressourceId) => {
         try {
-            console.log('🔄 Enregistrement téléchargement pour ressource:', ressourceId);
+            // console.log('🔄 Enregistrement téléchargement pour ressource:', ressourceId);
             const response = await api.post('/downloads/', {
                 ressource_id: ressourceId
             });
-            console.log('✅ Téléchargement enregistré:', response.data);
+            // console.log('✅ Téléchargement enregistré:', response.data);
         } catch (error) {
             console.error('❌ Erreur lors de l\'enregistrement du téléchargement:', error.response?.data || error.message);
             // Ne pas bloquer l'action si l'enregistrement échoue
         }
     };
 
+    const getFileExtension = (fileUrl, format) => {
+        if (format) return format.toLowerCase().trim();
+        if (!fileUrl) return '';
+        const cleanUrl = fileUrl.split('?')[0];
+        const ext = cleanUrl.split('.').pop();
+        return (ext || '').toLowerCase().trim();
+    };
+
+    const getReadableType = (file, ressource) => {
+        const rawFormat = (file?.format || ressource?.format || '').toString().toLowerCase().trim().replace('.', '');
+        const rawFilePath = (file?.fichier || '').toString();
+        const cleanPath = rawFilePath.split('?')[0].toLowerCase();
+
+        const isPdf =
+            rawFormat === 'pdf' ||
+            rawFormat === 'application/pdf' ||
+            cleanPath.endsWith('.pdf');
+
+        const isEpub =
+            rawFormat === 'epub' ||
+            rawFormat === 'application/epub+zip' ||
+            cleanPath.endsWith('.epub');
+
+        const VIDEO_EXTS = ['mp4', 'webm', 'ogg', 'mov', 'avi', 'mkv'];
+        const isVideo =
+            VIDEO_EXTS.includes(rawFormat) ||
+            VIDEO_EXTS.some(ext => cleanPath.endsWith('.' + ext));
+
+        if (isPdf) return 'pdf';
+        if (isEpub) return 'epub';
+        if (isVideo) return 'video';
+        return null;
+    };
+
+    const fetchFileBlobWithAuth = async (fileUrl, mimeType) => {
+        try {
+            const response = await api.get(fileUrl, { responseType: 'blob' });
+            return response.data;
+        } catch (axiosError) {
+            console.warn('Axios blob fetch failed, fallback to fetch:', axiosError);
+            const { token } = getSession();
+            const headers = {};
+            if (token) {
+                const authToken = token.startsWith('Bearer ') || token.startsWith('Token ') ? token : `Bearer ${token}`;
+                headers.Authorization = authToken;
+            }
+            const response = await fetch(fileUrl, { headers });
+            if (!response.ok) {
+                throw new Error(`File fetch failed: ${response.status}`);
+            }
+            const buffer = await response.arrayBuffer();
+            return new Blob([buffer], { type: mimeType });
+        }
+    };
+
+    const isLikelyValidEpubBlob = async (blob) => {
+        try {
+            if (!blob || blob.size < 4) return false;
+            const buffer = await blob.slice(0, 4).arrayBuffer();
+            const bytes = new Uint8Array(buffer);
+            // EPUB is a ZIP container => starts with PK\x03\x04 or PK signatures
+            return bytes[0] === 0x50 && bytes[1] === 0x4B;
+        } catch (error) {
+            console.warn('EPUB blob validation failed:', error);
+            return false;
+        }
+    };
+
     // Fonction pour ouvrir/consulter un fichier
-    const handleOpen = async (fileUrl) => {
+    const handleOpen = async (file) => {
         try {
             // Enregistrer la consultation
             await recordConsultation(ressource.id);
-            
-            // Ouvrir le fichier dans un nouvel onglet
+            const fileUrl = file?.fichier || file;
+            const fileTitle = file?.titre || ressource.titre || 'Document';
+            const extension = getReadableType(file, ressource) || getFileExtension(fileUrl, file?.format || ressource.format);
             const fullUrl = getFileUrl(fileUrl);
+
+            console.log('📖 handleOpen:', {
+                fileUrl,
+                detectedType: extension,
+                format: file?.format || ressource.format,
+                fullUrl
+            });
+
+            if (extension === 'video') {
+                setViewerType('video');
+                setViewerTitle(fileTitle);
+                setViewerUrl(fullUrl);
+                setViewerError('');
+                setViewerLoading(false);
+                setViewerOpen(true);
+                return;
+            }
+
+            if (extension === 'pdf' || extension === 'epub') {
+                setViewerType(extension);
+                setViewerTitle(fileTitle);
+                setViewerUrl('');
+                setViewerError('');
+                setViewerLoading(extension === 'pdf');
+                setEpubReady(false);
+                setViewerOpen(true);
+                if (viewerObjectUrl) {
+                    URL.revokeObjectURL(viewerObjectUrl);
+                    setViewerObjectUrl('');
+                }
+
+                try {
+                    const mimeType = extension === 'pdf' ? 'application/pdf' : 'application/epub+zip';
+                    // console.log('📥 Fetching file with auth:', { fullUrl, mimeType, extension });
+                    const blob = await fetchFileBlobWithAuth(fullUrl, mimeType);
+                    // console.log('✅ Blob received:', { size: blob.size, type: blob.type });
+
+                    if (extension === 'epub') {
+                        // console.log('🔍 Validating EPUB blob...');
+                        const validEpub = await isLikelyValidEpubBlob(blob);
+                        // console.log('EPUB validation result:', validEpub);
+                        if (!validEpub) {
+                            throw new Error('Invalid EPUB blob content');
+                        }
+                    }
+
+                    const objectUrl = URL.createObjectURL(blob);
+                    // console.log('🔗 Object URL created:', objectUrl);
+                    setViewerObjectUrl(objectUrl);
+                    setViewerUrl(objectUrl);
+                    if (extension === 'epub') {
+                        setViewerEpubHeaders({});
+                        setEpubRenderKey(prev => prev + 1);
+                        // console.log('📚 EPUB viewer initialized with render key');
+                        setViewerLoading(false);
+                    } else {
+                        setViewerLoading(false);
+                    }
+                } catch (fetchError) {
+                    console.warn('❌ File fetch with auth failed:', fetchError);
+                    // console.log('🔄 Trying direct URL as fallback for', extension);
+                    
+                    // Pour les EPUBs aussi, essayer l'URL directe comme fallback
+                    setViewerUrl(fullUrl);
+                    if (extension === 'epub') {
+                        setViewerEpubHeaders({});
+                        setEpubRenderKey(prev => prev + 1);
+                        // console.log('📚 EPUB viewer initialized with direct URL');
+                    }
+                    setViewerLoading(false);
+                }
+                return;
+            }
+
+            // Fallback: ouvrir dans un nouvel onglet pour les autres formats
             window.open(fullUrl, '_blank');
         } catch (error) {
             console.error('Erreur lors de l\'ouverture du fichier:', error);
@@ -390,13 +561,48 @@ const RessourceDetails = () => {
         return 'showDirectoryPicker' in window;
     };
 
+
+    const closeViewer = () => {
+        setViewerOpen(false);
+        setViewerType(null);
+        setViewerUrl('');
+        setViewerTitle('');
+        setViewerError('');
+        setViewerLoading(false);
+        setEpubReady(false);
+        setViewerEpubHeaders({});
+        if (viewerObjectUrl) {
+            URL.revokeObjectURL(viewerObjectUrl);
+            setViewerObjectUrl('');
+        }
+    };
+
+    useEffect(() => {
+        if (!viewerOpen || viewerType !== 'epub' || !viewerUrl || epubReady || viewerError) {
+            return;
+        }
+
+        // console.log('⏱️ EPUB timeout timer started (20s)');
+        const timeoutId = setTimeout(() => {
+            console.warn('⏰ EPUB loading timeout reached');
+            setViewerError('Le fichier EPUB a pris trop de temps à se charger.');
+            setViewerLoading(false);
+        }, 20000); // Increased from 12s to 20s for larger EPUB files
+
+        return () => {
+            // console.log('🧹 EPUB timeout timer cleared');
+            clearTimeout(timeoutId);
+        };
+    }, [viewerOpen, viewerType, viewerUrl, epubReady, viewerError]);
+
+
     if (loading) {
         return (
             <div className="loading-page">
                 <div className="loading-header">
                     <div className="loading-header-content">
                         <button
-                            onClick={() => navigate('/')}
+                            onClick={() => navigate(-1)}
                             className="loading-back-btn"
                         >
                             <FaArrowLeft />
@@ -418,7 +624,7 @@ const RessourceDetails = () => {
                 <div className="error-header">
                     <div className="error-header-content">
                         <button
-                            onClick={() => navigate('/')}
+                            onClick={() => navigate(-1)}
                             className="error-back-btn"
                         >
                             <FaArrowLeft />
@@ -445,11 +651,85 @@ const RessourceDetails = () => {
 
     return (
         <div className="ressource-details-page">
+            {viewerOpen && (
+                <div className="viewer-overlay" role="dialog" aria-modal="true">
+                    <div className="viewer-modal">
+                        <div className="viewer-header">
+                            <div className="viewer-title">
+                                {viewerTitle}
+                                <span className="viewer-type-badge">{viewerType?.toUpperCase()}</span>
+                            </div>
+                            <div className="viewer-actions">
+                                <button className="viewer-close-btn" onClick={closeViewer}>
+                                    Fermer
+                                </button>
+                            </div>
+                        </div>
+                        <div className="viewer-body">
+                            {viewerLoading && (
+                                <div className="viewer-loading">Chargement...</div>
+                            )}
+                            {viewerError && (
+                                <div className="viewer-error">{viewerError}</div>
+                            )}
+                            {!viewerError && viewerType === 'pdf' && (
+                                <iframe
+                                    className="viewer-iframe"
+                                    src={viewerUrl}
+                                    title={viewerTitle}
+                                />
+                            )}
+                            {!viewerError && viewerType === 'video' && viewerUrl && (
+                                <div className="viewer-video">
+                                    <video
+                                        key={viewerUrl}
+                                        controls
+                                        autoPlay
+                                        style={{ width: '100%', height: '100%', maxHeight: '100%', background: '#000', outline: 'none' }}
+                                    >
+                                        <source src={viewerUrl} />
+                                        Votre navigateur ne supporte pas la lecture vidéo.
+                                    </video>
+                                </div>
+                            )}
+                            {!viewerError && viewerType === 'epub' && viewerUrl && (
+                                <div className="viewer-epub">
+                                    <div style={{ position: 'relative', height: '100%' }}>
+                                    <EpubViewer
+                                        key={epubRenderKey}
+                                        url={viewerUrl}
+                                        ref={epubViewerRef}
+                                        epubFileOptions={{ requestHeaders: viewerEpubHeaders }}
+                                        style={{ height: '100%' }}
+                                        bookChanged={(book) => {
+                                            // console.log('📖 EPUB bookChanged event:', book ? 'loaded' : 'null');
+                                            setEpubReady(true);
+                                            setViewerLoading(false);
+                                        }}
+                                        renditionChanged={(rendition) => {
+                                            // console.log('🎨 EPUB renditionChanged event:', rendition ? 'ready' : 'null');
+                                            setEpubReady(true);
+                                            setViewerLoading(false);
+                                        }}
+                                        pageChanged={(page) => {
+                                            // console.log('📄 EPUB pageChanged event:', page);
+                                            setEpubReady(true);
+                                            setViewerLoading(false);
+                                        }}
+                                        loadingView={<div className="viewer-loading">Chargement EPUB...</div>}
+                                    />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
             {/* En-tête */}
             <div className="ressource-details-header">
                 <div className="ressource-details-header-content">
                     <button
-                        onClick={() => navigate('/')}
+                        onClick={() => navigate(-1)}
                         className="ressource-details-back-btn"
                     >
                         <FaArrowLeft />
@@ -553,26 +833,33 @@ const RessourceDetails = () => {
                                             
                                             <div className="file-card-actions">
                                                 <button
-                                                    onClick={() => handleOpen(fichier.fichier)}
+                                                    onClick={() => handleOpen(fichier)}
                                                     className="file-action-btn file-open-btn"
                                                 >
                                                     <FaEye />
-                                                    Ouvrir
+                                                    OUVRIR 
                                                 </button>
-                                                <button
-                                                    onClick={() => handleDownload(fichier.fichier, fichier.titre || ressource.titre)}
-                                                    className="file-action-btn file-download-btn"
-                                                    title={`Téléchargement automatique avec nom organisé: BNN_${getFileTypeFolder(fichier.format || ressource.format)}_`}
-                                                >
-                                                    <FaDownload />
-                                                    Télécharger
-                                                </button>
+
                                             </div>
                                         </div>
                                     ))}
                                 </div>
                             </div>
                         )}
+
+                        <div style={{
+                            marginTop: '1.5rem',
+                            padding: '1rem 1.5rem',
+                            backgroundColor: '#fcfcfc',
+                            border: '1px solid #dfdedd',
+                            borderRadius: '0.5rem',
+                            textAlign: 'center',
+                            color: '#7a7a7a',
+                            fontWeight: '500',
+                            fontSize: '0.95rem'
+                        }}>
+                            <FaArrowAltCircleDown/> Cette plateforme est dédiée à la consultation uniquement.
+                        </div>
                     </div>
 
                     {/* Sidebar avec informations */}

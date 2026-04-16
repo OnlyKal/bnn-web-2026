@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { FaSearch, FaUniversity, FaBuilding } from 'react-icons/fa';
 import { isAuthenticated, logout } from '../utils/auth';
 import { getAssetUrl } from '../config';
-import etablissementsData from '../assets/etab.json';
+import etablissementsData from '../assets/etab_update.json';
 
 function SelectUniversite() {
   const [query, setQuery] = useState('');
@@ -50,7 +50,27 @@ function SelectUniversite() {
     navigate('/provinces');
   };
 
-  const universites = etablissementsData || [];
+  // Normalize a province name: remove accents, lowercase, replace spaces with hyphens
+  const normalizeProv = (str) =>
+    (str || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/\s+/g, '-');
+
+  // Find the matching key in etab_update.json for the selected province
+  const getProvKey = (provNom) => {
+    if (!provNom) return null;
+    const normalized = normalizeProv(provNom);
+    return Object.keys(etablissementsData).find(
+      (key) => normalizeProv(key) === normalized
+    ) || null;
+  };
+
+  const provKey = getProvKey(selectedProvince?.nom);
+  const universites = provKey
+    ? (etablissementsData[provKey] || [])
+    : Object.values(etablissementsData).flat();
 
   const filtered = universites.filter((u) => {
     const q = query.trim().toLowerCase();

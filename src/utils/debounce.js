@@ -12,7 +12,7 @@
  * 
  * @example
  * const debouncedSearch = debounce((query) => {
- *     console.log('Searching:', query);
+ *     // console.log('Searching:', query);
  * }, 500);
  * 
  * searchInput.addEventListener('input', (e) => {
@@ -46,7 +46,7 @@ export const debounce = (func, delay = 300) => {
  * 
  * @example
  * const throttledScroll = throttle(() => {
- *     console.log('Scrolling');
+ *     // console.log('Scrolling');
  * }, 1000);
  * 
  * window.addEventListener('scroll', throttledScroll);

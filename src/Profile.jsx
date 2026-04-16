@@ -107,14 +107,14 @@ function Profile() {
             setError('');
 
             // Convert to Base64
-            console.log('Converting file to Base64...');
+            // console.log('Converting file to Base64...');
             const base64 = await fileUtils.fileToBase64(file);
-            console.log('Base64 conversion complete, length:', base64.length);
+            // console.log('Base64 conversion complete, length:', base64.length);
 
             // Send to API
-            console.log('Sending avatar update request...');
+            // console.log('Sending avatar update request...');
             const response = await userAPI.updateAvatar({ avatar: base64 });
-            console.log('Avatar update response:', response);
+            // console.log('Avatar update response:', response);
 
             // Update user data
             const updatedUser = { ...user, avatar: response.avatar };
@@ -184,13 +184,13 @@ function Profile() {
             }
 
             // Send to API
-            console.log('Sending password change request...');
+            // console.log('Sending password change request...');
             const response = await userAPI.changePassword({
                 old_password: passwordData.oldPassword,
                 new_password: passwordData.newPassword
             });
 
-            console.log('Password change response:', response);
+            // console.log('Password change response:', response);
             setSuccess('Mot de passe mis à jour avec succès !');
             
             // Reset form and close modal
@@ -228,13 +228,13 @@ function Profile() {
         try {
             // Debug: Check authentication
             const { token: authToken } = getSession();
-            console.log('Current auth token:', authToken ? `${authToken.substring(0, 20)}...` : 'No token found');
-            console.log('Is authenticated:', isAuthenticated());
+            // console.log('Current auth token:', authToken ? `${authToken.substring(0, 20)}...` : 'No token found');
+            // console.log('Is authenticated:', isAuthenticated());
             
             // Call the real API to update profile
-            console.log('Updating profile with:', formData);
+            // console.log('Updating profile with:', formData);
             const response = await userAPI.updateProfile(formData);
-            console.log('Profile update response:', response);
+            // console.log('Profile update response:', response);
             
             // Update local user data with the response
             const updatedUser = response.data;

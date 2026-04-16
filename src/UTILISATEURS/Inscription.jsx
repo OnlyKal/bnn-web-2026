@@ -16,6 +16,8 @@ import {
 } from 'react-icons/fa';
 import { authAPI, validators } from '../api';
 import { saveSession } from '../utils/auth';
+import { useToast } from '../hooks/useToast';
+import { ToastContainer } from '../components/ToastContainer';
 
 function Inscription() {
     const navigate = useNavigate();
@@ -38,8 +40,7 @@ function Inscription() {
     });
 
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState('');
+    const { toasts, removeToast, showError, showSuccess } = useToast();
 
     const goToLogin = () => {
         navigate('/login');
@@ -68,7 +69,7 @@ function Inscription() {
         // Format validation
         if (!validators.validateUsername(formData.username)) return "Le nom d'utilisateur doit contenir 3-20 caractères (lettres, chiffres, _)";
         if (!validators.validateEmail(formData.email)) return "Format d'email invalide";
-        if (!validators.validatePassword(formData.password)) return "Le mot de passe doit contenir au moins 4 caractères";
+        if (!validators.validatePassword(formData.password)) return "Le mot de passe doit contenir au moins 8 caractères";
         if (!validators.validatePhone(formData.telephone)) return "Le téléphone doit commencer par +243 suivi de 9 chiffres (ex: +243999999999)";
 
         // Password confirmation
@@ -92,13 +93,11 @@ function Inscription() {
 
         const validationError = validateForm();
         if (validationError) {
-            setError(validationError);
+            showError(validationError);
             return;
         }
 
         setLoading(true);
-        setError('');
-        setSuccess('');
 
         try {
             // Format the date to ISO format with timezone
@@ -121,9 +120,9 @@ function Inscription() {
             };
 
             const response = await authAPI.register(registrationData);
-            console.log('Registration response:', response);
+            // console.log('Registration response:', response);
             // Success - registration completed
-            setSuccess('Compte créé avec succès ! Redirection...');
+            showSuccess('Compte créé avec succès ! Redirection...');
 
             // If the API returns a token, save the session automatically
             if (response.token) {
@@ -131,7 +130,7 @@ function Inscription() {
 
                 // Redirect to home page after successful registration
                 setTimeout(() => {
-                    console.log('User registered and logged in:', response.user || response.data);
+                    // console.log('User registered and logged in:', response.user || response.data);
                     navigate('/home');
                 }, 2000);
             } else {
@@ -147,7 +146,7 @@ function Inscription() {
 
         } catch (err) {
             console.error('Registration error:', err);
-            setError(err.message || 'Erreur lors de la création du compte');
+            showError(err.message || 'Erreur lors de la création du compte');
         } finally {
             setLoading(false);
         }
@@ -164,6 +163,9 @@ function Inscription() {
 
     return (
         <div className="user-types-page">
+            {/* Toast Container */}
+            <ToastContainer toasts={toasts} onClose={removeToast} />
+
             {/* Header */}
             <header className="user-types-header">
                 <div className="user-types-header-content">
@@ -214,20 +216,7 @@ function Inscription() {
                         </p>
                     </div>
 
-                    {/* Error/Success Messages */}
-                    {error && (
-                        <div className="alert alert-error">
-                            <FaTimesCircle />
-                            {error}
-                        </div>
-                    )}
-
-                    {success && (
-                        <div className="alert alert-success">
-                            <FaCheckCircle />
-                            {success}
-                        </div>
-                    )}
+                    {/* Toasts are displayed in ToastContainer at the top of the page */}
 
                     {/* Check if all selections are made */}
                     {!selectedProvince || !selectedUserType || !selectedUniversite ? (
@@ -344,9 +333,9 @@ function Inscription() {
                                                 onChange={handleInputChange}
                                                 className="form-input"
                                                 disabled={loading}
-                                                placeholder="Doit commencer par 4 (ex: 4mypassword)"
+                                                placeholder="Minimum 8 caractères"
                                             />
-                                            <div className="input-helper">Le mot de passe doit commencer par le chiffre 4</div>
+                                            <div className="input-helper">Le mot de passe doit contenir au moins 8 caractères</div>
                                         </div>
 
                                         <div className="form-group">

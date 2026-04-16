@@ -273,13 +273,13 @@ try {
 
 ```javascript
 // ✅ BON
-console.log('🔄 Fetching resources...');
+// console.log('🔄 Fetching resources...');
 console.error('❌ API Error:', error);
 
 // ❌ MAUVAIS - Trop verbeux
-console.log('User object:', user);
-console.log('Response:', response);
-console.log('Starting fetch...');
+// console.log('User object:', user);
+// console.log('Response:', response);
+// console.log('Starting fetch...');
 ```
 
 ### Variables

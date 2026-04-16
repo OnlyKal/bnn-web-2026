@@ -16,7 +16,7 @@ import api from './api';
 const getFavorites = async () => {
     try {
         const response = await api.get('/favoris/');
-        console.log('Favoris:', response.data);
+        // console.log('Favoris:', response.data);
         return response.data.results || response.data;
     } catch (error) {
         console.error('Erreur:', error.message);
@@ -65,7 +65,7 @@ const loadInitialData = async () => {
 import { debounce } from './utils/debounce';
 
 const handleSearchChange = debounce((query) => {
-    console.log('Chercher:', query);
+    // console.log('Chercher:', query);
     // API call ici
 }, 500); // 500ms délai
 
@@ -362,7 +362,7 @@ const addToFavorites = async (ressourceId) => {
         return response;
     } catch (error) {
         if (error.message.includes('déjà')) {
-            console.log('Déjà en favoris');
+            // console.log('Déjà en favoris');
         } else {
             throw error;
         }
@@ -432,7 +432,7 @@ const recordConsultation = async (ressourceId) => {
             ressource_id: ressourceId
         });
         
-        console.log('Consultation enregistrée');
+        // console.log('Consultation enregistrée');
         return response.data;
     } catch (error) {
         // Non-bloquant si erreur
@@ -451,7 +451,7 @@ const recordDownload = async (ressourceId) => {
             ressource_id: ressourceId
         });
         
-        console.log('Téléchargement enregistré');
+        // console.log('Téléchargement enregistré');
         return response.data;
     } catch (error) {
         // Non-bloquant si erreur
@@ -587,7 +587,7 @@ function Component() {
                 // Handle response
             } catch (error) {
                 if (axios.isCancel(error)) {
-                    console.log('Request cancelled');
+                    // console.log('Request cancelled');
                 } else {
                     console.error('Error:', error);
                 }

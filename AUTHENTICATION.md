@@ -63,7 +63,7 @@ import { isAuthenticated, getCurrentUser } from './utils/auth';
 // Vérifier si l'utilisateur est connecté
 if (isAuthenticated()) {
     const user = getCurrentUser();
-    console.log('Utilisateur connecté:', user);
+    // console.log('Utilisateur connecté:', user);
 }
 ```
 
@@ -222,8 +222,8 @@ const SESSION_DURATION = import.meta.env.VITE_SESSION_DURATION_HOURS || 24;
 localStorage.setItem('debug', 'true');
 
 // Vérifier l'état de la session
-console.log('Session:', getSession());
-console.log('Authenticated:', isAuthenticated());
+// console.log('Session:', getSession());
+// console.log('Authenticated:', isAuthenticated());
 ```
 
 ## Migration depuis l'ancien système

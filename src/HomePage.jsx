@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
     FaSearch, 
@@ -17,7 +17,9 @@ import {
     FaFileWord,
     FaBuilding,
     FaThumbtack,
-    FaLightbulb
+    FaLightbulb,
+    FaExternalLinkAlt,
+    FaBars
 } from 'react-icons/fa';
 import api, { domainesAPI } from './api';
 import { isAuthenticated, getCurrentUser, logout } from './utils/auth';
@@ -39,6 +41,11 @@ const HomePage = () => {
         hasNext: false,
         hasPrevious: false
     });
+    const [paginationInfo, setPaginationInfo] = useState({
+        pageIndex: 1,         // Page number (1-based)
+        totalCount: 0,        // Total items available
+        pageSize: 450         // Items per page
+    });
     const [resourceTypes, setResourceTypes] = useState([]);
     const [loadingTypes, setLoadingTypes] = useState(false);
     const [activeTypeFilter, setActiveTypeFilter] = useState('all');
@@ -48,13 +55,86 @@ const HomePage = () => {
     const [selectedDomain, setSelectedDomain] = useState(null);
     const [searchSuggestions, setSearchSuggestions] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
+    
+    // Server-side search states
+    const [isSearchMode, setIsSearchMode] = useState(false);
+    const [searchResults, setSearchResults] = useState([]);
+    const [searchLoading, setSearchLoading] = useState(false);
+    const [searchPagination, setSearchPagination] = useState({
+        total_count: 0,
+        count: 0,
+        limit: 50,
+        offset: 0,
+        has_next: false,
+        has_previous: false
+    });
+    const [searchResourceTypes, setSearchResourceTypes] = useState([]);
+    const searchDebounceRef = useRef(null);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    
     const navigate = useNavigate();
     const location = useLocation();
+
+    // Save state to sessionStorage before navigating away
+    const saveHomePageState = () => {
+        const state = {
+            ressources,
+            searchTerm,
+            filteredRessources,
+            pagination,
+            paginationInfo,
+            resourceTypes,
+            activeTypeFilter,
+            allResources,
+            domaines,
+            selectedDomain,
+            isSearchMode,
+            searchResults,
+            searchPagination,
+            searchResourceTypes,
+            timestamp: Date.now()
+        };
+        sessionStorage.setItem('homePageState', JSON.stringify(state));
+        // console.log('💾 État de la page d\'accueil sauvegardé');
+    };
+
+    // Restore state from sessionStorage
+    const restoreHomePageState = () => {
+        try {
+            const savedState = sessionStorage.getItem('homePageState');
+            if (savedState) {
+                const state = JSON.parse(savedState);
+                // Check if state is not too old (5 minutes)
+                if (Date.now() - state.timestamp < 5 * 60 * 1000) {
+                    // console.log('♻️ Restauration de l\'état de la page d\'accueil');
+                    setRessources(state.ressources || []);
+                    setSearchTerm(state.searchTerm || '');
+                    setFilteredRessources(state.filteredRessources || []);
+                    setPagination(state.pagination || { next: null, previous: null, hasNext: false, hasPrevious: false });
+                    setPaginationInfo(state.paginationInfo || { pageIndex: 1, totalCount: 0, pageSize: 450 });
+                    setResourceTypes(state.resourceTypes || []);
+                    setActiveTypeFilter(state.activeTypeFilter || 'all');
+                    setAllResources(state.allResources || []);
+                    setDomaines(state.domaines || []);
+                    setSelectedDomain(state.selectedDomain || null);
+                    setIsSearchMode(state.isSearchMode || false);
+                    setSearchResults(state.searchResults || []);
+                    setSearchPagination(state.searchPagination || { total_count: 0, count: 0, limit: 50, offset: 0, has_next: false, has_previous: false });
+                    setSearchResourceTypes(state.searchResourceTypes || []);
+                    setLoading(false);
+                    return true;
+                }
+            }
+        } catch (error) {
+            console.error('Erreur lors de la restauration de l\'état:', error);
+        }
+        return false;
+    };
 
     // Function to refresh user data
     const refreshUserData = () => {
         const currentUser = getCurrentUser();
-        console.log('Refreshing user data:', currentUser);
+        // console.log('Refreshing user data:', currentUser);
         setUser(currentUser);
     };
 
@@ -65,10 +145,170 @@ const HomePage = () => {
         });
     };
 
+    // Server-side search function
+    const performServerSearch = async (query, offset = 0) => {
+        if (!query || query.trim().length < 2) {
+            setIsSearchMode(false);
+            setSearchResults([]);
+            return;
+        }
+
+        try {
+            setSearchLoading(true);
+            setIsSearchMode(true);
+            const trimmedQuery = query.trim();
+            // console.log('🔍 Searching server for:', trimmedQuery, 'offset:', offset);
+            // console.log('   Query params:', { q: trimmedQuery, limit: 50, offset: offset });
+
+            const response = await api.get('/ressources/search/', {
+                params: {
+                    q: trimmedQuery,
+                    limit: 50,
+                    offset: offset
+                }
+            });
+
+            // console.log('📊 Full API Response:', response.data);
+            
+            // Extract data - handle both direct array and nested structure
+            const data = Array.isArray(response.data) ? response.data : (response.data.data || []);
+            // console.log('✅ Extracted data:', data.length, 'items');
+            // console.log('   Data types:', data.map(r => ({ id: r.id, titre: r.titre })));
+            
+            const pagination = {
+                total_count: response.data.total_count || data.length,
+                count: response.data.count || data.length,
+                limit: response.data.limit || 50,
+                offset: response.data.offset || offset,
+                has_next: response.data.has_next || false,
+                has_previous: response.data.has_previous || false
+            };
+
+            // console.log('✅ Search results:', data.length, 'Total:', pagination.total_count);
+            // console.log('   Results titles:', data.map(r => r.titre).slice(0, 5));
+            // console.log('   Pagination:', pagination);
+
+            if (offset === 0) {
+                setSearchResults(data);
+            } else {
+                setSearchResults(prev => [...prev, ...data]);
+            }
+            setSearchPagination(pagination);
+
+            // Calculate type counts from search results
+            const typeCounts = {};
+            VALID_RESOURCE_TYPES.forEach(type => {
+                typeCounts[type] = 0;
+            });
+            data.forEach(ressource => {
+                const type = (ressource.type || '').toLowerCase().trim();
+                if (typeCounts.hasOwnProperty(type)) {
+                    typeCounts[type] += 1;
+                }
+            });
+            const searchTypes = buildResourceTypesArray(typeCounts, pagination.total_count);
+            setSearchResourceTypes(searchTypes);
+            
+            // console.log('   Type counts:', typeCounts);
+        } catch (error) {
+            console.error('❌ Search error:', error.message);
+            console.error('   Error details:', error.response?.data || error);
+            setSearchResults([]);
+            setIsSearchMode(false);
+        } finally {
+            setSearchLoading(false);
+        }
+    };
+
+    // Local search fallback - utilisé si la recherche serveur ne retourne rien
+    const performLocalSearch = (query) => {
+        // console.log('🔍 Fallback: Recherche locale dans les ressources chargées...');
+        
+        const queryLower = query.toLowerCase();
+        const localResults = allResources.filter(r => {
+            const titre = (r.titre || '').toLowerCase();
+            const description = (r.description || '').toLowerCase();
+            const domaine = (r.domaine?.nom || '').toLowerCase();
+            
+            return titre.includes(queryLower) || 
+                   description.includes(queryLower) || 
+                   domaine.includes(queryLower);
+        });
+        
+        // console.log('   Résultats locaux trouvés:', localResults.length);
+        return localResults;
+    };
+
+    // Enhanced server search with local fallback
+    const performServerSearchWithFallback = async (query, offset = 0) => {
+        try {
+            await performServerSearch(query, offset);
+            
+            // Si c'est la première page et aucun résultat, essayer la recherche locale
+            if (offset === 0 && searchResults.length === 0 && allResources.length > 0) {
+                // console.log('⚠️  API retourne 0 résultats, tentative de fallback local...');
+                const localResults = performLocalSearch(query);
+                
+                if (localResults.length > 0) {
+                    // console.log('✅ Résultats trouvés localement:', localResults.length);
+                    setSearchResults(localResults);
+                    setSearchPagination({
+                        total_count: localResults.length,
+                        count: localResults.length,
+                        limit: 50,
+                        offset: 0,
+                        has_next: localResults.length > 50,
+                        has_previous: false
+                    });
+                    
+                    // Recalculer les types
+                    const typeCounts = {};
+                    VALID_RESOURCE_TYPES.forEach(type => typeCounts[type] = 0);
+                    localResults.forEach(ressource => {
+                        const type = (ressource.type || '').toLowerCase().trim();
+                        if (typeCounts.hasOwnProperty(type)) typeCounts[type] += 1;
+                    });
+                    const searchTypes = buildResourceTypesArray(typeCounts, localResults.length);
+                    setSearchResourceTypes(searchTypes);
+                }
+            }
+        } catch (error) {
+            console.error('Erreur recherche serveur, fallback local:', error);
+            const localResults = performLocalSearch(query);
+            setSearchResults(localResults);
+            setIsSearchMode(true);
+        }
+    };
+
+    // Debounced search handler
+    const handleSearchChange = (value) => {
+        setSearchTerm(value);
+        
+        if (searchDebounceRef.current) {
+            clearTimeout(searchDebounceRef.current);
+        }
+
+        if (!value || value.trim().length < 2) {
+            setIsSearchMode(false);
+            setSearchResults([]);
+            return;
+        }
+
+        searchDebounceRef.current = setTimeout(() => {
+            performServerSearchWithFallback(value, 0);
+        }, 500);
+    };
+
+    // Load more search results
+    const handleSearchLoadMore = () => {
+        const nextOffset = searchPagination.offset + searchPagination.limit;
+        performServerSearch(searchTerm, nextOffset);
+    };
+
     // Fetch all resources for type filtering (with cache - 10 min TTL)
     const fetchAllResources = async () => {
         try {
-            console.log('🔄 Fetching ALL resources from /ressource/all/...');
+            // console.log('🔄 Fetching ALL resources from /ressource/all/...');
             const data = await cachedApiCall(
                 'homepage:allResources',
                 async () => {
@@ -76,7 +316,7 @@ const HomePage = () => {
                         const response = await api.get('/ressource/all/');
                         // Handle different response structures
                         const allResourcesData = response.data?.data || response.data?.results || response.data || [];
-                        console.log('✅ All resources fetched from API:', allResourcesData.length, 'items');
+                        // console.log('✅ All resources fetched from API:', allResourcesData.length, 'items');
                         return Array.isArray(allResourcesData) ? allResourcesData : [];
                     } catch (apiError) {
                         console.error('❌ /ressource/all/ failed:', apiError.message);
@@ -86,12 +326,12 @@ const HomePage = () => {
                 10 * 60 * 1000 // 10 minutes cache TTL
             );
             
-            console.log('✅ fetchAllResources returning:', data?.length || 0, 'resources');
+            // console.log('✅ fetchAllResources returning:', data?.length || 0, 'resources');
             setAllResources(data);
             return data;
         } catch (error) {
             console.warn('⚠️ Could not fetch all resources from /ressource/all/:', error.message);
-            console.log('📋 Will calculate types from paginated resources instead');
+            // console.log('📋 Will calculate types from paginated resources instead');
             return []; // Return empty - will use fallback to paginated resources
         }
     };
@@ -123,145 +363,123 @@ const HomePage = () => {
         }
     };
 
-    // Fetch resource types function
+    // Fetch resource types function - gets counts from API response
     const fetchResourceTypes = async () => {
         try {
             setLoadingTypes(true);
             
-            // Always use allResources to get ALL available types (not just paginated ones)
-            // This ensures the type filter shows all possible types
-            let resourcesForTypeCounting = allResources;
-            
-            // If allResources is empty, try to fetch directly
-            if (!resourcesForTypeCounting || resourcesForTypeCounting.length === 0) {
-                try {
-                    const response = await api.get('/ressource/all/');
-                    console.log('All Resources API Response:', response.data);
-                    
-                    // Handle different response structures
-                    resourcesForTypeCounting = response.data?.data || response.data?.results || response.data || [];
-                } catch (apiError) {
-                    console.warn('All resources API failed, attempting paginated fetch:', apiError);
-                    // Last resort: use paginated resources
-                    resourcesForTypeCounting = ressources;
-                }
+            try {
+                // Fetch the main API response to get type counts
+                const response = await api.get('/ressources/');
+                // console.log('📊 API Response for type counts:', response.data);
+                
+                // Extract type counts from response
+                const { typeCounts, totalCount } = extractTypeCountsFromResponse(response.data);
+                
+                // Build the types array for UI
+                const typesWithAll = buildResourceTypesArray(typeCounts, totalCount);
+                
+                // console.log('🎯 Final types array:', typesWithAll);
+                setResourceTypes(typesWithAll);
+                
+            } catch (apiError) {
+                console.warn('API failed for type counts, using default structure:', apiError);
+                
+                // If API fails, return all types with 0 count
+                const defaultTypeCounts = {};
+                VALID_RESOURCE_TYPES.forEach(type => {
+                    defaultTypeCounts[type] = 0;
+                });
+                
+                const typesWithAll = buildResourceTypesArray(defaultTypeCounts, 0);
+                setResourceTypes(typesWithAll);
             }
-            
-            // Extract and count types from ALL resources
-            const typeCounts = resourcesForTypeCounting.reduce((acc, resource) => {
-                const type = (resource.type || 'autre').toLowerCase().trim(); // Normalize to lowercase and trim
-                acc[type] = (acc[type] || 0) + 1;
-                return acc;
-            }, {});
-            
-            console.log('Type counts from resources:', typeCounts);
-            
-            // Create types array with counts
-            const types = Object.entries(typeCounts).map(([type, count]) => ({
-                type: type,
-                count: count,
-                label: type.charAt(0).toUpperCase() + type.slice(1)
-            }));
-            
-            // Add "Tous" option at the beginning
-            const allCount = resourcesForTypeCounting.length;
-            const typesWithAll = [
-                { type: 'all', count: allCount, label: 'Tous' },
-                ...types.sort((a, b) => a.label.localeCompare(b.label)) // Sort alphabetically
-            ];
-            
-            console.log('Final types with counts:', typesWithAll);
-            setResourceTypes(typesWithAll);
-            
         } catch (error) {
-            console.error('Erreur lors du chargement des types:', error);
-            setResourceTypes([
-                { type: 'all', count: (allResources && allResources.length > 0 ? allResources.length : ressources.length), label: 'Tous' }
-            ]);
+            console.error('❌ Erreur lors du chargement des types:', error);
+            
+            // Fallback: return minimal types structure
+            const defaultTypeCounts = {};
+            VALID_RESOURCE_TYPES.forEach(type => {
+                defaultTypeCounts[type] = 0;
+            });
+            const typesWithAll = buildResourceTypesArray(defaultTypeCounts, 0);
+            setResourceTypes(typesWithAll);
         } finally {
             setLoadingTypes(false);
         }
     };
 
-    // Function to calculate types from provided resources data (used during initialization)
-    const calculateResourceTypes = (resourcesData) => {
-        try {
-            console.log('=== 📊 calculateResourceTypes START ===');
-            console.log('Input resourcesData:', resourcesData?.length || 0, 'items');
-            
-            // FIXED LIST of valid types as per requirements
-            const validTypes = ['Livre', 'Monographie', 'Audio', 'Vidéo', 'Image', 'Article'];
-            
-            // Get all resources to count types
-            let resourcesForTypeCounting = null;
-            let source = '';
-            
-            if (resourcesData && Array.isArray(resourcesData) && resourcesData.length > 0) {
-                resourcesForTypeCounting = resourcesData;
-                source = '📚 From /ressource/all/ (complete data)';
-            } else if (ressources && ressources.length > 0) {
-                resourcesForTypeCounting = ressources;
-                source = '📄 From paginated resources (fallback)';
+    // List of all valid resource types as per requirements
+    const VALID_RESOURCE_TYPES = [
+        'livre', 'monographie', 'article', 'these', 'rapport', 'revue',
+        'conference', 'audio', 'video', 'image', 'podcast', 'cours',
+        'presentation', 'document', 'logiciel'
+    ];
+
+    // Human-readable labels for each type (matching backend choices)
+    const RESOURCE_TYPE_LABELS = {
+        'livre':        'Livre',
+        'monographie':  'Monographie',
+        'article':      'Article',
+        'these':        'Thèse / Mémoire',
+        'rapport':      'Rapport',
+        'revue':        'Revue',
+        'conference':   'Acte de conférence',
+        'audio':        'Audio',
+        'video':        'Vidéo',
+        'image':        'Image',
+        'podcast':      'Podcast',
+        'cours':        'Cours',
+        'presentation': 'Présentation',
+        'document':     'Document',
+        'logiciel':     'Logiciel / Application',
+    };
+
+    // Function to extract and normalize type counts from API response
+    const extractTypeCountsFromResponse = (responseData) => {
+        // console.log('📊 Extracting type counts from API response');
+        
+        const typeCounts = {};
+        
+        // Initialize all valid types with 0
+        VALID_RESOURCE_TYPES.forEach(type => {
+            typeCounts[type] = 0;
+        });
+        
+        // Override with values from API response if they exist
+        VALID_RESOURCE_TYPES.forEach(type => {
+            if (responseData.hasOwnProperty(type)) {
+                typeCounts[type] = responseData[type];
+                console.log(`✅ ${type}: ${typeCounts[type]}`);
             } else {
-                resourcesForTypeCounting = [];
-                source = '❌ No resources available';
+                console.log(`⚪ ${type}: 0 (not in response)`);
             }
-            
-            console.log(`Data source: ${source}`);
-            console.log('Resources for counting:', resourcesForTypeCounting.length);
-            
-            if (resourcesForTypeCounting.length === 0) {
-                console.warn('⚠️ No resources data available for type calculation');
-                // Return all valid types with 0 count
-                const typesWithAll = [
-                    { type: 'all', count: 0, label: 'Tous' },
-                    ...validTypes.map(type => ({
-                        type: type.toLowerCase(),
-                        count: 0,
-                        label: type
-                    }))
-                ];
-                setResourceTypes(typesWithAll);
-                setLoadingTypes(false);
-                return;
-            }
-            
-            // Count resources for each valid type
-            const typeCounts = validTypes.reduce((acc, validType) => {
-                const count = resourcesForTypeCounting.filter(resource => {
-                    const resourceType = (resource.type || '').toLowerCase().trim();
-                    return resourceType === validType.toLowerCase();
-                }).length;
-                acc[validType.toLowerCase()] = count;
-                return acc;
-            }, {});
-            
-            console.log('📊 Type counts from', resourcesForTypeCounting.length, 'resources:', typeCounts);
-            
-            // Create types array in the order specified
-            const types = validTypes.map(type => ({
-                type: type.toLowerCase(),
-                count: typeCounts[type.toLowerCase()] || 0,
-                label: type
-            }));
-            
-            console.log('🏷️  Types array:', types);
-            
-            // Add "Tous" option at the beginning
-            const typesWithAll = [
-                { type: 'all', count: resourcesForTypeCounting.length, label: 'Tous' },
-                ...types
-            ];
-            
-            console.log('✅ Final types with all:', typesWithAll);
-            setResourceTypes(typesWithAll);
-            setLoadingTypes(false);
-            console.log('=== 📊 calculateResourceTypes END ===');
-        } catch (error) {
-            console.error('Erreur lors du calcul des types:', error);
-            setResourceTypes([{ type: 'all', count: 0, label: 'Tous' }]);
-            setLoadingTypes(false);
-        }
+        });
+        
+        // Get total count
+        const totalCount = responseData.count || 0;
+        
+        return {
+            typeCounts,
+            totalCount
+        };
+    };
+
+    // Function to build resource types array for UI
+    const buildResourceTypesArray = (typeCounts, totalCount) => {
+        const types = VALID_RESOURCE_TYPES.map(type => ({
+            type: type,
+            count: typeCounts[type] || 0,
+            label: RESOURCE_TYPE_LABELS[type] || type.charAt(0).toUpperCase() + type.slice(1)
+        }));
+        
+        // Add "Tous" option at the beginning
+        const typesWithAll = [
+            { type: 'all', count: totalCount, label: 'Tous' },
+            ...types.sort((a, b) => a.label.localeCompare(b.label))
+        ];
+        
+        return typesWithAll;
     };
 
     // Fetch resources function with pagination
@@ -271,7 +489,7 @@ const HomePage = () => {
             
             if (useMockData) {
                 // Force use mock data for testing
-                console.log('Using mock data (forced)');
+                // console.log('Using mock data (forced)');
                 const mockResponse = await simulateApiCall(mockRessources);
                 const ressourcesData = mockResponse.results?.data || mockResponse.results || [];
                 setRessources(ressourcesData);
@@ -297,13 +515,17 @@ const HomePage = () => {
                     }
                     
                     const response = await api.get(url);
-                    console.log('API Response:', response.data);
+                    // console.log('API Response:', response.data);
                     
                     // Handle the nested structure: results.data instead of results
                     const ressourcesData = response.data.results?.data || response.data.results || [];
                     setRessources(ressourcesData);
                     
-                    // Set pagination info
+                    // Extract total count and page size from response
+                    const totalCount = response.data.count || 0;
+                    const pageSize = response.data.results?.page_size || ressourcesData.length || 450;
+                    
+                    // Set pagination info with total count and page size
                     setPagination({
                         next: response.data.next,
                         previous: response.data.previous,
@@ -311,8 +533,15 @@ const HomePage = () => {
                         hasPrevious: !!response.data.previous
                     });
                     
+                    // Update pagination info (pageIndex is updated by buttons)
+                    setPaginationInfo(prev => ({
+                        ...prev,
+                        totalCount: totalCount,
+                        pageSize: pageSize
+                    }));
+                    
                 } catch (apiError) {
-                    console.log('API not available, using mock data:', apiError);
+                    // console.log('API not available, using mock data:', apiError);
                     
                     // Use mock data if API is not available
                     const mockResponse = await simulateApiCall(mockRessources);
@@ -351,52 +580,40 @@ const HomePage = () => {
         const currentUser = getCurrentUser();
         setUser(currentUser);
 
-        // Fetch resources and types - PARALLELIZE all API calls
-        const initializeData = async () => {
-            console.time('Data Loading');
-            
-            // Run all API calls in parallel, not sequentially
-            const [allResourcesData, paginatedResourcesData, domainesData] = await Promise.all([
-                fetchAllResources(),           // Get ALL resources for types counting
-                fetchRessources(),             // Get paginated resources for display
-                fetchDomaines()                // Get domaines list
-            ]);
-            
-            // Update state with the loaded data
-            setAllResources(allResourcesData);
-            
-            console.timeEnd('Data Loading');
-        };
+        // Try to restore state first
+        const stateRestored = restoreHomePageState();
         
-        initializeData();
-    }, [useMockData]); // Only depend on useMockData, not navigate
-
-    // Separate effect to calculate types once resources are loaded
-    useEffect(() => {
-        console.log('=== 📋 Types calculation effect triggered ===');
-        console.log('allResources available:', allResources?.length || 0);
-        console.log('ressources available:', ressources?.length || 0);
-        
-        // PRIORITY: Use allResources from /ressource/all/ (complete dataset)
-        // FALLBACK: Use paginated ressources if allResources not available
-        const dataForTypes = (allResources && allResources.length > 0) ? allResources : ressources;
-        
-        if (dataForTypes && dataForTypes.length > 0) {
-            console.log('📊 Calculating types from', dataForTypes.length, 'resources');
-            console.log('Source:', allResources?.length > 0 ? '✅ allResources (/ressource/all/)' : '⚠️ ressources (paginated)');
-            calculateResourceTypes(dataForTypes);
-        } else {
-            console.log('⚠️ No data available for type calculation yet (loading or error)');
-            setResourceTypes([{ type: 'all', count: 0, label: 'Tous' }]);
+        if (!stateRestored) {
+            // Only fetch if state wasn't restored
+            const initializeData = async () => {
+                console.time('Data Loading');
+                
+                // Run API calls in parallel, avoid heavy /ressource/all/ on initial load
+                await Promise.all([
+                    fetchRessources(),             // Get paginated resources for display
+                    fetchDomaines()                // Get domaines list
+                ]);
+                
+                console.timeEnd('Data Loading');
+            };
+            
+            initializeData();
         }
-    }, [allResources, ressources]); // Trigger when either changes
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [useMockData]); // Only depend on useMockData to avoid re-fetching on every state change
+
+    // Effect to load resource types from API
+    useEffect(() => {
+        // console.log('=== 🏷️ Loading resource types from API ===');
+        fetchResourceTypes();
+    }, []); // Run once on component mount
 
     // Effect to refresh user data ONLY when returning to HomePage from another page
     useEffect(() => {
         // Only refresh if we're on home path and page was just re-focused
         const onPageShow = () => {
             if (location.pathname === '/home') {
-                console.log('Page shown, refreshing user data');
+                // console.log('Page shown, refreshing user data');
                 refreshUserData();
             }
         };
@@ -412,13 +629,13 @@ const HomePage = () => {
     useEffect(() => {
         const handleAvatarUpdate = (event) => {
             // Handle avatar update event from Profile component
-            console.log('Avatar updated event received:', event.detail);
+            // console.log('Avatar updated event received:', event.detail);
             refreshUserData();
         };
 
         const handleProfileUpdate = (event) => {
             // Handle profile update event from Profile component
-            console.log('Profile updated event received:', event.detail);
+            // console.log('Profile updated event received:', event.detail);
             refreshUserData();
         };
 
@@ -482,6 +699,53 @@ const HomePage = () => {
         setFilteredRessources(filtered);
     }, [searchTerm, ressources, allResources, activeTypeFilter, selectedDomain]);
 
+    // Compute dynamic type counts based on search/domain filters
+    const resourcesForTypeCounts = useMemo(() => {
+        let baseResources = (allResources && allResources.length > 0) ? allResources : ressources;
+        if (!baseResources || baseResources.length === 0) return [];
+
+        let filtered = [...baseResources];
+
+        if (selectedDomain) {
+            filtered = filtered.filter(ressource => (
+                ressource.domaine?.id === selectedDomain.id ||
+                ressource.domaine_id === selectedDomain.id ||
+                ressource.domaine?.nom?.toLowerCase() === selectedDomain.nom?.toLowerCase()
+            ));
+        }
+
+        if (searchTerm && searchTerm.trim()) {
+            const query = searchTerm.toLowerCase();
+            filtered = filtered.filter(ressource => 
+                ressource.titre?.toLowerCase().includes(query) ||
+                ressource.sous_titre?.toLowerCase().includes(query) ||
+                ressource.domaine?.nom?.toLowerCase().includes(query) ||
+                ressource.sous_domaine?.nom?.toLowerCase().includes(query)
+            );
+        }
+
+        return filtered;
+    }, [allResources, ressources, selectedDomain, searchTerm]);
+
+    const dynamicResourceTypes = useMemo(() => {
+        const typeCounts = {};
+        VALID_RESOURCE_TYPES.forEach(type => {
+            typeCounts[type] = 0;
+        });
+
+        resourcesForTypeCounts.forEach(ressource => {
+            const resourceType = (ressource.type || '').toLowerCase().trim();
+            if (typeCounts.hasOwnProperty(resourceType)) {
+                typeCounts[resourceType] += 1;
+            }
+        });
+
+        return buildResourceTypesArray(typeCounts, resourcesForTypeCounts.length);
+    }, [resourcesForTypeCounts]);
+
+    const shouldUseDynamicCounts = (searchTerm && searchTerm.trim()) || selectedDomain;
+    const displayedResourceTypes = shouldUseDynamicCounts ? dynamicResourceTypes : resourceTypes;
+
     // Sort ressources by domain, then type, then title
     const sortedRessources = [...filteredRessources].sort((a, b) => {
         // First sort by domain name
@@ -505,6 +769,7 @@ const HomePage = () => {
     });
 
     const handleLogout = () => {
+        sessionStorage.removeItem('homePageState'); // Clear saved state on logout
         logout();
         navigate('/login');
     };
@@ -528,7 +793,7 @@ const HomePage = () => {
                 // If 'all' is selected, fetch all resources
                 await fetchRessources();
             } else {
-                // Fetch resources filtered by type from API endpoint /ressources/?type=...
+                // Fetch resources filtered by type from API endpoint: /ressources/?type={type}
                 const response = await api.get(`/ressources/?type=${encodeURIComponent(type)}`);
                 console.log(`✅ Resources fetched for type "${type}":`, response.data);
                 
@@ -544,11 +809,18 @@ const HomePage = () => {
                     hasPrevious: !!response.data.previous
                 });
                 
+                // Reset pagination to first page
+                setPaginationInfo({
+                    pageIndex: 1,
+                    totalCount: response.data.count || 0,
+                    pageSize: 450
+                });
+                
                 console.log(`📋 Fetched ${ressourcesData.length} resources for type "${type}"`);
             }
         } catch (error) {
             console.error(`❌ Error fetching resources for type "${type}":`, error.message);
-            console.log('📋 Falling back to all resources');
+            // console.log('📋 Falling back to all resources');
             // Fallback to all resources
             await fetchRessources();
         } finally {
@@ -557,7 +829,7 @@ const HomePage = () => {
     };
 
     const handleTypeFilterChange = (type) => {
-        console.log('🏷️ Type filter changed to:', type);
+        // console.log('🏷️ Type filter changed to:', type);
         setActiveTypeFilter(type);
         // Fetch resources for the selected type from API
         fetchResourcesByType(type);
@@ -668,7 +940,7 @@ const HomePage = () => {
 
     // Handle suggestion click
     const handleSuggestionClick = (suggestion) => {
-        console.log('📌 Suggestion clicked:', suggestion);
+        // console.log('📌 Suggestion clicked:', suggestion);
         setSearchTerm(suggestion.original);
         setShowSuggestions(false);
     };
@@ -684,15 +956,25 @@ const HomePage = () => {
         }
     };
 
-    // Pagination handlers
+    // Pagination handlers with page index tracking
     const handleNextPage = () => {
         if (pagination.hasNext && pagination.next) {
+            // Increment page index
+            setPaginationInfo(prev => ({
+                ...prev,
+                pageIndex: prev.pageIndex + 1
+            }));
             fetchRessources(pagination.next);
         }
     };
 
     const handlePreviousPage = () => {
         if (pagination.hasPrevious && pagination.previous) {
+            // Decrement page index but not below 1
+            setPaginationInfo(prev => ({
+                ...prev,
+                pageIndex: Math.max(1, prev.pageIndex - 1)
+            }));
             fetchRessources(pagination.previous);
         }
     };
@@ -716,8 +998,9 @@ const HomePage = () => {
         }
     };
 
-    const handleViewResource = (ressourceId) => {
-        navigate(`/ressources/${ressourceId}`);
+    const handleViewResource = (ressource) => {
+        saveHomePageState(); // Save state before navigation
+        navigate(`/ressources/${ressource.id}`, { state: { ressource } });
     };
 
     const handleDownloadResource = (ressource) => {
@@ -755,7 +1038,15 @@ const HomePage = () => {
                         />
                     </div>
 
-                    <div className="homepage-user-actions">
+                    <button 
+                        className="homepage-burger-btn"
+                        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                        aria-label="Menu"
+                    >
+                        {mobileMenuOpen ? <FaTimes size={20} /> : <FaBars size={20} />}
+                    </button>
+
+                    <div className={`homepage-user-actions ${mobileMenuOpen ? 'open' : ''}`}>
                         <div className="homepage-user-info">
                             <div className="homepage-user-name">
                                 {user.prenom || user.nom || user.username}
@@ -768,7 +1059,7 @@ const HomePage = () => {
                         {/* Avatar utilisateur */}
                         <div 
                             className="homepage-user-avatar"
-                            onClick={() => navigate('/profile')}
+                            onClick={() => { navigate('/profile'); setMobileMenuOpen(false); }}
                             title="Voir mon profil"
                         >
                             {user.avatar ? (
@@ -793,10 +1084,28 @@ const HomePage = () => {
                        
                         <button 
                             className="homepage-favoris-btn"
-                            onClick={() => navigate('/favoris')}
+                            onClick={() => { navigate('/favoris'); setMobileMenuOpen(false); }}
                         >
                             <FaHeart size={14} />
                             Favoris
+                        </button>
+
+                        <button 
+                            className="homepage-portail-btn"
+                            onClick={() => window.open('https://classroom.cgiibnn-esursi.cd/', '_blank')}
+                            title="Accéder au Classroom"
+                        >
+                            <FaBook size={14} />
+                            Classroom
+                        </button>
+
+                        <button 
+                            className="homepage-portail-btn"
+                            onClick={() => window.open('https://portail.cgiibnn-esursi.cd/', '_blank')}
+                            title="Accéder au portail"
+                        >
+                            <FaExternalLinkAlt size={14} />
+                            Portail
                         </button>
                         
                         <button 
@@ -807,6 +1116,13 @@ const HomePage = () => {
                             Déconnexion
                         </button>
                     </div>
+                    {/* Overlay pour fermer le menu mobile */}
+                    {mobileMenuOpen && (
+                        <div 
+                            className="homepage-menu-overlay"
+                            onClick={() => setMobileMenuOpen(false)}
+                        />
+                    )}
                 </div>
             </header>
 
@@ -820,7 +1136,7 @@ const HomePage = () => {
                             className="homepage-search-input"
                             placeholder="Tapez votre recherche ici..."
                             value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onChange={(e) => handleSearchChange(e.target.value)}
                             onFocus={() => searchTerm.length >= 2 && setShowSuggestions(true)}
                         />
                         {searchTerm && (
@@ -891,21 +1207,21 @@ const HomePage = () => {
             <section className="homepage-filters-section">
                 <div className="homepage-filters-content">
                     <div className="homepage-type-filters">
-                        {loadingTypes ? (
+                        {(loadingTypes && !shouldUseDynamicCounts && !isSearchMode) ? (
                             <div className="homepage-filters-loading">
                                 {[...Array(5)].map((_, index) => (
                                     <div key={index} className="homepage-filter-skeleton"></div>
                                 ))}
                             </div>
                         ) : (
-                            resourceTypes.map((typeData) => (
+                            (isSearchMode ? searchResourceTypes : displayedResourceTypes).map((typeData) => (
                                 <button
                                     key={typeData.type}
                                     className={`homepage-type-filter ${activeTypeFilter === typeData.type ? 'active' : ''}`}
                                     onClick={() => handleTypeFilterChange(typeData.type)}
                                 >
                                     <span className="homepage-filter-label">
-                                        {typeData.label}{typeData.count > 0 ? 's' : ''}
+                                        {typeData.count > 1 && !typeData.label.endsWith('s') ? typeData.label + 's' : typeData.label}
                                     </span>
                                     <span className="homepage-filter-count">
                                         ({typeData.count})
@@ -924,18 +1240,34 @@ const HomePage = () => {
                     <div className="homepage-resources-column">
                         <div className="homepage-resources-header">
                             <h2 className="homepage-section-title">
-                                Ressources Disponible
-                                {selectedDomain && <span className="homepage-domain-filter">- {selectedDomain.nom}</span>}
+                                {isSearchMode ? `Résultats de recherche (${searchPagination.total_count})` : 'Ressources Disponibles'}
+                                {selectedDomain && !isSearchMode && <span className="homepage-domain-filter">- {selectedDomain.nom}</span>}
                             </h2>
-                            {selectedDomain && (
-                                <button 
-                                    className="homepage-clear-domain-filter"
-                                    onClick={() => handleDomainSelection(selectedDomain)}
-                                    title="Voir toutes les ressources"
-                                >
-                                    <FaTimes /> Effacer le filtre
-                                </button>
-                            )}
+                            <div className="homepage-header-buttons">
+                                {isSearchMode && (
+                                    <button 
+                                        className="homepage-clear-search-btn"
+                                        onClick={() => {
+                                            setSearchTerm('');
+                                            setIsSearchMode(false);
+                                            setSearchResults([]);
+                                            setActiveTypeFilter('all');
+                                        }}
+                                        title="Effacer la recherche"
+                                    >
+                                        <FaTimes /> Effacer la recherche
+                                    </button>
+                                )}
+                                {selectedDomain && !isSearchMode && (
+                                    <button 
+                                        className="homepage-clear-domain-filter"
+                                        onClick={() => handleDomainSelection(selectedDomain)}
+                                        title="Voir toutes les ressources"
+                                    >
+                                        <FaTimes /> Effacer le filtre
+                                    </button>
+                                )}
+                            </div>
                         </div>
 
                         {loading && (
@@ -956,14 +1288,14 @@ const HomePage = () => {
                             </div>
                         )}
 
-                        {!loading && filteredRessources.length === 0 && (
+                        {!loading && (isSearchMode ? searchResults.length === 0 : filteredRessources.length === 0) && (
                             <div className="homepage-no-results">
                                 <div className="homepage-no-results-icon"><FaBook /></div>
                                 <h3 className="homepage-no-results-title">
-                                    {searchTerm ? 'Aucune ressource trouvée' : selectedDomain ? `Aucune ressource dans "${selectedDomain.nom}"` : 'Aucune ressource disponible'}
+                                    {isSearchMode ? 'Aucune ressource trouvée' : selectedDomain ? `Aucune ressource dans "${selectedDomain.nom}"` : 'Aucune ressource disponible'}
                                 </h3>
                                 <p className="homepage-no-results-text">
-                                    {searchTerm ? 
+                                    {isSearchMode ? 
                                         'Essayez de modifier vos critères de recherche' : 
                                         selectedDomain ?
                                         'Sélectionnez un autre domaine ou effacez le filtre' :
@@ -973,13 +1305,16 @@ const HomePage = () => {
                             </div>
                         )}
 
-                        {!loading && filteredRessources.length > 0 && (
+                        {!loading && (isSearchMode ? searchResults.length > 0 : filteredRessources.length > 0) && (
                             <div className="homepage-resources-grid">
-                                {sortedRessources.map((ressource) => (
+                                {(isSearchMode ? searchResults : sortedRessources).map((ressource) => (
                                     <div 
                                         key={ressource.id} 
                                         className="homepage-resource-card"
-                                        onClick={() => navigate(`/ressources/${ressource.id}`)}
+                                        onClick={() => {
+                                            saveHomePageState();
+                                            navigate(`/ressources/${ressource.id}`, { state: { ressource } });
+                                        }}
                                     >
                                         {/* Image de couverture compacte */}
                                         <div className="homepage-resource-image">
@@ -1049,8 +1384,8 @@ const HomePage = () => {
                             </div>
                         )}
 
-                        {/* Pagination - Only show when no domain filter is active */}
-                        {!loading && filteredRessources.length > 0 && !selectedDomain && (pagination.hasNext || pagination.hasPrevious) && (
+                        {/* Pagination - Browse mode */}
+                        {!loading && !isSearchMode && filteredRessources.length > 0 && !selectedDomain && (pagination.hasNext || pagination.hasPrevious) && (
                             <div className="homepage-pagination">
                                 <button 
                                     className={`homepage-pagination-btn ${!pagination.hasPrevious ? 'disabled' : ''}`}
@@ -1060,6 +1395,12 @@ const HomePage = () => {
                                 >
                                     <FaChevronLeft size={18} />
                                 </button>
+                                
+                                <div className="homepage-pagination-info">
+                                    <span className="pagination-counter">
+                                        {paginationInfo.pageIndex * paginationInfo.pageSize}/{paginationInfo.totalCount}
+                                    </span>
+                                </div>
                                 
                                 <button 
                                     className={`homepage-pagination-btn ${!pagination.hasNext ? 'disabled' : ''}`}
@@ -1072,13 +1413,41 @@ const HomePage = () => {
                             </div>
                         )}
 
+                        {/* Search pagination - Load more button */}
+                        {isSearchMode && searchResults.length > 0 && !searchLoading && (
+                            <div className="homepage-search-pagination">
+                                <div className="homepage-search-pagination-info">
+                                    <span className="pagination-counter">
+                                        Affichage de {searchResults.length} sur {searchPagination.total_count} résultats
+                                    </span>
+                                </div>
+                                {searchPagination.has_next && (
+                                    <button 
+                                        className="homepage-load-more-btn"
+                                        onClick={handleSearchLoadMore}
+                                        disabled={searchLoading}
+                                    >
+                                        Charger plus
+                                    </button>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Search loading indicator */}
+                        {isSearchMode && searchLoading && searchResults.length > 0 && (
+                            <div className="homepage-search-loading">
+                                <div className="homepage-loading-spinner"></div>
+                                <p>Chargement des résultats...</p>
+                            </div>
+                        )}
+
                         {/* Info when type filter is active */}
                         {!loading && activeTypeFilter !== 'all' && (
                             <div className="homepage-filter-info">
-                                <p>Affichage de {filteredRessources.length} ressource(s) de type "{resourceTypes.find(t => t.type === activeTypeFilter)?.label}"</p>
+                                <p>Affichage de {filteredRessources.length} ressource{filteredRessources.length > 1 ? 's' : ''} de type "{displayedResourceTypes.find(t => t.type === activeTypeFilter)?.label}"</p>
                                 <button 
                                     className="homepage-clear-filter"
-                                    onClick={() => setActiveTypeFilter('all')}
+                                    onClick={() => handleTypeFilterChange('all')}
                                 >
                                     Voir toutes les ressources
                                 </button>

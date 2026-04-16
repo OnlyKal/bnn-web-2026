@@ -23,7 +23,7 @@ function Connexion() {
     // Check if user is already authenticated
     useEffect(() => {
         if (isAuthenticated()) {
-            console.log('User is already logged in');
+            // console.log('User is already logged in');
             navigate('/home');
         }
     }, [navigate]);
@@ -61,7 +61,7 @@ function Connexion() {
 
                 // Redirect to HomePage after successful login
                 setTimeout(() => {
-                    console.log('User logged in successfully:', userData);
+                    // console.log('User logged in successfully:', userData);
                     navigate('/home');
                 }, 1000);
             } else {
@@ -171,7 +171,7 @@ function Connexion() {
                 {loading ? 'CONNEXION...' : 'SE CONNECTER'}
             </button>
             <div className='inscription-btn'>
-                <div className='pas-de-compte'>Pas encore un compte ? </div>
+                <div className='pas-de-compte'>Pas encore de compte ? </div>
                 <div 
                     className='inscription'
                     onClick={() => navigate('/provinces')}

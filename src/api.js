@@ -92,7 +92,7 @@ api.interceptors.response.use(
             isRefreshing = true;
             
             try {
-                console.log('🔄 Attempting to refresh token...');
+                // console.log('🔄 Attempting to refresh token...');
                 const response = await api.post('/auth/refresh/');
                 const newToken = response.data.token || response.data;
                 
@@ -102,7 +102,7 @@ api.interceptors.response.use(
                 // Save new token
                 saveSession(newToken, userData);
                 
-                console.log('✅ Token refreshed successfully');
+                // console.log('✅ Token refreshed successfully');
                 
                 // Update original request with new token
                 originalRequest.headers.Authorization = `Bearer ${newToken}`;
@@ -147,9 +147,9 @@ export const authAPI = {
     // Register user
     register: async (userData) => {
         try {
-            console.log('Sending registration data:', userData);
+            // console.log('Sending registration data:', userData);
             const response = await api.post('/user/signup/', userData);
-            console.log('Registration response:', response.data);
+            // console.log('Registration response:', response.data);
             return response.data;
         } catch (error) {
             console.error('Registration error details:', error.response?.data);
@@ -219,9 +219,9 @@ export const authAPI = {
     // Reset password
     resetPassword: async (emailData) => {
         try {
-            console.log('🔄 API resetPassword - Making request to:', '/user/password-reset/');
-            console.log('📧 API resetPassword - Request data:', emailData);
-            console.log('🌐 API resetPassword - Base URL:', API_BASE_URL);
+            // console.log('🔄 API resetPassword - Making request to:', '/user/password-reset/');
+            // console.log('📧 API resetPassword - Request data:', emailData);
+            // console.log('🌐 API resetPassword - Base URL:', API_BASE_URL);
             
             // Validate email format
             if (!emailData.email || !emailData.email.includes('@')) {
@@ -240,8 +240,8 @@ export const authAPI = {
             // Make PUT request WITHOUT authentication
             const response = await unauthenticatedApi.put('/user/password-reset/', emailData);
             
-            console.log('✅ API resetPassword - Response:', response.data);
-            console.log('🏷️  API resetPassword - Status:', response.status);
+            // console.log('✅ API resetPassword - Response:', response.data);
+            // console.log('🏷️  API resetPassword - Status:', response.status);
             
             // Return the response with success flag
             return {
@@ -303,14 +303,14 @@ export const userAPI = {
         try {
             // Debug: Check what token is being sent
             const { token } = getSession();
-            console.log('API updateProfile - Token available:', !!token);
+            // console.log('API updateProfile - Token available:', !!token);
             if (token) {
-                console.log('API updateProfile - Token format:', token.startsWith('Bearer ') || token.startsWith('Token ') ? 'Already formatted' : 'Will add Token prefix');
+                // console.log('API updateProfile - Token format:', token.startsWith('Bearer ') || token.startsWith('Token ') ? 'Already formatted' : 'Will add Token prefix');
             }
             
-            console.log('Sending profile update request:', profileData);
+            // console.log('Sending profile update request:', profileData);
             const response = await api.put('/user/update/', profileData);
-            console.log('Profile update API response:', response.data);
+            // console.log('Profile update API response:', response.data);
             return response.data;
         } catch (error) {
             console.error('Profile update error:', error.response);
@@ -387,8 +387,8 @@ export const validators = {
     },
 
     validatePassword: (password) => {
-        // Must be at least 4 characters
-        return password && password.length >= 4;
+        // Must be at least 8 characters (backend requirement)
+        return password && password.length >= 8;
     },
 
     validatePasswordChange: (oldPassword, newPassword, confirmPassword) => {

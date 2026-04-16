@@ -50,7 +50,7 @@ const FavorisPage = () => {
                 favorisData = response;
             }
             
-            console.log('Favoris chargés:', favorisData);
+            // console.log('Favoris chargés:', favorisData);
             setFavoris(favorisData);
         } catch (error) {
             console.error('Erreur lors du chargement des favoris:', error);
@@ -89,8 +89,8 @@ const FavorisPage = () => {
     };
 
     // Naviguer vers les détails d'une ressource
-    const handleViewResource = (ressourceId) => {
-        navigate(`/ressources/${ressourceId}`);
+    const handleViewResource = (ressource) => {
+        navigate(`/ressources/${ressource.id}`, { state: { ressource } });
     };
 
     // Afficher une notification
@@ -313,7 +313,7 @@ const FavorisPage = () => {
                                         <div className="favoris-card-actions">
                                             <button
                                                 className="favoris-action-btn favoris-view-btn"
-                                                onClick={() => handleViewResource(ressourceId)}
+                                                onClick={() => handleViewResource(ressource)}
                                                 title="Voir les détails"
                                             >
                                                 <FaEye />

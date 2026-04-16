@@ -245,7 +245,7 @@ Paginated List:    1 min (données fraîches)
 **Debounce** (attendre fin de saisie):
 ```javascript
 const debouncedSearch = debounce((query) => {
-    console.log('Chercher:', query); // Appelé 500ms APRÈS dernier input
+    // console.log('Chercher:', query); // Appelé 500ms APRÈS dernier input
 }, 500);
 
 input.addEventListener('input', e => debouncedSearch(e.target.value));
@@ -255,7 +255,7 @@ input.addEventListener('input', e => debouncedSearch(e.target.value));
 **Throttle** (max N fois par intervalle):
 ```javascript
 const throttledScroll = throttle(() => {
-    console.log('Scroll');
+    // console.log('Scroll');
 }, 1000); // Max 1x par seconde
 
 window.addEventListener('scroll', throttledScroll);

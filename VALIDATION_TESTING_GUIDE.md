@@ -16,13 +16,13 @@
 // Dans console browser
 import { API_BASE_URL, API_SERVER_URL, getMediaUrl, getFileUrl, getAssetUrl } from './config';
 
-console.log('API_SERVER_URL:', API_SERVER_URL);
+// console.log('API_SERVER_URL:', API_SERVER_URL);
 // Doit afficher: https://admin.cgiibnn-esursi.cd ou http://localhost:8000
 
-console.log('API_BASE_URL:', API_BASE_URL);
+// console.log('API_BASE_URL:', API_BASE_URL);
 // Doit afficher: {API_SERVER_URL}/api/bnn
 
-console.log('Test getMediaUrl:', getMediaUrl('/media/image.jpg'));
+// console.log('Test getMediaUrl:', getMediaUrl('/media/image.jpg'));
 // Doit afficher: https://admin.cgiibnn-esursi.cd/media/image.jpg
 ```
 
@@ -43,7 +43,7 @@ console.log('Test getMediaUrl:', getMediaUrl('/media/image.jpg'));
 import api from './api';
 
 // Vérifier que interceptor est en place
-console.log('Interceptors count:', api.interceptors.response.handlers.length);
+// console.log('Interceptors count:', api.interceptors.response.handlers.length);
 // Doit afficher: 1 ou plus (confirmant interceptor)
 ```
 
@@ -98,7 +98,7 @@ const data1 = await cachedApiCall(
     10 * 60 * 1000
 );
 
-console.log('Après première requête:');
+// console.log('Après première requête:');
 console.log(getCacheStats());
 // Doit voir: { totalEntries: 1, entries: [...] }
 
@@ -109,7 +109,7 @@ const data2 = await cachedApiCall(
     10 * 60 * 1000
 );
 
-console.log('Après deuxième requête:');
+// console.log('Après deuxième requête:');
 console.log(getCacheStats());
 // Cache hit! Pas d'appel API
 ```
@@ -121,7 +121,7 @@ import { invalidateCache } from './utils/apiCache';
 // Invalider le cache
 invalidateCache('test:domaines');
 
-console.log('Après invalidation:');
+// console.log('Après invalidation:');
 console.log(getCacheStats());
 // Doit voir: { totalEntries: 0 }
 ```
@@ -186,7 +186,7 @@ import { debounce } from './utils/debounce';
 let callCount = 0;
 const debouncedFn = debounce(() => {
     callCount++;
-    console.log('Called!', callCount);
+    // console.log('Called!', callCount);
 }, 500);
 
 // Appeler rapidement 5 fois
@@ -198,7 +198,7 @@ debouncedFn();
 
 // Attendre 600ms
 setTimeout(() => {
-    console.log('Total calls:', callCount);
+    // console.log('Total calls:', callCount);
     // Doit afficher: 1 (pas 5!)
 }, 600);
 ```
@@ -311,7 +311,7 @@ import { getSession, getCurrentUser } from './utils/auth';
 try {
     await authAPI.login({ username: 'invalid', password: 'wrong' });
 } catch (error) {
-    console.log('✅ Error caught:', error.message);
+    // console.log('✅ Error caught:', error.message);
     // Doit voir: "Nom d'utilisateur ou mot de passe incorrect."
 }
 
@@ -320,12 +320,12 @@ const response = await authAPI.login({
     username: 'valid@user.com', 
     password: 'password123' 
 });
-console.log('✅ Login successful');
+// console.log('✅ Login successful');
 
 // 3. Vérifier session
 const { token, userData } = getSession();
-console.log('✅ Token saved:', !!token);
-console.log('✅ User data:', userData.email);
+// console.log('✅ Token saved:', !!token);
+// console.log('✅ User data:', userData.email);
 ```
 
 ### Test 2: Token Refresh
@@ -337,7 +337,7 @@ import { authAPI } from './api';
 
 // 1. Faire requête
 const profile = await api.get('/user/profile/');
-console.log('✅ First request ok');
+// console.log('✅ First request ok');
 
 // 2. Invalider token (simuler expiration)
 localStorage.removeItem('authToken');
@@ -345,7 +345,7 @@ localStorage.removeItem('authToken');
 // 3. Faire nouvelle requête → doit trigger refresh
 try {
     const profile2 = await api.get('/user/profile/');
-    console.log('✅ Second request ok (auto-refreshed)');
+    // console.log('✅ Second request ok (auto-refreshed)');
 } catch (error) {
     console.error('❌ Refresh failed:', error);
 }
@@ -359,19 +359,19 @@ import { favorisAPI } from './api';
 // 1. Ajouter favori
 const ressourceId = 1;
 await favorisAPI.addFavori(ressourceId);
-console.log('✅ Added to favorites');
+// console.log('✅ Added to favorites');
 
 // 2. Vérifier en favoris
 const isFav = await favorisAPI.checkFavori(ressourceId);
-console.log('✅ Is favorite:', isFav); // true
+// console.log('✅ Is favorite:', isFav); // true
 
 // 3. Supprimer favori
 await favorisAPI.removeFavori(ressourceId);
-console.log('✅ Removed from favorites');
+// console.log('✅ Removed from favorites');
 
 // 4. Vérifier pas en favoris
 const isFav2 = await favorisAPI.checkFavori(ressourceId);
-console.log('✅ Is favorite:', isFav2); // false
+// console.log('✅ Is favorite:', isFav2); // false
 ```
 
 ---

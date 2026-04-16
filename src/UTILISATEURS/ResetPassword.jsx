@@ -36,12 +36,12 @@ function ResetPassword() {
         setSuccess('');
 
         try {
-            console.log('🚀 Sending password reset request for:', email.trim());
+            // console.log('🚀 Sending password reset request for:', email.trim());
             const response = await authAPI.resetPassword({
                 email: email.trim()
             });
 
-            console.log('📥 Password reset response:', response);
+            // console.log('📥 Password reset response:', response);
             
             // Check for successful response (expecting status: 200 and message)
             if (response && response.status === 200) {
@@ -49,14 +49,14 @@ function ResetPassword() {
                 const successMessage = response.message || 
                                      'Mot de passe réinitialisé et envoyé par mail avec succès';
                 
-                console.log('✅ Password reset successful, showing success message:', successMessage);
+                // console.log('✅ Password reset successful, showing success message:', successMessage);
                 setSuccess(successMessage);
                 setEmail(''); // Clear form
                 
                 // Redirect to login after 3 seconds (give time to read message)
-                console.log('⏰ Setting up redirect to /login in 3 seconds...');
+                // console.log('⏰ Setting up redirect to /login in 3 seconds...');
                 setTimeout(() => {
-                    console.log('🔄 Redirecting to login page now...');
+                    // console.log('🔄 Redirecting to login page now...');
                     navigate('/login');
                 }, 3000);
             } else {
@@ -65,7 +65,7 @@ function ResetPassword() {
                                    response?.error || 
                                    response?.detail ||
                                    'Réponse inattendue du serveur';
-                console.log('⚠️ Unexpected password reset response:', response);
+                // console.log('⚠️ Unexpected password reset response:', response);
                 setError(errorMessage);
             }
         } catch (err) {

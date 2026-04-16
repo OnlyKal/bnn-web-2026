@@ -52,10 +52,10 @@ function TypeUtilisateurs() {
     };
 
     var listeTypes = [
-        { name:'Chercheur', value:"chercheur", description: "Recherche académique et scientifique", icon: FaSearch }, 
-        { name:'Professeur', value:'professeur', description: "Enseignement et formation", icon: FaChalkboardTeacher }, 
-        { name: 'Etudiant(e)', value:'etudiant', description: "Apprentissage et études", icon: FaGraduationCap },
-        { name:'Autres', value:'autres', description: "Autres professions", icon: FaUsers }
+        { name: 'Chercheur',  value: 'chercheur',  description: "Recherche académique et scientifique", icon: FaSearch },
+        { name: 'Étudiant',   value: 'etudiant',   description: "Apprentissage et études",               icon: FaGraduationCap },
+        { name: 'Professeur', value: 'professeur', description: "Enseignement et formation",              icon: FaChalkboardTeacher },
+        { name: 'Autres',     value: 'autres',     description: "Autres professions",                    icon: FaUsers }
     ];
 
     return (

@@ -19,14 +19,14 @@ function ProtectedRoute({ children, redirectTo = '/login', allowedRoles = null }
     const checkAuthentication = () => {
         // Check if user is authenticated
         if (!isAuthenticated()) {
-            console.log('User not authenticated, redirecting to login');
+            // console.log('User not authenticated, redirecting to login');
             window.location.href = redirectTo;
             return;
         }
 
         // Check if session has expired
         if (isSessionExpired(24)) { // 24 hours expiration
-            console.log('Session expired, logging out');
+            // console.log('Session expired, logging out');
             logout();
             window.location.href = redirectTo;
             return;
@@ -36,7 +36,7 @@ function ProtectedRoute({ children, redirectTo = '/login', allowedRoles = null }
         if (allowedRoles && allowedRoles.length > 0) {
             const user = getCurrentUser();
             if (!user || !allowedRoles.includes(user.role)) {
-                console.log('User role not authorized for this route');
+                // console.log('User role not authorized for this route');
                 // Redirect to unauthorized page or home
                 window.location.href = '/unauthorized';
                 return;
