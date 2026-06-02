@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { FaMapMarkerAlt, FaSearch } from 'react-icons/fa';
 import { isAuthenticated, logout } from '../utils/auth';
 import provincesData from '../assets/province.json';
 
+const getSearchableText = (value) => String(value || '').toLowerCase();
+
 function Provinces() {
     const navigate = useNavigate();
-    const location = useLocation();
     const [isUserAuthenticated, setIsUserAuthenticated] = useState(false);
     const [query, setQuery] = useState('');
 
@@ -41,9 +42,9 @@ function Provinces() {
         const searchQuery = query.trim().toLowerCase();
         if (!searchQuery) return true;
         return (
-            province.nom.toLowerCase().includes(searchQuery) ||
-            province.chef_lieu.toLowerCase().includes(searchQuery) ||
-            province.code.toLowerCase().includes(searchQuery)
+            getSearchableText(province.nom).includes(searchQuery) ||
+            getSearchableText(province.chef_lieu).includes(searchQuery) ||
+            getSearchableText(province.code).includes(searchQuery)
         );
     });
 

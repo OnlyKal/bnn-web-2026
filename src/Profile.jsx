@@ -24,13 +24,14 @@ import { getCurrentUser, logout, isAuthenticated, saveSession, getSession } from
 import { userAPI, fileUtils, validators } from './api';
 import logoBlancImg from './assets/Logoblanc.png';
 import { getMediaUrl } from './config';
+import { useToast } from './hooks/useToast';
+import { ToastContainer } from './components/ToastContainer';
 
 function Profile() {
     const [user, setUser] = useState(null);
     const [editing, setEditing] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState('');
+    const { toasts, removeToast, showError, showSuccess } = useToast();
     const [formData, setFormData] = useState({});
     const [avatarUploading, setAvatarUploading] = useState(false);
     const [previewAvatar, setPreviewAvatar] = useState(null);
@@ -104,7 +105,6 @@ function Profile() {
 
             // Upload avatar
             setAvatarUploading(true);
-            setError('');
 
             // Convert to Base64
             // console.log('Converting file to Base64...');
@@ -132,11 +132,11 @@ function Profile() {
                 URL.revokeObjectURL(previewUrl);
             }
             setPreviewAvatar(null);
-            setSuccess('Avatar mis à jour avec succès !');
+            showSuccess('Avatar mis à jour avec succès !');
 
         } catch (err) {
             console.error('Avatar upload error:', err);
-            setError(err.message || 'Erreur lors de la mise à jour de l\'avatar');
+            showError(err.message || 'Erreur lors de la mise à jour de l\'avatar');
             
             // Clean up preview on error
             if (previewUrl) {
@@ -168,8 +168,6 @@ function Profile() {
     const handlePasswordSubmit = async (e) => {
         e.preventDefault();
         setPasswordLoading(true);
-        setError('');
-        setSuccess('');
 
         try {
             // Validate password data
@@ -191,7 +189,7 @@ function Profile() {
             });
 
             // console.log('Password change response:', response);
-            setSuccess('Mot de passe mis à jour avec succès !');
+            showSuccess('Mot de passe mis à jour avec succès !');
             
             // Reset form and close modal
             setPasswordData({
@@ -203,7 +201,7 @@ function Profile() {
 
         } catch (err) {
             console.error('Password change error:', err);
-            setError(err.message || 'Erreur lors du changement de mot de passe');
+            showError(err.message || 'Erreur lors du changement de mot de passe');
         } finally {
             setPasswordLoading(false);
         }
@@ -216,14 +214,11 @@ function Profile() {
             confirmPassword: ''
         });
         setChangingPassword(false);
-        setError('');
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        setError('');
-        setSuccess('');
 
         try {
             // Debug: Check authentication
@@ -248,11 +243,11 @@ function Profile() {
                 detail: { user: updatedUser } 
             }));
             
-            setSuccess(response.message || 'Profil mis à jour avec succès !');
+            showSuccess(response.message || 'Profil mis à jour avec succès !');
             setEditing(false);
         } catch (err) {
             console.error('Profile update error:', err);
-            setError(err.message || 'Erreur lors de la mise à jour du profil');
+            showError(err.message || 'Erreur lors de la mise à jour du profil');
         } finally {
             setLoading(false);
         }
@@ -294,34 +289,8 @@ function Profile() {
 
             {/* Main Content */}
             <div className="profile-main">
+                <ToastContainer toasts={toasts} onClose={removeToast} />
                 <div className="profile-container">
-                    {/* Messages */}
-                    {error && (
-                        <div className="profile-notification error">
-                            <span className="profile-notification-icon">❌</span>
-                            <span>{error}</span>
-                            <button 
-                                onClick={() => setError('')}
-                                className="profile-notification-close"
-                            >
-                                ×
-                            </button>
-                        </div>
-                    )}
-                    
-                    {success && (
-                        <div className="profile-notification success">
-                            <span className="profile-notification-icon">✅</span>
-                            <span>{success}</span>
-                            <button 
-                                onClick={() => setSuccess('')}
-                                className="profile-notification-close"
-                            >
-                                ×
-                            </button>
-                        </div>
-                    )}
-
                     {avatarUploading && (
                         <div className="profile-notification info">
                             <span className="profile-notification-icon">📤</span>
@@ -505,8 +474,6 @@ function Profile() {
                                             type="button"
                                             onClick={() => {
                                                 setEditing(false);
-                                                setError('');
-                                                setSuccess('');
                                                 setFormData({
                                                     nom: user.nom || '',
                                                     prenom: user.prenom || '',

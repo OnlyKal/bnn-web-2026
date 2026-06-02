@@ -1,16 +1,18 @@
 import logo from '../Images/logoblan.png';
 import bgVideo from '../assets/bgvideo.mp4';
-import { BiSolidEnvelope, BiSolidCheckCircle, BiSolidErrorCircle } from 'react-icons/bi';
+import { BiSolidEnvelope } from 'react-icons/bi';
 import { FaArrowLeft } from 'react-icons/fa';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../api';
+import { useToast } from '../hooks/useToast';
+import { ToastContainer } from '../components/ToastContainer';
 
 function ResetPassword() {
     const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState('');
+    const [submitted, setSubmitted] = useState(false);
+    const { toasts, removeToast, showError, showSuccess } = useToast();
     const navigate = useNavigate();
 
     // Validate email format
@@ -22,18 +24,16 @@ function ResetPassword() {
     // Handle password reset
     const handlePasswordReset = async () => {
         if (!email.trim()) {
-            setError('Veuillez entrer votre adresse email');
+            showError('Veuillez entrer votre adresse email');
             return;
         }
 
         if (!validateEmail(email.trim())) {
-            setError('Veuillez entrer une adresse email valide');
+            showError('Veuillez entrer une adresse email valide');
             return;
         }
 
         setLoading(true);
-        setError('');
-        setSuccess('');
 
         try {
             // console.log('🚀 Sending password reset request for:', email.trim());
@@ -50,7 +50,8 @@ function ResetPassword() {
                                      'Mot de passe réinitialisé et envoyé par mail avec succès';
                 
                 // console.log('✅ Password reset successful, showing success message:', successMessage);
-                setSuccess(successMessage);
+                showSuccess(successMessage);
+                setSubmitted(true);
                 setEmail(''); // Clear form
                 
                 // Redirect to login after 3 seconds (give time to read message)
@@ -66,13 +67,13 @@ function ResetPassword() {
                                    response?.detail ||
                                    'Réponse inattendue du serveur';
                 // console.log('⚠️ Unexpected password reset response:', response);
-                setError(errorMessage);
+                showError(errorMessage);
             }
         } catch (err) {
             console.error('Password reset error:', err);
             
             // Use the error message directly from the API function
-            setError(err.message);
+            showError(err.message);
         } finally {
             setLoading(false);
         }
@@ -90,6 +91,8 @@ function ResetPassword() {
                 <source src={bgVideo} type="video/mp4" />
             </video>
             
+            <ToastContainer toasts={toasts} onClose={removeToast} />
+            
             <div className='card-connexion'>
                 {/* Back button */}
                 <button 
@@ -100,40 +103,16 @@ function ResetPassword() {
                     Retour à la connexion
                 </button>
 
-                <img src={logo} alt="Logo" height={80} width={220} className="logo-connexion" />
+                <img src={logo} alt="Logo" height={55} width={155} className="logo-connexion" />
                 
                 <div className="reset-title">
-                    <h3 style={{color: 'white', textAlign: 'center', marginBottom: '20px'}}>
+                    <h3 style={{color: 'white', textAlign: 'center', marginBottom: '10px', fontSize: '0.85rem'}}>
                         Réinitialiser le mot de passe
                     </h3>
-                    <p style={{color: '#ccc', textAlign: 'center', fontSize: '14px', marginBottom: '15px'}}>
+                    <p style={{color: '#ccc', textAlign: 'center', fontSize: '0.7rem', marginBottom: '8px'}}>
                         Entrez votre adresse email pour recevoir un nouveau mot de passe
                     </p>
                 </div>
-                
-                {/* Error message */}
-                {error && (
-                    <div className="alert alert-error">
-                        <BiSolidErrorCircle />
-                        {error}
-                    </div>
-                )}
-                
-                {/* Success message */}
-                {success && (
-                    <div className="alert alert-success">
-                        <BiSolidCheckCircle />
-                        <div>
-                            {success}
-                            <div style={{fontSize: '12px', marginTop: '8px', fontStyle: 'italic'}}>
-                                Redirection vers la connexion dans 3 secondes...
-                            </div>
-                            <div style={{fontSize: '10px', marginTop: '5px', color: '#666'}}>
-                                Vous pouvez aussi cliquer sur "Retour à la connexion" ci-dessus
-                            </div>
-                        </div>
-                    </div>
-                )}
 
                 <div className="input-connexion">
                     <BiSolidEnvelope 
@@ -146,26 +125,24 @@ function ResetPassword() {
                         placeholder="Votre adresse email" 
                         className="email-reset" 
                         onChange={(e) => setEmail(e.target.value)}
-                        disabled={loading || success}
-                        onKeyPress={(e) => e.key === 'Enter' && !loading && !success && handlePasswordReset()}
+                        disabled={loading || submitted}
+                        onKeyPress={(e) => e.key === 'Enter' && !loading && !submitted && handlePasswordReset()}
                     />
                 </div>
 
                 <button 
                     className="button-connexion" 
                     onClick={handlePasswordReset}
-                    disabled={loading || success}
+                    disabled={loading || submitted}
                 > 
                     {loading ? 'ENVOI EN COURS...' : 'ENVOYER'}
                 </button>
 
                 <div className='reset-info'>
-                    <p style={{color: '#ccc', fontSize: '12px', textAlign: 'center', marginTop: '15px'}}>
-                        Vous recevrez un email avec votre nouveau mot de passe.
+                    <p style={{color: '#ccc', fontSize: '0.65rem', textAlign: 'center', marginTop: '8px'}}>
+                        Vous recevrez un email avec votre nouveau mot de passe.Pensez à vérifier votre dossier spam.
                     </p>
-                    <p style={{color: '#ccc', fontSize: '12px', textAlign: 'center', marginTop: '5px'}}>
-                        Pensez à vérifier votre dossier spam.
-                    </p>
+                    
                 </div>
             </div>
         </div>

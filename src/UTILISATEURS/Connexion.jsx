@@ -1,12 +1,14 @@
 
 import logo from '../Images/logoblan.png';
 import bgVideo from '../assets/bgvideo.mp4';
-import { BiSolidUser, BiSolidLock, BiSolidCheckCircle, BiSolidErrorCircle } from 'react-icons/bi';
+import { BiSolidUser, BiSolidLock } from 'react-icons/bi';
 import { BsEyeFill, BsEyeSlash, BsEyeSlashFill } from 'react-icons/bs';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { saveSession, isAuthenticated } from '../utils/auth';
 import { authAPI } from '../services/api';
+import { useToast } from '../hooks/useToast';
+import { ToastContainer } from '../components/ToastContainer';
 
 
 
@@ -16,8 +18,7 @@ function Connexion() {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState('');
+    const { toasts, removeToast, showError, showSuccess } = useToast();
     const navigate = useNavigate();
 
     // Check if user is already authenticated
@@ -31,13 +32,11 @@ function Connexion() {
     // Login function
     const handleLogin = async () => {
         if (!username.trim() || !password.trim()) {
-            setError('Veuillez remplir tous les champs');
+            showError('Veuillez remplir tous les champs');
             return;
         }
 
         setLoading(true);
-        setError('');
-        setSuccess('');
 
         try {
             const response = await authAPI.login({
@@ -53,7 +52,7 @@ function Connexion() {
                 // Save session
                 saveSession(token, userData);
 
-                setSuccess(response.message || 'Connexion réussie !');
+                showSuccess(response.message || 'Connexion réussie !');
 
                 // Clear form
                 setUsername('');
@@ -66,26 +65,26 @@ function Connexion() {
                 }, 1000);
             } else {
                 // Show API message if provided, otherwise standardize the message
-                setError(response?.message || "Nom d'utilisateur ou mot de passe incorrect.");
+                showError(response?.message || "Nom d'utilisateur ou mot de passe incorrect.");
             }
         } catch (err) {
             console.error('Login error:', err);
             if (err.response) {
                 // If server indicates unauthorized/invalid credentials, show standardized message
                 if (err.response.status === 401 || err.response.status === 400) {
-                    setError("Nom d'utilisateur ou mot de passe incorrect.");
+                    showError("Nom d'utilisateur ou mot de passe incorrect.");
                 } else {
                     const errorMessage = err.response.data?.message || 
                                        err.response.data?.error || 
                                        'Erreur de connexion';
-                    setError(errorMessage);
+                    showError(errorMessage);
                 }
             } else if (err.request) {
                 // Network error
-                setError('Erreur de réseau. Vérifiez votre connexion internet.');
+                showError('Erreur de réseau. Vérifiez votre connexion internet.');
             } else {
                 // Other error
-                setError('Une erreur inattendue s\'est produite');
+                showError('Une erreur inattendue s\'est produite');
             }
         } finally {
             setLoading(false);
@@ -103,24 +102,10 @@ function Connexion() {
             <source src={bgVideo} type="video/mp4" />
         </video>
         
+        <ToastContainer toasts={toasts} onClose={removeToast} />
+        
         <div className='card-connexion'>
-            <img src={logo} alt="Logo" height={80} width={220} className="logo-connexion" />
-            
-            {/* Error message */}
-            {error && (
-                <div className="alert alert-error">
-                    <BiSolidErrorCircle />
-                    {error}
-                </div>
-            )}
-            
-            {/* Success message */}
-            {success && (
-                <div className="alert alert-success">
-                    <BiSolidCheckCircle />
-                    {success}
-                </div>
-            )}
+            <img src={logo} alt="Logo" height={55} width={155} className="logo-connexion" />
 
             <div className="input-connexion">
                 <BiSolidUser 

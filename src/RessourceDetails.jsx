@@ -24,7 +24,9 @@ import { mockRessources, simulateApiCall } from './mockData';
 import './index.css';
 import { getMediaUrl, getFileUrl } from './config';
 import { getSession } from './utils/auth';
-import { EpubViewer } from 'react-epub-viewer';
+import PDFViewer from './components/PDFViewer';
+import EPUBViewer from './components/EPUBViewer';
+import VideoViewer from './components/VideoViewer';
 
 const RessourceDetails = () => {
     const { id } = useParams();
@@ -45,7 +47,54 @@ const RessourceDetails = () => {
     const [viewerEpubHeaders, setViewerEpubHeaders] = useState({});
     const [epubRenderKey, setEpubRenderKey] = useState(0);
     const [epubReady, setEpubReady] = useState(false);
+    const [pdfBlob, setPdfBlob] = useState(null); // Pour le nouveau viewer PDF
+    const [epubBlob, setEpubBlob] = useState(null); // Pour le nouveau viewer EPUB - BLOB direct
+    const [fileSizes, setFileSizes] = useState({});
     const epubViewerRef = useRef(null);
+
+    // Formater la taille en unités lisibles
+    const formatFileSize = (bytes) => {
+        if (!bytes || bytes <= 0) return null;
+        const units = ['o', 'Ko', 'Mo', 'Go'];
+        let i = 0;
+        let size = bytes;
+        while (size >= 1024 && i < units.length - 1) {
+            size /= 1024;
+            i++;
+        }
+        return `${size.toFixed(size < 10 ? 2 : 1)} ${units[i]}`;
+    };
+
+    // Calculer la taille des fichiers en les téléchargeant (même approche que le viewer)
+    useEffect(() => {
+        if (!ressource?.fichiers?.length) return;
+        let cancelled = false;
+        const { token } = getSession();
+
+        const loadSizes = async () => {
+            for (let i = 0; i < ressource.fichiers.length; i++) {
+                if (cancelled) return;
+                const fichier = ressource.fichiers[i];
+                if (!fichier.fichier) continue;
+                const url = getFileUrl(fichier.fichier);
+                try {
+                    const headers = { 'Accept': '*/*' };
+                    if (token) {
+                        headers.Authorization = token.startsWith('Bearer ') || token.startsWith('Token ') ? token : `Bearer ${token}`;
+                    }
+                    const response = await fetch(url, { method: 'GET', headers, credentials: 'include' });
+                    if (!response.ok) continue;
+                    const blob = await response.blob();
+                    if (!cancelled && blob.size > 0) {
+                        setFileSizes(prev => ({ ...prev, [i]: blob.size }));
+                    }
+                } catch (_) {}
+            }
+        };
+        loadSizes();
+
+        return () => { cancelled = true; };
+    }, [ressource]);
 
     // Récupérer les détails de la ressource depuis le state ou depuis l'API en dernier recours
     useEffect(() => {
@@ -221,14 +270,14 @@ const RessourceDetails = () => {
 
     // Fonction pour obtenir l'icône selon le format
     const getFormatIcon = (format) => {
-        if (!format) return <FaFileAlt className="text-gray-500" />;
+        if (!format) return <FaFileAlt style={{ color: '#6b7280' }} />;
         
         const formatLower = format.toLowerCase();
-        if (formatLower === 'pdf') return <FaFilePdf className="text-red-500" />;
-        if (['mp4', 'avi', 'mov'].includes(formatLower)) return <FaFileVideo className="text-blue-500" />;
-        if (['png', 'jpg', 'jpeg', 'gif'].includes(formatLower)) return <FaFileImage className="text-green-500" />;
+        if (formatLower === 'pdf') return <FaFilePdf style={{ color: '#ef4444' }} />;
+        if (['mp4', 'avi', 'mov'].includes(formatLower)) return <FaFileVideo style={{ color: '#3b82f6' }} />;
+        if (['png', 'jpg', 'jpeg', 'gif'].includes(formatLower)) return <FaFileImage style={{ color: '#22c55e' }} />;
         
-        return <FaFileAlt className="text-gray-500" />;
+        return <FaFileAlt style={{ color: '#6b7280' }} />;
     };
 
     // Fonction pour formater la date
@@ -333,35 +382,101 @@ const RessourceDetails = () => {
     };
 
     const fetchFileBlobWithAuth = async (fileUrl, mimeType) => {
+        console.log('🔄 Fetching file blob:', { fileUrl, mimeType });
+        
+        // Utiliser fetch directement pour les fichiers média (évite les problèmes de baseURL axios)
+        const { token } = getSession();
+        const headers = {
+            'Accept': mimeType || '*/*'
+        };
+        
+        if (token) {
+            const authToken = token.startsWith('Bearer ') || token.startsWith('Token ') ? token : `Bearer ${token}`;
+            headers.Authorization = authToken;
+        }
+        
         try {
-            const response = await api.get(fileUrl, { responseType: 'blob' });
-            return response.data;
-        } catch (axiosError) {
-            console.warn('Axios blob fetch failed, fallback to fetch:', axiosError);
-            const { token } = getSession();
-            const headers = {};
-            if (token) {
-                const authToken = token.startsWith('Bearer ') || token.startsWith('Token ') ? token : `Bearer ${token}`;
-                headers.Authorization = authToken;
-            }
-            const response = await fetch(fileUrl, { headers });
+            console.log('📡 Fetching with headers:', Object.keys(headers));
+            const response = await fetch(fileUrl, { 
+                method: 'GET',
+                headers,
+                credentials: 'include' // Inclure les cookies si nécessaires
+            });
+            
+            console.log('📥 Response status:', response.status, response.statusText);
+            console.log('📥 Response headers:', Object.fromEntries(response.headers.entries()));
+            
             if (!response.ok) {
-                throw new Error(`File fetch failed: ${response.status}`);
+                throw new Error(`File fetch failed: ${response.status} ${response.statusText}`);
             }
-            const buffer = await response.arrayBuffer();
-            return new Blob([buffer], { type: mimeType });
+            
+            const blob = await response.blob();
+            console.log('✅ Blob received:', { 
+                size: blob.size, 
+                type: blob.type,
+                expectedType: mimeType 
+            });
+            
+            // Si le type MIME du blob n'est pas correct, on le recrée avec le bon type
+            if (blob.type !== mimeType && mimeType) {
+                console.log('🔧 Recreating blob with correct MIME type');
+                return new Blob([blob], { type: mimeType });
+            }
+            
+            return blob;
+        } catch (error) {
+            console.error('❌ Fetch error:', error);
+            
+            // Fallback: essayer sans authentification (fichiers publics)
+            try {
+                console.log('🔄 Trying fallback without auth...');
+                const fallbackResponse = await fetch(fileUrl);
+                if (!fallbackResponse.ok) {
+                    throw new Error(`Fallback fetch failed: ${fallbackResponse.status}`);
+                }
+                const blob = await fallbackResponse.blob();
+                console.log('✅ Fallback blob received:', { size: blob.size, type: blob.type });
+                
+                if (blob.type !== mimeType && mimeType) {
+                    return new Blob([blob], { type: mimeType });
+                }
+                return blob;
+            } catch (fallbackError) {
+                console.error('❌ Fallback also failed:', fallbackError);
+                throw error;
+            }
         }
     };
 
     const isLikelyValidEpubBlob = async (blob) => {
         try {
-            if (!blob || blob.size < 4) return false;
+            if (!blob) {
+                console.warn('📚 EPUB validation: blob is null/undefined');
+                return false;
+            }
+            if (blob.size < 100) { // Un EPUB valide fait au moins quelques centaines d'octets
+                console.warn('📚 EPUB validation: blob too small:', blob.size, 'bytes');
+                return false;
+            }
+            
             const buffer = await blob.slice(0, 4).arrayBuffer();
             const bytes = new Uint8Array(buffer);
-            // EPUB is a ZIP container => starts with PK\x03\x04 or PK signatures
-            return bytes[0] === 0x50 && bytes[1] === 0x4B;
+            
+            // EPUB is a ZIP container => starts with PK\x03\x04 (PK magic bytes)
+            const isZip = bytes[0] === 0x50 && bytes[1] === 0x4B;
+            const signature = bytes.slice(0, 4).join(',');
+            
+            console.log('📚 EPUB validation:', {
+                size: blob.size,
+                type: blob.type,
+                signature: signature,
+                isZipSignature: isZip,
+                hex: Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(' ')
+            });
+            
+            return isZip;
         } catch (error) {
-            console.warn('EPUB blob validation failed:', error);
+            console.warn('📚 EPUB blob validation error:', error);
             return false;
         }
     };
@@ -393,58 +508,171 @@ const RessourceDetails = () => {
                 return;
             }
 
-            if (extension === 'pdf' || extension === 'epub') {
-                setViewerType(extension);
+            if (extension === 'pdf') {
+                // Nouveau viewer PDF sécurisé
+                setViewerType('pdf');
+                setViewerTitle(fileTitle);
+                setViewerLoading(true);
+                setViewerError('');
+                setPdfBlob(null);
+                setViewerOpen(true);
+
+                try {
+                    console.log('📄 Attempting to fetch PDF blob from:', fullUrl);
+                    const blob = await fetchFileBlobWithAuth(fullUrl, 'application/pdf');
+                    
+                    // Vérifier que le blob est valide (pas vide et signature PDF)
+                    if (blob.size === 0) {
+                        throw new Error('PDF blob is empty');
+                    }
+                    
+                    // Vérifier la signature PDF (%PDF-)
+                    const header = await blob.slice(0, 5).text();
+                    if (!header.startsWith('%PDF-')) {
+                        console.warn('⚠️ File does not have PDF signature, received:', header);
+                        // Continuer quand même, le serveur pourrait renvoyer un type différent
+                    }
+                    
+                    console.log('✅ PDF Blob received:', { 
+                        size: blob.size, 
+                        type: blob.type,
+                        header: header.substring(0, 10)
+                    });
+                    setPdfBlob(blob);
+                    setViewerLoading(false);
+                } catch (fetchError) {
+                    console.warn('❌ PDF fetch with auth failed:', fetchError.message);
+                    
+                    // Fallback 1: Essayer sans authentification
+                    try {
+                        console.log('🔄 Trying fallback fetch without auth...');
+                        const response = await fetch(fullUrl, {
+                            method: 'GET',
+                            credentials: 'omit' // Pas de cookies
+                        });
+                        
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+                        
+                        const blob = await response.blob();
+                        console.log('✅ Fallback blob received:', { size: blob.size, type: blob.type });
+                        
+                        if (blob.size === 0) {
+                            throw new Error('Fallback blob is empty');
+                        }
+                        
+                        setPdfBlob(blob);
+                        setViewerLoading(false);
+                    } catch (fallbackError) {
+                        console.error('❌ PDF fallback also failed:', fallbackError.message);
+                        
+                        // Fallback 2: Utiliser l'URL directe sans blob (moins sécurisé mais fonctionnel)
+                        console.log('🔄 Using direct URL fallback...');
+                        setPdfBlob(fullUrl); // Le viewer peut accepter une URL string
+                        setViewerLoading(false);
+                    }
+                }
+                return;
+            }
+
+            if (extension === 'epub') {
+                console.log('📚 Opening EPUB viewer...');
+                
+                setViewerType('epub');
                 setViewerTitle(fileTitle);
                 setViewerUrl('');
                 setViewerError('');
-                setViewerLoading(extension === 'pdf');
+                setViewerLoading(true);
                 setEpubReady(false);
+                setEpubBlob(null);
                 setViewerOpen(true);
+                
                 if (viewerObjectUrl) {
                     URL.revokeObjectURL(viewerObjectUrl);
                     setViewerObjectUrl('');
                 }
 
+                // Construire URL proxy: /media/... au lieu de https://admin.cgiibnn-esursi.cd/media/...
+                let proxyUrl = fullUrl;
                 try {
-                    const mimeType = extension === 'pdf' ? 'application/pdf' : 'application/epub+zip';
-                    // console.log('📥 Fetching file with auth:', { fullUrl, mimeType, extension });
-                    const blob = await fetchFileBlobWithAuth(fullUrl, mimeType);
-                    // console.log('✅ Blob received:', { size: blob.size, type: blob.type });
-
-                    if (extension === 'epub') {
-                        // console.log('🔍 Validating EPUB blob...');
-                        const validEpub = await isLikelyValidEpubBlob(blob);
-                        // console.log('EPUB validation result:', validEpub);
-                        if (!validEpub) {
-                            throw new Error('Invalid EPUB blob content');
-                        }
+                    const urlObj = new URL(fullUrl);
+                    // Si l'URL pointe vers le serveur admin, utiliser le chemin relatif (passe par le proxy Vite)
+                    if (urlObj.pathname.startsWith('/media/')) {
+                        proxyUrl = urlObj.pathname; // ex: /media/ressources/BNN183219.epub
                     }
-
-                    const objectUrl = URL.createObjectURL(blob);
-                    // console.log('🔗 Object URL created:', objectUrl);
-                    setViewerObjectUrl(objectUrl);
-                    setViewerUrl(objectUrl);
-                    if (extension === 'epub') {
-                        setViewerEpubHeaders({});
-                        setEpubRenderKey(prev => prev + 1);
-                        // console.log('📚 EPUB viewer initialized with render key');
-                        setViewerLoading(false);
-                    } else {
-                        setViewerLoading(false);
+                } catch (e) {
+                    // Si fullUrl est deja un chemin relatif, l'utiliser tel quel
+                    if (fullUrl.startsWith('/media/')) {
+                        proxyUrl = fullUrl;
                     }
-                } catch (fetchError) {
-                    console.warn('❌ File fetch with auth failed:', fetchError);
-                    // console.log('🔄 Trying direct URL as fallback for', extension);
+                }
+                console.log('📡 EPUB fetch URL (proxy):', proxyUrl, '(original:', fullUrl, ')');
+
+                try {
+                    // Methode 1: Fetch via proxy Vite (evite CORS)
+                    const { token } = getSession();
+                    const headers = { 'Accept': 'application/epub+zip, application/octet-stream, */*' };
+                    if (token) {
+                        headers.Authorization = token.startsWith('Bearer ') || token.startsWith('Token ') ? token : 'Bearer ' + token;
+                    }
                     
-                    // Pour les EPUBs aussi, essayer l'URL directe comme fallback
-                    setViewerUrl(fullUrl);
-                    if (extension === 'epub') {
-                        setViewerEpubHeaders({});
-                        setEpubRenderKey(prev => prev + 1);
-                        // console.log('📚 EPUB viewer initialized with direct URL');
+                    console.log('📡 Fetching EPUB via proxy...');
+                    const response = await fetch(proxyUrl, { method: 'GET', headers });
+                    
+                    console.log('📥 EPUB response:', response.status, response.statusText, 'type:', response.headers.get('content-type'));
+                    
+                    if (!response.ok) {
+                        throw new Error('HTTP ' + response.status + ': ' + response.statusText);
                     }
+                    
+                    const blob = await response.blob();
+                    console.log('📥 EPUB blob:', blob.size, 'bytes, type:', blob.type);
+
+                    if (blob.size === 0) {
+                        throw new Error('EPUB blob is empty (0 bytes)');
+                    }
+
+                    // Verifier la signature ZIP (PK)
+                    const header = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
+                    console.log('📥 EPUB signature:', header[0].toString(16), header[1].toString(16));
+                    
+                    if (header[0] !== 0x50 || header[1] !== 0x4B) {
+                        const textPreview = await blob.slice(0, 200).text();
+                        console.warn('⚠️ Not a ZIP file, content preview:', textPreview);
+                        throw new Error('Le fichier telecharge n\'est pas un EPUB valide');
+                    }
+
+                    setEpubBlob(blob);
                     setViewerLoading(false);
+                    
+                } catch (fetchError) {
+                    console.error('❌ EPUB proxy fetch failed:', fetchError.message);
+                    
+                    // Fallback: essayer l'URL directe sans auth
+                    try {
+                        console.log('🔄 Trying direct URL fallback:', fullUrl);
+                        const response = await fetch(fullUrl, { mode: 'cors' });
+                        
+                        if (!response.ok) {
+                            throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+                        }
+                        
+                        const blob = await response.blob();
+                        console.log('📥 EPUB fallback blob:', blob.size, 'bytes');
+                        
+                        if (blob.size === 0) {
+                            throw new Error('Fallback blob is empty');
+                        }
+
+                        setEpubBlob(blob);
+                        setViewerLoading(false);
+                        
+                    } catch (fallbackError) {
+                        console.error('❌ EPUB fallback also failed:', fallbackError.message);
+                        setViewerError('Impossible de charger le fichier EPUB: ' + fetchError.message);
+                        setViewerLoading(false);
+                    }
                 }
                 return;
             }
@@ -571,11 +799,14 @@ const RessourceDetails = () => {
         setViewerLoading(false);
         setEpubReady(false);
         setViewerEpubHeaders({});
+        setPdfBlob(null); // Nettoyer le blob PDF
         if (viewerObjectUrl) {
             URL.revokeObjectURL(viewerObjectUrl);
             setViewerObjectUrl('');
         }
     };
+
+    // Le blocage des raccourcis clavier et du clic droit est géré par le composant PDFViewer
 
     useEffect(() => {
         if (!viewerOpen || viewerType !== 'epub' || !viewerUrl || epubReady || viewerError) {
@@ -651,79 +882,34 @@ const RessourceDetails = () => {
 
     return (
         <div className="ressource-details-page">
-            {viewerOpen && (
-                <div className="viewer-overlay" role="dialog" aria-modal="true">
-                    <div className="viewer-modal">
-                        <div className="viewer-header">
-                            <div className="viewer-title">
-                                {viewerTitle}
-                                <span className="viewer-type-badge">{viewerType?.toUpperCase()}</span>
-                            </div>
-                            <div className="viewer-actions">
-                                <button className="viewer-close-btn" onClick={closeViewer}>
-                                    Fermer
-                                </button>
-                            </div>
-                        </div>
-                        <div className="viewer-body">
-                            {viewerLoading && (
-                                <div className="viewer-loading">Chargement...</div>
-                            )}
-                            {viewerError && (
-                                <div className="viewer-error">{viewerError}</div>
-                            )}
-                            {!viewerError && viewerType === 'pdf' && (
-                                <iframe
-                                    className="viewer-iframe"
-                                    src={viewerUrl}
-                                    title={viewerTitle}
-                                />
-                            )}
-                            {!viewerError && viewerType === 'video' && viewerUrl && (
-                                <div className="viewer-video">
-                                    <video
-                                        key={viewerUrl}
-                                        controls
-                                        autoPlay
-                                        style={{ width: '100%', height: '100%', maxHeight: '100%', background: '#000', outline: 'none' }}
-                                    >
-                                        <source src={viewerUrl} />
-                                        Votre navigateur ne supporte pas la lecture vidéo.
-                                    </video>
-                                </div>
-                            )}
-                            {!viewerError && viewerType === 'epub' && viewerUrl && (
-                                <div className="viewer-epub">
-                                    <div style={{ position: 'relative', height: '100%' }}>
-                                    <EpubViewer
-                                        key={epubRenderKey}
-                                        url={viewerUrl}
-                                        ref={epubViewerRef}
-                                        epubFileOptions={{ requestHeaders: viewerEpubHeaders }}
-                                        style={{ height: '100%' }}
-                                        bookChanged={(book) => {
-                                            // console.log('📖 EPUB bookChanged event:', book ? 'loaded' : 'null');
-                                            setEpubReady(true);
-                                            setViewerLoading(false);
-                                        }}
-                                        renditionChanged={(rendition) => {
-                                            // console.log('🎨 EPUB renditionChanged event:', rendition ? 'ready' : 'null');
-                                            setEpubReady(true);
-                                            setViewerLoading(false);
-                                        }}
-                                        pageChanged={(page) => {
-                                            // console.log('📄 EPUB pageChanged event:', page);
-                                            setEpubReady(true);
-                                            setViewerLoading(false);
-                                        }}
-                                        loadingView={<div className="viewer-loading">Chargement EPUB...</div>}
-                                    />
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
+            {/* Nouveau viewer PDF sécurisé */}
+            {viewerOpen && viewerType === 'pdf' && (
+                <PDFViewer
+                    pdfData={pdfBlob}
+                    title={viewerTitle}
+                    onClose={closeViewer}
+                    isLoading={viewerLoading}
+                />
+            )}
+            
+            {/* Nouveau viewer EPUB sécurisé */}
+            {viewerOpen && viewerType === 'epub' && (
+                <EPUBViewer
+                    epubData={epubBlob}
+                    title={viewerTitle}
+                    onClose={closeViewer}
+                    isLoading={viewerLoading}
+                />
+            )}
+            
+            {/* Viewer pour vidéo */}
+            {viewerOpen && viewerType === 'video' && (
+                <VideoViewer
+                    videoUrl={viewerUrl}
+                    title={viewerTitle}
+                    onClose={closeViewer}
+                    isLoading={viewerLoading}
+                />
             )}
             {/* En-tête */}
             <div className="ressource-details-header">
@@ -812,13 +998,20 @@ const RessourceDetails = () => {
                                             <span className="file-folder-badge">
                                                 📁 {getFileTypeFolder(fichier.format || ressource.format)}
                                             </span>
+                                            {(fileSizes[index] != null || fichier.taille) && (
+                                                <span className="file-size-badge">
+                                                    💾 {fileSizes[index] != null 
+                                                        ? formatFileSize(fileSizes[index]) 
+                                                        : fichier.taille}
+                                                </span>
+                                            )}
                                             {fichier.id && (
                                                 <span className="file-id-badge">
                                                     ID: {fichier.id}
                                                 </span>
                                             )}
                                         </div>                                                        <div className="file-card-info">
-                                                            {fichier.duree && (
+                                                            {fichier.duree && ((fichier.format?.toLowerCase() === 'mp4') || (!fichier.format && fichier.fichier?.toLowerCase().endsWith('.mp4'))) && (
                                                                 <p>Durée: {fichier.duree}</p>
                                                             )}
                                                             {fichier.fichier && (
@@ -848,15 +1041,15 @@ const RessourceDetails = () => {
                         )}
 
                         <div style={{
-                            marginTop: '1.5rem',
-                            padding: '1rem 1.5rem',
+                            marginTop: '1rem',
+                            padding: '0.65rem 1rem',
                             backgroundColor: '#fcfcfc',
                             border: '1px solid #dfdedd',
-                            borderRadius: '0.5rem',
+                            borderRadius: '0.35rem',
                             textAlign: 'center',
                             color: '#7a7a7a',
                             fontWeight: '500',
-                            fontSize: '0.95rem'
+                            fontSize: '0.7rem'
                         }}>
                             <FaArrowAltCircleDown/> Cette plateforme est dédiée à la consultation uniquement.
                         </div>
@@ -879,20 +1072,20 @@ const RessourceDetails = () => {
                                 {/* Titre */}
                                 <div style={{
                                     backgroundColor: 'white',
-                                    padding: '1rem',
-                                    borderRadius: '0.5rem'
+                                    padding: '0.5rem',
+                                    borderRadius: '0.3rem'
                                 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                                        <FaBook style={{ color: '#2563eb', fontSize: '0.875rem' }} />
-                                        <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#6b7280' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginBottom: '0.25rem' }}>
+                                        <FaBook style={{ color: '#2563eb', fontSize: '0.65rem' }} />
+                                        <span style={{ fontSize: '0.65rem', fontWeight: '600', color: '#6b7280' }}>
                                             Titre
                                         </span>
                                     </div>
-                                    <h4 style={{ margin: '0', color: '#111827', fontSize: '0.875rem', fontWeight: '600' }}>
+                                    <h4 style={{ margin: '0', color: '#111827', fontSize: '0.7rem', fontWeight: '600' }}>
                                         {ressource.titre}
                                     </h4>
                                     {ressource.sous_titre && (
-                                        <p style={{ margin: '0.25rem 0 0 0', color: '#6b7280', fontSize: '0.8rem' }}>
+                                        <p style={{ margin: '0.15rem 0 0 0', color: '#6b7280', fontSize: '0.6rem' }}>
                                             {ressource.sous_titre}
                                         </p>
                                     )}
@@ -902,16 +1095,16 @@ const RessourceDetails = () => {
                                 {ressource.auteurs && (
                                     <div style={{
                                         backgroundColor: 'white',
-                                        padding: '1rem',
-                                        borderRadius: '0.5rem'
+                                        padding: '0.5rem',
+                                        borderRadius: '0.3rem'
                                     }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                                            <FaUser style={{ color: '#2563eb', fontSize: '0.875rem' }} />
-                                            <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#6b7280' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginBottom: '0.25rem' }}>
+                                            <FaUser style={{ color: '#2563eb', fontSize: '0.65rem' }} />
+                                            <span style={{ fontSize: '0.65rem', fontWeight: '600', color: '#6b7280' }}>
                                                 Auteur(s)
                                             </span>
                                         </div>
-                                        <p style={{ margin: '0', color: '#111827', fontSize: '0.875rem' }}>
+                                        <p style={{ margin: '0', color: '#111827', fontSize: '0.7rem' }}>
                                             {ressource.auteurs}
                                         </p>
                                     </div>
@@ -920,20 +1113,20 @@ const RessourceDetails = () => {
                                 {/* Domaine */}
                                 <div style={{
                                     backgroundColor: 'white',
-                                    padding: '1rem',
-                                    borderRadius: '0.5rem'
+                                    padding: '0.5rem',
+                                    borderRadius: '0.3rem'
                                 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                                        <FaTags style={{ color: '#2563eb', fontSize: '0.875rem' }} />
-                                        <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#6b7280' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginBottom: '0.25rem' }}>
+                                        <FaTags style={{ color: '#2563eb', fontSize: '0.65rem' }} />
+                                        <span style={{ fontSize: '0.65rem', fontWeight: '600', color: '#6b7280' }}>
                                             Domaine
                                         </span>
                                     </div>
-                                    <p style={{ margin: '0', color: '#111827', fontSize: '0.875rem' }}>
+                                    <p style={{ margin: '0', color: '#111827', fontSize: '0.7rem' }}>
                                         {ressource.domaine?.nom || 'Non spécifié'}
                                     </p>
                                     {ressource.sous_domaine?.nom && (
-                                        <p style={{ margin: '0.25rem 0 0 0', color: '#6b7280', fontSize: '0.75rem' }}>
+                                        <p style={{ margin: '0.15rem 0 0 0', color: '#6b7280', fontSize: '0.6rem' }}>
                                         {ressource.sous_domaine.nom}
                                         </p>
                                     )}
@@ -942,16 +1135,16 @@ const RessourceDetails = () => {
                                 {/* Type et Format */}
                                 <div style={{
                                     backgroundColor: 'white',
-                                    padding: '1rem',
-                                    borderRadius: '0.5rem'
+                                    padding: '0.5rem',
+                                    borderRadius: '0.3rem'
                                 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                                        <FaFileAlt style={{ color: '#2563eb', fontSize: '0.875rem' }} />
-                                        <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#6b7280' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginBottom: '0.25rem' }}>
+                                        <FaFileAlt style={{ color: '#2563eb', fontSize: '0.65rem' }} />
+                                        <span style={{ fontSize: '0.65rem', fontWeight: '600', color: '#6b7280' }}>
                                             Type & Format
                                         </span>
                                     </div>
-                                    <p style={{ margin: '0', color: '#111827', fontSize: '0.875rem' }}>
+                                    <p style={{ margin: '0', color: '#111827', fontSize: '0.7rem' }}>
                                         {ressource.type?.charAt(0).toUpperCase() + ressource.type?.slice(1)} • {ressource.format?.toUpperCase()}
                                     </p>
                                 </div>
@@ -960,16 +1153,16 @@ const RessourceDetails = () => {
                                 {ressource.langue && (
                                     <div style={{
                                         backgroundColor: 'white',
-                                        padding: '1rem',
-                                        borderRadius: '0.5rem'
+                                        padding: '0.5rem',
+                                        borderRadius: '0.3rem'
                                     }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                                            <FaGlobe style={{ color: '#2563eb', fontSize: '0.875rem' }} />
-                                            <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#6b7280' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginBottom: '0.25rem' }}>
+                                            <FaGlobe style={{ color: '#2563eb', fontSize: '0.65rem' }} />
+                                            <span style={{ fontSize: '0.65rem', fontWeight: '600', color: '#6b7280' }}>
                                                 Langue
                                             </span>
                                         </div>
-                                        <p style={{ margin: '0', color: '#111827', fontSize: '0.875rem' }}>
+                                        <p style={{ margin: '0', color: '#111827', fontSize: '0.7rem' }}>
                                             {ressource.langue === 'fr' ? 'Français' : ressource.langue === 'en' ? 'Anglais' : ressource.langue.toUpperCase()}
                                         </p>
                                     </div>
@@ -979,16 +1172,16 @@ const RessourceDetails = () => {
                                 {ressource.pays && (
                                     <div style={{
                                         backgroundColor: 'white',
-                                        padding: '1rem',
-                                        borderRadius: '0.5rem'
+                                        padding: '0.5rem',
+                                        borderRadius: '0.3rem'
                                     }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                                            <FaMapMarkerAlt style={{ color: '#2563eb', fontSize: '0.875rem' }} />
-                                            <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#6b7280' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginBottom: '0.25rem' }}>
+                                            <FaMapMarkerAlt style={{ color: '#2563eb', fontSize: '0.65rem' }} />
+                                            <span style={{ fontSize: '0.65rem', fontWeight: '600', color: '#6b7280' }}>
                                                 Pays
                                             </span>
                                         </div>
-                                        <p style={{ margin: '0', color: '#111827', fontSize: '0.875rem' }}>
+                                        <p style={{ margin: '0', color: '#111827', fontSize: '0.7rem' }}>
                                             {ressource.pays}
                                         </p>
                                     </div>
@@ -998,23 +1191,23 @@ const RessourceDetails = () => {
                                 {(ressource.edition || ressource.lieu_edition) && (
                                     <div style={{
                                         backgroundColor: 'white',
-                                        padding: '1rem',
-                                        borderRadius: '0.5rem'
+                                        padding: '0.5rem',
+                                        borderRadius: '0.3rem'
                                     }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                                            <FaBook style={{ color: '#2563eb', fontSize: '0.875rem' }} />
-                                            <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#6b7280' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginBottom: '0.25rem' }}>
+                                            <FaBook style={{ color: '#2563eb', fontSize: '0.65rem' }} />
+                                            <span style={{ fontSize: '0.65rem', fontWeight: '600', color: '#6b7280' }}>
                                                 Publication
                                             </span>
                                         </div>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
                                             {ressource.edition && (
-                                                <p style={{ margin: '0', color: '#111827', fontSize: '0.875rem' }}>
+                                                <p style={{ margin: '0', color: '#111827', fontSize: '0.7rem' }}>
                                                     {ressource.edition} édition
                                                 </p>
                                             )}
                                             {ressource.lieu_edition && (
-                                                <p style={{ margin: '0', color: '#111827', fontSize: '0.875rem' }}>
+                                                <p style={{ margin: '0', color: '#111827', fontSize: '0.7rem' }}>
                                                     Lieu: {ressource.lieu_edition}
                                                 </p>
                                             )}
@@ -1026,16 +1219,16 @@ const RessourceDetails = () => {
                                 {ressource.date_publication && (
                                     <div style={{
                                         backgroundColor: 'white',
-                                        padding: '1rem',
-                                        borderRadius: '0.5rem'
+                                        padding: '0.5rem',
+                                        borderRadius: '0.3rem'
                                     }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                                            <FaCalendar style={{ color: '#2563eb', fontSize: '0.875rem' }} />
-                                            <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#6b7280' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginBottom: '0.25rem' }}>
+                                            <FaCalendar style={{ color: '#2563eb', fontSize: '0.65rem' }} />
+                                            <span style={{ fontSize: '0.65rem', fontWeight: '600', color: '#6b7280' }}>
                                                 Date de publication
                                             </span>
                                         </div>
-                                        <p style={{ margin: '0', color: '#111827', fontSize: '0.875rem' }}>
+                                        <p style={{ margin: '0', color: '#111827', fontSize: '0.7rem' }}>
                                             {formatDate(ressource.date_publication)}
                                         </p>
                                     </div>
@@ -1045,22 +1238,22 @@ const RessourceDetails = () => {
                                 {ressource.ISBN && (
                                     <div style={{
                                         backgroundColor: 'white',
-                                        padding: '1rem',
-                                        borderRadius: '0.5rem'
+                                        padding: '0.5rem',
+                                        borderRadius: '0.3rem'
                                     }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                                            <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#6b7280' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginBottom: '0.25rem' }}>
+                                            <span style={{ fontSize: '0.65rem', fontWeight: '600', color: '#6b7280' }}>
                                                 ISBN
                                             </span>
                                         </div>
                                         <p style={{ 
                                             margin: '0', 
                                             color: '#111827', 
-                                            fontSize: '0.875rem', 
+                                            fontSize: '0.65rem', 
                                             fontFamily: 'monospace',
                                             backgroundColor: '#f3f4f6',
-                                            padding: '0.5rem',
-                                            borderRadius: '0.375rem'
+                                            padding: '0.35rem',
+                                            borderRadius: '0.25rem'
                                         }}>
                                             {ressource.ISBN}
                                         </p>

@@ -19,7 +19,8 @@ import {
     FaThumbtack,
     FaLightbulb,
     FaExternalLinkAlt,
-    FaBars
+    FaBars,
+    FaClock
 } from 'react-icons/fa';
 import api, { domainesAPI } from './api';
 import { isAuthenticated, getCurrentUser, logout } from './utils/auth';
@@ -746,6 +747,24 @@ const HomePage = () => {
     const shouldUseDynamicCounts = (searchTerm && searchTerm.trim()) || selectedDomain;
     const displayedResourceTypes = shouldUseDynamicCounts ? dynamicResourceTypes : resourceTypes;
 
+    // Compute the 5 most recent resources based on date_publication
+    const recentResources = useMemo(() => {
+        const baseResources = (allResources && allResources.length > 0) ? allResources : ressources;
+        if (!baseResources || baseResources.length === 0) return [];
+        
+        // Sort by date_publication descending (most recent first)
+        const sorted = [...baseResources]
+            .filter(r => r.date_publication) // Only include resources with a publication date
+            .sort((a, b) => {
+                const dateA = new Date(a.date_publication);
+                const dateB = new Date(b.date_publication);
+                return dateB - dateA; // Descending order
+            });
+        
+        // Return only the 5 most recent
+        return sorted.slice(0, 5);
+    }, [allResources, ressources]);
+
     // Sort ressources by domain, then type, then title
     const sortedRessources = [...filteredRessources].sort((a, b) => {
         // First sort by domain name
@@ -1236,7 +1255,81 @@ const HomePage = () => {
             {/* Section principale avec ressources et domaines */}
             <main className="homepage-main-section">
                 <div className="homepage-main-content">
-                    {/* Colonne des ressources (gauche) */}
+                    {/* Colonne des ressources récentes (gauche) */}
+                    <div className="homepage-recent-column">
+                        <div className="homepage-recent-header">
+                            <h2 className="homepage-section-title">
+                                <FaClock className="homepage-recent-icon" />
+                                Ajouts Récents
+                            </h2>
+                            <p className="homepage-recent-subtitle">Les 5 dernières ressources</p>
+                        </div>
+
+                        {loading && (
+                            <div className="homepage-recent-loading">
+                                {[...Array(5)].map((_, index) => (
+                                    <div key={index} className="homepage-recent-skeleton"></div>
+                                ))}
+                            </div>
+                        )}
+
+                        {!loading && recentResources.length === 0 && (
+                            <div className="homepage-no-recent">
+                                <div className="homepage-no-recent-icon">📅</div>
+                                <p>Aucune ressource récente</p>
+                            </div>
+                        )}
+
+                        {!loading && recentResources.length > 0 && (
+                            <div className="homepage-recent-list">
+                                {recentResources.map((ressource) => (
+                                    <div
+                                        key={ressource.id}
+                                        className="homepage-recent-item"
+                                        onClick={() => {
+                                            saveHomePageState();
+                                            navigate(`/ressources/${ressource.id}`, { state: { ressource } });
+                                        }}
+                                    >
+                                        <div className="homepage-recent-image">
+                                            {ressource.couverture ? (
+                                                <img 
+                                                    src={getMediaUrl(ressource.couverture)}
+                                                    alt={ressource.titre}
+                                                    className="homepage-recent-img"
+                                                    onError={(e) => {
+                                                        e.target.style.display = 'none';
+                                                        e.target.nextSibling.style.display = 'flex';
+                                                    }}
+                                                />
+                                            ) : null}
+                                            <div 
+                                                className="homepage-recent-placeholder"
+                                                style={{display: ressource.couverture ? 'none' : 'flex'}}
+                                            >
+                                                📄
+                                            </div>
+                                        </div>
+                                        <div className="homepage-recent-info">
+                                            <h4 className="homepage-recent-title">{ressource.titre}</h4>
+                                            <span className="homepage-recent-date">
+                                                {new Date(ressource.date_publication).toLocaleDateString('fr-FR', {
+                                                    day: 'numeric',
+                                                    month: 'short',
+                                                    year: 'numeric'
+                                                })}
+                                            </span>
+                                            {ressource.domaine?.nom && (
+                                                <span className="homepage-recent-domain">{ressource.domaine.nom}</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Colonne des ressources (centre) */}
                     <div className="homepage-resources-column">
                         <div className="homepage-resources-header">
                             <h2 className="homepage-section-title">

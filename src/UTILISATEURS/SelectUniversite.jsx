@@ -5,13 +5,61 @@ import { isAuthenticated, logout } from '../utils/auth';
 import { getAssetUrl } from '../config';
 import etablissementsData from '../assets/etab_update.json';
 
+const getSearchableText = (value) => String(value || '').toLowerCase();
+
+const getUniversiteKey = (universite, index) => (
+  universite.code ||
+  universite.shortname ||
+  universite.name ||
+  universite.path ||
+  `universite-${index}`
+);
+
+function UniversiteCard({ universite, onSelect }) {
+  const [logoFailed, setLogoFailed] = useState(false);
+  const hasLogo = Boolean(universite.path) && !logoFailed;
+  const shortLabel = universite.shortname || universite.code || '';
+
+  return (
+    <div
+      className="universite-card"
+      onClick={() => onSelect(universite)}
+    >
+      <div className="universite-card-header">
+        <div className="universite-logo">
+          {hasLogo ? (
+            <img
+              src={getAssetUrl(universite.path)}
+              alt={`Logo ${universite.name}`}
+              className="logo-image"
+              onError={() => setLogoFailed(true)}
+            />
+          ) : (
+            <div className="logo-placeholder">
+              <FaUniversity />
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="universite-card-body">
+        <h3 className="universite-name">{universite.name}</h3>
+        <p className="universite-details">
+          <span className="universite-type">{shortLabel}</span>
+        </p>
+      </div>
+      <div className="universite-card-footer">
+        <div className="select-indicator">Cliquer pour sélectionner</div>
+      </div>
+    </div>
+  );
+}
+
 function SelectUniversite() {
   const [query, setQuery] = useState('');
   const [isUserAuthenticated, setIsUserAuthenticated] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const selectedProvince = location.state?.selectedProvince;
-  const selectedUserType = location.state?.selectedUserType;
 
   // Check authentication status
   useEffect(() => {
@@ -38,7 +86,7 @@ function SelectUniversite() {
           selectedProvince: selectedProvince,
           selectedUniversite: {
             nom: universite.name,
-            shortname: universite.shortname,
+            shortname: universite.shortname || universite.code || '',
             logo: universite.path
           }
         } 
@@ -76,8 +124,8 @@ function SelectUniversite() {
     const q = query.trim().toLowerCase();
     if (!q) return true;
     return (
-      u.name.toLowerCase().includes(q) ||
-      u.shortname.toLowerCase().includes(q)
+      getSearchableText(u.name).includes(q) ||
+      getSearchableText(u.shortname || u.code).includes(q)
     );
   });
 
@@ -153,39 +201,11 @@ function SelectUniversite() {
           {/* Universites Grid */}
           <div className="universites-grid">
             {filtered.map((u, index) => (
-              <div
-                key={index}
-                className="universite-card"
-                onClick={() => handleUniversiteSelect(u)}
-              >
-                <div className="universite-card-header">
-                  <div className="universite-logo">
-                    {u.path ? (
-                      <img 
-                        src={getAssetUrl(u.path)} 
-                        alt={`Logo ${u.name}`}
-                        className="logo-image"
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                          e.target.nextSibling.style.display = 'block';
-                        }}
-                      />
-                    ) : null}
-                    <div className="logo-placeholder" style={{ display: u.path ? 'none' : 'block' }}>
-                      <FaUniversity />
-                    </div>
-                  </div>
-                </div>
-                <div className="universite-card-body">
-                  <h3 className="universite-name">{u.name}</h3>
-                  <p className="universite-details">
-                    <span className="universite-type">{u.shortname}</span>
-                  </p>
-                </div>
-                <div className="universite-card-footer">
-                  <div className="select-indicator">Cliquer pour sélectionner</div>
-                </div>
-              </div>
+              <UniversiteCard
+                key={getUniversiteKey(u, index)}
+                universite={u}
+                onSelect={handleUniversiteSelect}
+              />
             ))}
 
             {filtered.length === 0 && (

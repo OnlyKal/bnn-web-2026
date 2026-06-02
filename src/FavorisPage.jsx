@@ -15,14 +15,17 @@ import {
 import { favorisAPI } from './api';
 import { isAuthenticated, getCurrentUser } from './utils/auth';
 import { getMediaUrl } from './config';
+import { useToast } from './hooks/useToast';
+import { ToastContainer } from './components/ToastContainer';
 
 const FavorisPage = () => {
     const [favoris, setFavoris] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
+    const [loadError, setLoadError] = useState(false);
     const [deletingIds, setDeletingIds] = useState(new Set());
     const navigate = useNavigate();
     const user = getCurrentUser();
+    const { toasts, removeToast, showError, showSuccess } = useToast();
 
     // Charger les favoris au montage du composant
     useEffect(() => {
@@ -37,7 +40,7 @@ const FavorisPage = () => {
     const fetchFavoris = async () => {
         try {
             setLoading(true);
-            setError('');
+            setLoadError(false);
             const response = await favorisAPI.getFavoris();
             
             // Gérer différentes structures de réponse
@@ -54,7 +57,8 @@ const FavorisPage = () => {
             setFavoris(favorisData);
         } catch (error) {
             console.error('Erreur lors du chargement des favoris:', error);
-            setError('Erreur lors du chargement de vos favoris');
+            showError('Erreur lors du chargement de vos favoris');
+            setLoadError(true);
         } finally {
             setLoading(false);
         }
@@ -186,6 +190,7 @@ const FavorisPage = () => {
 
     return (
         <div className="favoris-page">
+            <ToastContainer toasts={toasts} onClose={removeToast} />
             {/* En-tête */}
             <div className="favoris-header">
                 <div className="favoris-header-content">
@@ -213,12 +218,11 @@ const FavorisPage = () => {
 
             {/* Contenu principal */}
             <div className="favoris-main">
-                {error && (
+                {loadError && (
                     <div className="favoris-error">
                         <div className="favoris-error-content">
                             <span className="favoris-error-icon">❌</span>
                             <h3>Erreur de chargement</h3>
-                            <p>{error}</p>
                             <button 
                                 className="favoris-retry-btn"
                                 onClick={fetchFavoris}
@@ -229,7 +233,7 @@ const FavorisPage = () => {
                     </div>
                 )}
 
-                {!error && favoris.length === 0 && (
+                {!loadError && favoris.length === 0 && (
                     <div className="favoris-empty">
                         <div className="favoris-empty-content">
                             <FaHeart className="favoris-empty-icon" />
