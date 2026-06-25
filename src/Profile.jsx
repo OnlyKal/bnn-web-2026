@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-    FaArrowLeft, 
     FaUser, 
     FaEnvelope, 
     FaPhone, 
@@ -20,12 +19,33 @@ import {
     FaKey,
     FaLock
 } from 'react-icons/fa';
+import {
+    LuArrowRight,
+    LuBell,
+    LuBookOpen,
+    LuCalendar,
+    LuCamera,
+    LuGraduationCap,
+    LuHeart,
+    LuIdCard,
+    LuKeyRound,
+    LuLogOut,
+    LuMail,
+    LuMapPin,
+    LuMessageCircle,
+    LuPhone,
+    LuSettings,
+    LuShieldCheck,
+    LuSparkles,
+    LuUser,
+    LuVenetianMask
+} from 'react-icons/lu';
 import { getCurrentUser, logout, isAuthenticated, saveSession, getSession } from './utils/auth';
-import { userAPI, fileUtils, validators } from './api';
-import logoBlancImg from './assets/Logoblanc.png';
+import { userAPI, fileUtils, validators, favorisAPI } from './api';
 import { getMediaUrl } from './config';
 import { useToast } from './hooks/useToast';
 import { ToastContainer } from './components/ToastContainer';
+import AppNavigation from './components/AppNavigation';
 
 function Profile() {
     const [user, setUser] = useState(null);
@@ -37,6 +57,7 @@ function Profile() {
     const [previewAvatar, setPreviewAvatar] = useState(null);
     const [changingPassword, setChangingPassword] = useState(false);
     const [passwordLoading, setPasswordLoading] = useState(false);
+    const [favoritesCount, setFavoritesCount] = useState(0);
     const [passwordData, setPasswordData] = useState({
         oldPassword: '',
         newPassword: '',
@@ -63,6 +84,23 @@ function Profile() {
         });
     }, [navigate]);
 
+    useEffect(() => {
+        const fetchFavoritesCount = async () => {
+            try {
+                const response = await favorisAPI.getFavoris();
+                const favorisData = response?.results?.data || response?.results || response?.data || response;
+                setFavoritesCount(Array.isArray(favorisData) ? favorisData.length : response?.count || 0);
+            } catch (error) {
+                console.warn('Erreur lors du chargement des statistiques favoris:', error.message);
+                setFavoritesCount(0);
+            }
+        };
+
+        if (user) {
+            fetchFavoritesCount();
+        }
+    }, [user]);
+
     // Cleanup preview URL on unmount
     useEffect(() => {
         return () => {
@@ -79,6 +117,15 @@ function Profile() {
 
     const goToHome = () => {
         navigate('/home');
+    };
+
+    const formatProfileDate = (dateValue) => {
+        if (!dateValue) return 'Non renseignée';
+        return new Date(dateValue).toLocaleDateString('fr-FR', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
     };
 
     const handleInputChange = (e) => {
@@ -255,37 +302,103 @@ function Profile() {
 
     if (!user) {
         return (
-            <div className="loading-container">
-                <div className="loading-spinner"></div>
-                <p className="loading-text">Chargement...</p>
+            <div className="profile-page">
+                <AppNavigation />
+                <div className="loading-container">
+                    <div className="loading-spinner"></div>
+                    <p className="loading-text">Chargement...</p>
+                </div>
             </div>
         );
     }
 
+    const displayName = 'Bihango Justin';
+    const username = '@tony';
+    const roleLabel = 'Autres';
+    const initial = displayName[0];
+    const joinDate = formatProfileDate(user.date_inscription || user.date_joined || user.created_at);
+    const fullName = user.prenom && user.nom ? `${user.prenom} ${user.nom}` : displayName;
+    const avatarAlt = `Avatar de ${displayName}`;
+    const avatarSrc = previewAvatar || (user.avatar ? getMediaUrl(user.avatar) : null);
+
+    const personalInfoItems = [
+        { icon: LuUser, label: 'Nom complet', value: fullName || displayName },
+        { icon: LuMail, label: 'Email', value: user.email || 'Non renseigné' },
+        { icon: LuPhone, label: 'Téléphone', value: user.telephone || 'Non renseigné' },
+        { icon: LuVenetianMask, label: 'Sexe', value: user.sexe || 'Non renseigné' },
+        { icon: LuMapPin, label: 'Province', value: user.province || 'Non renseignée' },
+        { icon: LuIdCard, label: 'Matricule', value: user.matricule || 'Non renseigné' },
+        { icon: LuGraduationCap, label: 'Université', value: user.universite || 'Non renseignée' },
+        { icon: LuBookOpen, label: 'Faculté', value: user.faculte || 'Non renseignée' },
+        { icon: LuShieldCheck, label: 'Rôle', value: roleLabel },
+        { icon: LuCalendar, label: "Date d'inscription", value: joinDate }
+    ];
+
+    const stats = [
+        { icon: LuHeart, value: favoritesCount, label: 'Favoris' },
+        { icon: LuBookOpen, value: 0, label: 'Ressources consultées' },
+        { icon: LuMessageCircle, value: 0, label: 'Messages envoyés' },
+        { icon: LuCalendar, value: '—', label: 'Dernière connexion' },
+        { icon: LuGraduationCap, value: 0, label: 'Cours suivis' }
+    ];
+
+    const quickActions = [
+        {
+            icon: LuHeart,
+            title: 'Mes Favoris',
+            description: 'Retrouver vos ressources enregistrées',
+            onClick: () => navigate('/favoris')
+        },
+        {
+            icon: LuKeyRound,
+            title: 'Modifier le mot de passe',
+            description: 'Renforcer la sécurité du compte',
+            onClick: () => setChangingPassword(true)
+        },
+        {
+            icon: LuBookOpen,
+            title: 'Mes Ressources',
+            description: 'Parcourir la bibliothèque disponible',
+            onClick: goToHome
+        },
+        {
+            icon: LuSettings,
+            title: 'Paramètres',
+            description: 'Ajuster vos préférences personnelles',
+            onClick: () => setEditing(true)
+        },
+        {
+            icon: LuBell,
+            title: 'Notifications',
+            description: 'Consulter les alertes et mises à jour',
+            onClick: () => showSuccess('Les notifications seront disponibles bientôt.')
+        },
+        {
+            icon: LuLogOut,
+            title: 'Déconnexion',
+            description: 'Quitter votre session en toute sécurité',
+            onClick: handleLogout,
+            danger: true
+        }
+    ];
+
+    const roleOptions = [
+        { value: 'chercheur', label: 'Chercheur' },
+        { value: 'etudiant', label: 'Etudiant' },
+        { value: 'professeur', label: 'Professeur' },
+        { value: 'autres', label: 'Autres' }
+    ];
+
+    const handleRoleToggle = (role) => {
+        setFormData(prev => ({
+            ...prev,
+            role
+        }));
+    };
+
     return (
         <div className="profile-page">
-            {/* Header */}
-            <div className="profile-header">
-                <div className="profile-header-content">
-                    <button
-                        onClick={goToHome}
-                        className="profile-back-btn"
-                    >
-                        <FaArrowLeft />
-                        Retour à l'accueil
-                    </button>
-                    
-                    <div className="profile-title-section">
-                        <h1 className="profile-title">
-                            <FaUser className="profile-title-icon" />
-                            Mon Compte
-                        </h1>
-                        <p className="profile-subtitle">
-                            Gérer vos informations personnelles et préférences
-                        </p>
-                    </div>
-                </div>
-            </div>
+            <AppNavigation />
 
             {/* Main Content */}
             <div className="profile-main">
@@ -297,6 +410,214 @@ function Profile() {
                             <span>Mise à jour de l'avatar en cours...</span>
                         </div>
                     )}
+
+                    <div className="profile-premium-layout">
+                        <section className="profile-premium-hero" aria-labelledby="profile-name">
+                            <div className="profile-premium-avatar-wrap">
+                                <input
+                                    id="avatar-upload"
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleAvatarChange}
+                                    style={{ display: 'none' }}
+                                />
+                                <button
+                                    type="button"
+                                    className="profile-premium-avatar"
+                                    onClick={triggerAvatarUpload}
+                                    disabled={avatarUploading}
+                                    aria-label="Modifier la photo de profil"
+                                >
+                                    {avatarSrc ? (
+                                        <img
+                                            src={avatarSrc}
+                                            alt={avatarAlt}
+                                            onError={(event) => {
+                                                event.currentTarget.style.display = 'none';
+                                            }}
+                                        />
+                                    ) : (
+                                        <span>{initial}</span>
+                                    )}
+                                    <span className="profile-premium-camera">
+                                        {avatarUploading ? <span className="avatar-loading-spinner" /> : <LuCamera />}
+                                    </span>
+                                </button>
+                            </div>
+
+                            <div className="profile-premium-identity">
+                                <div className="profile-premium-kicker">
+                                    <LuSparkles />
+                                    Profil utilisateur
+                                </div>
+                                <h1 id="profile-name">{displayName}</h1>
+                                <p>{username}</p>
+                                <div className="profile-premium-badges">
+                                    <span className="profile-premium-badge">{roleLabel}</span>
+                                    <span className="profile-premium-badge online">En ligne</span>
+                                </div>
+                                <div className="profile-premium-meta">
+                                    <span><LuGraduationCap /> {user.faculte || user.universite || 'Université non renseignée'}</span>
+                                    <span><LuCalendar /> Inscrit le {joinDate}</span>
+                                </div>
+                            </div>
+
+                            <button
+                                type="button"
+                                className="profile-premium-edit"
+                                onClick={() => setEditing(true)}
+                            >
+                                <FaEdit />
+                                Modifier le profil
+                            </button>
+                        </section>
+
+                        {editing && (
+                            <section className="profile-premium-card profile-premium-edit-card">
+                                <div className="profile-premium-section-heading">
+                                    <div>
+                                        <span>Edition</span>
+                                        <h2>Modifier le profil</h2>
+                                    </div>
+                                </div>
+                                <form onSubmit={handleSubmit} className="profile-edit-form">
+                                    <div className="profile-form-grid">
+                                        <div className="profile-form-group">
+                                            <label className="profile-form-label"><FaUser className="profile-form-icon" /> Nom</label>
+                                            <input type="text" name="nom" value={formData.nom} onChange={handleInputChange} className="profile-form-input" disabled={loading} />
+                                        </div>
+                                        <div className="profile-form-group">
+                                            <label className="profile-form-label"><FaUser className="profile-form-icon" /> Prénom</label>
+                                            <input type="text" name="prenom" value={formData.prenom} onChange={handleInputChange} className="profile-form-input" disabled={loading} />
+                                        </div>
+                                        <div className="profile-form-group">
+                                            <label className="profile-form-label"><FaPhone className="profile-form-icon" /> Téléphone</label>
+                                            <input type="tel" name="telephone" value={formData.telephone} onChange={handleInputChange} className="profile-form-input" disabled={loading} />
+                                        </div>
+                                        <div className="profile-form-group">
+                                            <label className="profile-form-label"><FaEnvelope className="profile-form-icon" /> Email</label>
+                                            <input type="email" name="email" value={formData.email} onChange={handleInputChange} className="profile-form-input" disabled={loading} />
+                                        </div>
+                                        <div className="profile-form-group">
+                                            <label className="profile-form-label"><FaUserTie className="profile-form-icon" /> Rôle</label>
+                                            <div className="profile-role-toggle" role="radiogroup" aria-label="Rôle">
+                                                {roleOptions.map((role) => (
+                                                    <button
+                                                        key={role.value}
+                                                        type="button"
+                                                        role="radio"
+                                                        aria-checked={formData.role === role.value}
+                                                        className={`profile-role-toggle-btn ${formData.role === role.value ? 'active' : ''}`}
+                                                        onClick={() => handleRoleToggle(role.value)}
+                                                        disabled={loading}
+                                                    >
+                                                        {role.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="profile-form-actions">
+                                        <button type="submit" disabled={loading} className="profile-btn primary">
+                                            <FaSave />
+                                            {loading ? 'Enregistrement...' : 'Enregistrer'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setEditing(false);
+                                                setFormData({
+                                                    nom: user.nom || '',
+                                                    prenom: user.prenom || '',
+                                                    telephone: user.telephone || '',
+                                                    email: user.email || '',
+                                                    role: user.role || 'chercheur',
+                                                });
+                                            }}
+                                            disabled={loading}
+                                            className="profile-btn secondary"
+                                        >
+                                            <FaTimes />
+                                            Annuler
+                                        </button>
+                                    </div>
+                                </form>
+                            </section>
+                        )}
+
+                        <div className="profile-premium-columns">
+                            <section className="profile-premium-card profile-premium-info">
+                                <div className="profile-premium-section-heading">
+                                    <div>
+                                        <span>Compte</span>
+                                        <h2>Informations personnelles</h2>
+                                    </div>
+                                </div>
+                                <div className="profile-premium-info-grid">
+                                    {personalInfoItems.map((item) => {
+                                        const Icon = item.icon;
+                                        return (
+                                            <div className="profile-premium-info-item" key={item.label}>
+                                                <span className="profile-premium-info-icon"><Icon /></span>
+                                                <span className="profile-premium-info-label">{item.label}</span>
+                                                <strong>{item.value}</strong>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </section>
+
+                            <section className="profile-premium-card profile-premium-stats-card">
+                                <div className="profile-premium-section-heading">
+                                    <div>
+                                        <span>Activité</span>
+                                        <h2>Statistiques</h2>
+                                    </div>
+                                </div>
+                                <div className="profile-premium-stats">
+                                    {stats.map((stat, index) => {
+                                        const Icon = stat.icon;
+                                        return (
+                                            <div className="profile-premium-stat" key={stat.label} style={{ animationDelay: `${index * 55}ms` }}>
+                                                <Icon />
+                                                <strong>{stat.value}</strong>
+                                                <span>{stat.label}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </section>
+                        </div>
+
+                        <section className="profile-premium-card">
+                            <div className="profile-premium-section-heading">
+                                <div>
+                                    <span>Raccourcis</span>
+                                    <h2>Actions rapides</h2>
+                                </div>
+                            </div>
+                            <div className="profile-premium-actions">
+                                {quickActions.map((action) => {
+                                    const Icon = action.icon;
+                                    return (
+                                        <button
+                                            type="button"
+                                            key={action.title}
+                                            className={`profile-premium-action ${action.danger ? 'danger' : ''}`}
+                                            onClick={action.onClick}
+                                        >
+                                            <span className="profile-premium-action-icon"><Icon /></span>
+                                            <span>
+                                                <strong>{action.title}</strong>
+                                                <small>{action.description}</small>
+                                            </span>
+                                            <LuArrowRight className="profile-premium-action-arrow" />
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </section>
+                    </div>
 
                     <div className="profile-grid">
                         {/* Avatar et informations principales */}
@@ -445,18 +766,21 @@ function Profile() {
                                                 <FaUserTie className="profile-form-icon" />
                                                 Rôle
                                             </label>
-                                            <select
-                                                name="role"
-                                                value={formData.role}
-                                                onChange={handleInputChange}
-                                                className="profile-form-input"
-                                                disabled={loading}
-                                            >
-                                                <option value="chercheur">Chercheur</option>
-                                                <option value="etudiant">Étudiant</option>
-                                                <option value="professeur">Professeur</option>
-                                                <option value="autres">Autres</option>
-                                            </select>
+                                            <div className="profile-role-toggle" role="radiogroup" aria-label="Rôle">
+                                                {roleOptions.map((role) => (
+                                                    <button
+                                                        key={role.value}
+                                                        type="button"
+                                                        role="radio"
+                                                        aria-checked={formData.role === role.value}
+                                                        className={`profile-role-toggle-btn ${formData.role === role.value ? 'active' : ''}`}
+                                                        onClick={() => handleRoleToggle(role.value)}
+                                                        disabled={loading}
+                                                    >
+                                                        {role.label}
+                                                    </button>
+                                                ))}
+                                            </div>
                                         </div>
                                     </div>
 

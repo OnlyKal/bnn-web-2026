@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-    FaArrowLeft, 
     FaHeart, 
     FaTrash, 
     FaEye,
@@ -10,22 +9,26 @@ import {
     FaFileImage,
     FaFileAlt,
     FaTags,
-    FaCalendar
+    FaCalendar,
+    FaSearch,
+    FaTimes
 } from 'react-icons/fa';
 import { favorisAPI } from './api';
-import { isAuthenticated, getCurrentUser } from './utils/auth';
+import { isAuthenticated } from './utils/auth';
 import { getMediaUrl } from './config';
 import { useToast } from './hooks/useToast';
 import { ToastContainer } from './components/ToastContainer';
+import AppNavigation from './components/AppNavigation';
 
 const FavorisPage = () => {
     const [favoris, setFavoris] = useState([]);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState(false);
     const [deletingIds, setDeletingIds] = useState(new Set());
+    const [searchTerm, setSearchTerm] = useState('');
+    const [favoriteToDelete, setFavoriteToDelete] = useState(null);
     const navigate = useNavigate();
-    const user = getCurrentUser();
-    const { toasts, removeToast, showError, showSuccess } = useToast();
+    const { toasts, removeToast, showError } = useToast();
 
     // Charger les favoris au montage du composant
     useEffect(() => {
@@ -66,9 +69,6 @@ const FavorisPage = () => {
 
     // Supprimer un favori
     const handleDeleteFavorite = async (ressourceId, ressourceTitre) => {
-        const confirmDelete = window.confirm(`Voulez-vous vraiment retirer "${ressourceTitre}" de vos favoris ?`);
-        if (!confirmDelete) return;
-
         try {
             setDeletingIds(prev => new Set([...prev, ressourceId]));
             await favorisAPI.removeFavori(ressourceId);
@@ -78,6 +78,7 @@ const FavorisPage = () => {
                 const id = favori.ressource?.id || favori.ressource_id || favori.id;
                 return id !== ressourceId;
             }));
+            window.dispatchEvent(new Event('favorites:changed'));
             
             showNotification(`"${ressourceTitre}" retiré des favoris`, 'success');
         } catch (error) {
@@ -90,6 +91,21 @@ const FavorisPage = () => {
                 return newSet;
             });
         }
+    };
+
+    const requestDeleteFavorite = (ressourceId, ressourceTitre) => {
+        setFavoriteToDelete({ id: ressourceId, title: ressourceTitre });
+    };
+
+    const closeDeleteModal = () => {
+        setFavoriteToDelete(null);
+    };
+
+    const confirmDeleteFavorite = async () => {
+        if (!favoriteToDelete) return;
+        const { id, title } = favoriteToDelete;
+        setFavoriteToDelete(null);
+        await handleDeleteFavorite(id, title);
     };
 
     // Naviguer vers les détails d'une ressource
@@ -145,29 +161,47 @@ const FavorisPage = () => {
         });
     };
 
+    const getRessourceFromFavori = (favori) => favori.ressource || favori;
+
+    const filteredFavoris = useMemo(() => {
+        const normalizedSearch = searchTerm.trim().toLowerCase();
+        if (!normalizedSearch) return favoris;
+
+        return favoris.filter((favori) => {
+            const ressource = getRessourceFromFavori(favori);
+            const searchableText = [
+                ressource.titre,
+                ressource.sous_titre,
+                ressource.type,
+                ressource.format,
+                ressource.domaine?.nom,
+                ressource.auteur,
+                ressource.description
+            ]
+                .filter(Boolean)
+                .join(' ')
+                .toLowerCase();
+
+            return searchableText.includes(normalizedSearch);
+        });
+    }, [favoris, searchTerm]);
+
+    const favoriteCountLabel = `${favoris.length} favori${favoris.length > 1 ? 's' : ''}`;
+    const resultCountLabel = `${filteredFavoris.length} résultat${filteredFavoris.length > 1 ? 's' : ''}`;
+
     if (loading) {
         return (
             <div className="favoris-page">
-                <div className="favoris-header">
-                    <div className="favoris-header-content">
-                        <button
-                            onClick={() => navigate('/')}
-                            className="favoris-back-btn"
-                        >
-                            <FaArrowLeft />
-                            Retour à l'accueil
-                        </button>
-                        <div className="favoris-title-section">
-                            <h1 className="favoris-title">
-                                <FaHeart className="favoris-title-icon" />
-                                Mes Favoris
-                            </h1>
-                            <p className="favoris-subtitle">Chargement de vos ressources favorites...</p>
-                        </div>
-                    </div>
-                </div>
+                <AppNavigation />
                 
                 <div className="favoris-main">
+                    <div className="favoris-hero favoris-hero-loading">
+                        <div>
+                            <div className="favoris-loading-title"></div>
+                            <div className="favoris-loading-subtitle"></div>
+                        </div>
+                        <div className="favoris-loading-search"></div>
+                    </div>
                     <div className="favoris-loading-grid">
                         {[...Array(6)].map((_, index) => (
                             <div key={index} className="favoris-loading-card">
@@ -191,38 +225,58 @@ const FavorisPage = () => {
     return (
         <div className="favoris-page">
             <ToastContainer toasts={toasts} onClose={removeToast} />
-            {/* En-tête */}
-            <div className="favoris-header">
-                <div className="favoris-header-content">
-                    <button
-                        onClick={() => navigate('/')}
-                        className="favoris-back-btn"
-                    >
-                        <FaArrowLeft />
-                        Retour à l'accueil
-                    </button>
-                    <div className="favoris-title-section">
-                        <h1 className="favoris-title">
-                            <FaHeart className="favoris-title-icon" />
-                            Mes Favoris
-                        </h1>
-                        <p className="favoris-subtitle">
-                            {favoris.length > 0 
-                                ? `${favoris.length} ressource${favoris.length > 1 ? 's' : ''} favorite${favoris.length > 1 ? 's' : ''}` 
-                                : 'Aucune ressource favorite'
-                            }
-                        </p>
-                    </div>
-                </div>
-            </div>
+            <AppNavigation favoriteCountOverride={favoris.length} />
 
             {/* Contenu principal */}
             <div className="favoris-main">
+                <section className="favoris-hero" aria-labelledby="favoris-page-title">
+                    <div className="favoris-hero-copy">
+                        <span className="favoris-eyebrow">
+                            <FaHeart />
+                            Bibliothèque personnelle
+                        </span>
+                        <h1 id="favoris-page-title" className="favoris-page-title">Favoris</h1>
+                        <p className="favoris-page-subtitle">
+                            Retrouvez rapidement les ressources que vous avez mises de côté pour votre travail.
+                        </p>
+                    </div>
+
+                </section>
+
+                {!loadError && favoris.length > 0 && (
+                    <section className="favoris-toolbar" aria-label="Recherche dans les favoris">
+                        <div className="favoris-search">
+                            <FaSearch className="favoris-search-icon" />
+                            <input
+                                type="search"
+                                value={searchTerm}
+                                onChange={(event) => setSearchTerm(event.target.value)}
+                                placeholder="Rechercher par titre, domaine, type..."
+                                aria-label="Rechercher dans mes favoris"
+                            />
+                            {searchTerm && (
+                                <button
+                                    type="button"
+                                    className="favoris-search-clear"
+                                    onClick={() => setSearchTerm('')}
+                                    aria-label="Effacer la recherche"
+                                >
+                                    <FaTimes />
+                                </button>
+                            )}
+                        </div>
+                        <div className="favoris-toolbar-meta">
+                            <span>{searchTerm ? resultCountLabel : favoriteCountLabel}</span>
+                        </div>
+                    </section>
+                )}
+
                 {loadError && (
                     <div className="favoris-error">
                         <div className="favoris-error-content">
-                            <span className="favoris-error-icon">❌</span>
+                            <FaFileAlt className="favoris-error-icon" />
                             <h3>Erreur de chargement</h3>
+                            <p>Impossible d'afficher vos favoris pour le moment.</p>
                             <button 
                                 className="favoris-retry-btn"
                                 onClick={fetchFavoris}
@@ -239,7 +293,7 @@ const FavorisPage = () => {
                             <FaHeart className="favoris-empty-icon" />
                             <h3 className="favoris-empty-title">Aucun favori pour le moment</h3>
                             <p className="favoris-empty-text">
-                                Explorez les ressources et ajoutez-les à vos favoris en cliquant sur le cœur ❤️
+                                Explorez les ressources et ajoutez-les à vos favoris en cliquant sur le cœur.
                             </p>
                             <button 
                                 className="favoris-browse-btn"
@@ -251,16 +305,38 @@ const FavorisPage = () => {
                     </div>
                 )}
 
-                {!error && favoris.length > 0 && (
+                {!loadError && favoris.length > 0 && filteredFavoris.length === 0 && (
+                    <div className="favoris-empty favoris-empty-search">
+                        <div className="favoris-empty-content">
+                            <FaSearch className="favoris-empty-icon" />
+                            <h3 className="favoris-empty-title">Aucun résultat</h3>
+                            <p className="favoris-empty-text">
+                                Aucun favori ne correspond à "{searchTerm}". Essayez un autre mot-clé.
+                            </p>
+                            <button 
+                                className="favoris-browse-btn"
+                                onClick={() => setSearchTerm('')}
+                            >
+                                Effacer la recherche
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {!loadError && filteredFavoris.length > 0 && (
                     <div className="favoris-grid">
-                        {favoris.map((favori) => {
+                        {filteredFavoris.map((favori, index) => {
                             // Extraire les données de la ressource selon la structure
-                            const ressource = favori.ressource || favori;
+                            const ressource = getRessourceFromFavori(favori);
                             const ressourceId = ressource.id || favori.ressource_id;
                             const isDeleting = deletingIds.has(ressourceId);
                             
                             return (
-                                <div key={ressourceId} className={`favoris-card ${isDeleting ? 'deleting' : ''}`}>
+                                <article
+                                    key={ressourceId}
+                                    className={`favoris-card ${isDeleting ? 'deleting' : ''}`}
+                                    style={{ animationDelay: `${Math.min(index * 35, 280)}ms` }}
+                                >
                                     {/* Image de couverture */}
                                     <div className="favoris-card-image">
                                         {ressource.couverture ? (
@@ -277,7 +353,7 @@ const FavorisPage = () => {
                                             className="favoris-card-placeholder"
                                             style={{display: ressource.couverture ? 'none' : 'flex'}}
                                         >
-                                            📄
+                                            <FaFileAlt />
                                         </div>
                                         
                                         {/* Icône de format */}
@@ -288,6 +364,10 @@ const FavorisPage = () => {
 
                                     {/* Contenu de la carte */}
                                     <div className="favoris-card-content">
+                                        <div className="favoris-card-kicker">
+                                            <span>{ressource.type || 'Ressource'}</span>
+                                            {ressource.format && <span>{ressource.format}</span>}
+                                        </div>
                                         <h3 className="favoris-card-title" title={ressource.titre}>
                                             {ressource.titre}
                                         </h3>
@@ -326,7 +406,7 @@ const FavorisPage = () => {
                                             
                                             <button
                                                 className="favoris-action-btn favoris-delete-btn"
-                                                onClick={() => handleDeleteFavorite(ressourceId, ressource.titre)}
+                                                onClick={() => requestDeleteFavorite(ressourceId, ressource.titre)}
                                                 disabled={isDeleting}
                                                 title="Retirer des favoris"
                                             >
@@ -335,12 +415,57 @@ const FavorisPage = () => {
                                             </button>
                                         </div>
                                     </div>
-                                </div>
+                                </article>
                             );
                         })}
                     </div>
                 )}
             </div>
+
+            {favoriteToDelete && (
+                <div
+                    className="favoris-confirm-overlay"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="favoris-confirm-title"
+                    onClick={closeDeleteModal}
+                >
+                    <div className="favoris-confirm-modal" onClick={(event) => event.stopPropagation()}>
+                        <button
+                            type="button"
+                            className="favoris-confirm-close"
+                            onClick={closeDeleteModal}
+                            aria-label="Fermer"
+                        >
+                            <FaTimes />
+                        </button>
+                        <div className="favoris-confirm-icon">
+                            <FaHeart />
+                        </div>
+                        <h2 id="favoris-confirm-title">Retirer ce favori ?</h2>
+                        <p>
+                            Vous allez retirer <strong>{favoriteToDelete.title}</strong> de vos favoris.
+                        </p>
+                        <div className="favoris-confirm-actions">
+                            <button
+                                type="button"
+                                className="favoris-confirm-secondary"
+                                onClick={closeDeleteModal}
+                            >
+                                Annuler
+                            </button>
+                            <button
+                                type="button"
+                                className="favoris-confirm-danger"
+                                onClick={confirmDeleteFavorite}
+                            >
+                                <FaTrash />
+                                Retirer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

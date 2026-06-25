@@ -27,6 +27,7 @@ import { getSession } from './utils/auth';
 import PDFViewer from './components/PDFViewer';
 import EPUBViewer from './components/EPUBViewer';
 import VideoViewer from './components/VideoViewer';
+import AppNavigation from './components/AppNavigation';
 
 const RessourceDetails = () => {
     const { id } = useParams();
@@ -226,11 +227,13 @@ const RessourceDetails = () => {
                 // Supprimer des favoris
                 await favorisAPI.removeFavori(ressource.id);
                 setIsFavorite(false);
+                window.dispatchEvent(new Event('favorites:changed'));
                 showNotification('Retiré des favoris', 'success');
             } else {
                 // Ajouter aux favoris
                 await favorisAPI.addFavori(ressource.id);
                 setIsFavorite(true);
+                window.dispatchEvent(new Event('favorites:changed'));
                 showNotification('Ajouté aux favoris', 'success');
             }
         } catch (error) {
@@ -830,18 +833,7 @@ const RessourceDetails = () => {
     if (loading) {
         return (
             <div className="loading-page">
-                <div className="loading-header">
-                    <div className="loading-header-content">
-                        <button
-                            onClick={() => navigate(-1)}
-                            className="loading-back-btn"
-                        >
-                            <FaArrowLeft />
-                            Retour aux ressources
-                        </button>
-                        <div className="loading-title-placeholder"></div>
-                    </div>
-                </div>
+                <AppNavigation />
                 <div className="loading-content">
                     <div className="loading-content-placeholder"></div>
                 </div>
@@ -852,17 +844,7 @@ const RessourceDetails = () => {
     if (error || !ressource) {
         return (
             <div className="error-page">
-                <div className="error-header">
-                    <div className="error-header-content">
-                        <button
-                            onClick={() => navigate(-1)}
-                            className="error-back-btn"
-                        >
-                            <FaArrowLeft />
-                            Retour aux ressources
-                        </button>
-                    </div>
-                </div>
+                <AppNavigation />
                 <div className="error-content">
                     <div className="error-icon">❌</div>
                     <h2 className="error-title">
@@ -882,6 +864,7 @@ const RessourceDetails = () => {
 
     return (
         <div className="ressource-details-page">
+            <AppNavigation />
             {/* Nouveau viewer PDF sécurisé */}
             {viewerOpen && viewerType === 'pdf' && (
                 <PDFViewer
@@ -911,16 +894,9 @@ const RessourceDetails = () => {
                     isLoading={viewerLoading}
                 />
             )}
-            {/* En-tête */}
-            <div className="ressource-details-header">
-                <div className="ressource-details-header-content">
-                    <button
-                        onClick={() => navigate(-1)}
-                        className="ressource-details-back-btn"
-                    >
-                        <FaArrowLeft />
-                        Retour aux ressources
-                    </button>
+            {/* Contenu principal */}
+            <div className="ressource-details-main">
+                <div className="ressource-details-title-panel">
                     <div className="ressource-details-title-section">
                         <h1 className="ressource-details-title">
                             {ressource.titre}
@@ -943,10 +919,6 @@ const RessourceDetails = () => {
                         </p>
                     )}
                 </div>
-            </div>
-
-            {/* Contenu principal */}
-            <div className="ressource-details-main">
                 <div className="ressource-details-grid">
                     {/* Colonne principale */}
                     <div>

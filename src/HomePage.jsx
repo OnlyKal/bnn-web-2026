@@ -3,7 +3,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { 
     FaSearch, 
     FaEye, 
-    FaSignOutAlt,
     FaFilePdf,
     FaFileVideo,
     FaFileImage,
@@ -11,23 +10,23 @@ import {
     FaTags,
     FaChevronLeft,
     FaChevronRight,
-    FaHeart,
     FaTimes,
     FaBook,
     FaFileWord,
     FaBuilding,
     FaThumbtack,
     FaLightbulb,
-    FaExternalLinkAlt,
-    FaBars,
-    FaClock
+    FaClock,
+    FaUsers
 } from 'react-icons/fa';
 import api, { domainesAPI } from './api';
-import { isAuthenticated, getCurrentUser, logout } from './utils/auth';
+import { isAuthenticated, getCurrentUser } from './utils/auth';
 import { mockRessources } from './mockData';
-import logoBlancImg from './assets/Logoblanc.png';
 import { getMediaUrl, getFileUrl } from './config';
 import { cachedApiCall, invalidateCache } from './utils/apiCache';
+import AppNavigation from './components/AppNavigation';
+
+const SALONS_ANNOUNCEMENT_KEY = 'bnnSalonsAnnouncement:v1';
 
 const HomePage = () => {
     const [user, setUser] = useState(null);
@@ -71,7 +70,9 @@ const HomePage = () => {
     });
     const [searchResourceTypes, setSearchResourceTypes] = useState([]);
     const searchDebounceRef = useRef(null);
-    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [showSalonsAnnouncement, setShowSalonsAnnouncement] = useState(() => {
+        return localStorage.getItem(SALONS_ANNOUNCEMENT_KEY) !== 'dismissed';
+    });
     
     const navigate = useNavigate();
     const location = useLocation();
@@ -619,10 +620,16 @@ const HomePage = () => {
             }
         };
 
+        const onVisibilityChange = () => {
+            if (!document.hidden && location.pathname === '/home') refreshUserData();
+        };
+
         window.addEventListener('pageshow', onPageShow);
+        document.addEventListener('visibilitychange', onVisibilityChange);
 
         return () => {
             window.removeEventListener('pageshow', onPageShow);
+            document.removeEventListener('visibilitychange', onVisibilityChange);
         };
     }, []); // Empty deps - only run on mount/unmount
 
@@ -787,18 +794,14 @@ const HomePage = () => {
         return titleA.localeCompare(titleB);
     });
 
-    const handleLogout = () => {
-        sessionStorage.removeItem('homePageState'); // Clear saved state on logout
-        logout();
-        navigate('/login');
+    const dismissSalonsAnnouncement = () => {
+        localStorage.setItem(SALONS_ANNOUNCEMENT_KEY, 'dismissed');
+        setShowSalonsAnnouncement(false);
     };
 
-    const navigateToProfile = () => {
-        navigate('/profile');
-    };
-
-    const navigateToProvinces = () => {
-        navigate('/provinces');
+    const openSalonsFromAnnouncement = () => {
+        dismissSalonsAnnouncement();
+        navigate('/salons');
     };
 
     // Handle type filter change
@@ -1046,104 +1049,43 @@ const HomePage = () => {
 
     return (
         <div className="homepage-container">
-            {/* Header */}
-            <header className="homepage-header">
-                <div className="homepage-header-content">
-                    <div className="homepage-title-section">
-                        <img 
-                            src={logoBlancImg} 
-                            alt="BNN ESURSI - Plateforme de ressources éducatives" 
-                            className="homepage-logo"
-                        />
-                    </div>
+            <AppNavigation />
 
-                    <button 
-                        className="homepage-burger-btn"
-                        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                        aria-label="Menu"
-                    >
-                        {mobileMenuOpen ? <FaTimes size={20} /> : <FaBars size={20} />}
-                    </button>
-
-                    <div className={`homepage-user-actions ${mobileMenuOpen ? 'open' : ''}`}>
-                        <div className="homepage-user-info">
-                            <div className="homepage-user-name">
-                                {user.prenom || user.nom || user.username}
-                            </div>
-                            <div className="homepage-user-role">
-                                {user.role} - {user.faculte}
-                            </div>
+            {showSalonsAnnouncement && (
+                <div className="homepage-salons-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="salons-announcement-title">
+                    <div className="homepage-salons-modal">
+                        <button
+                            className="homepage-salons-modal-close"
+                            onClick={dismissSalonsAnnouncement}
+                            aria-label="Fermer l'annonce"
+                        >
+                            <FaTimes />
+                        </button>
+                        <div className="homepage-salons-modal-icon">
+                            <FaUsers />
                         </div>
-                        
-                        {/* Avatar utilisateur */}
-                        <div 
-                            className="homepage-user-avatar"
-                            onClick={() => { navigate('/profile'); setMobileMenuOpen(false); }}
-                            title="Voir mon profil"
-                        >
-                            {user.avatar ? (
-                                <img 
-                                    src={`${getMediaUrl(user.avatar)}?t=${Date.now()}`}
-                                    alt={`Avatar de ${user.prenom || user.username}`}
-                                    className="homepage-avatar-img"
-                                    onError={(e) => {
-                                        e.target.style.display = 'none';
-                                        e.target.nextSibling.style.display = 'flex';
-                                    }}
-                                />
-                            ) : null}
-                            <div 
-                                className="homepage-avatar-placeholder"
-                                style={{display: user.avatar ? 'none' : 'flex'}}
-                            >
-                                {(user.prenom?.[0] || user.nom?.[0] || user.username?.[0] || 'U').toUpperCase()}
-                            </div>
+                        <h2 id="salons-announcement-title">🎉 Découvrez les nouveaux Salons BNN</h2>
+                        <p>
+                            Le BNN met désormais à votre disposition des <strong>Salons de discussion thématiques</strong> permettant aux utilisateurs d’échanger autour de sujets spécifiques, de partager des connaissances et de consulter des ressources utiles telles que des livres, documents PDF, images, liens et autres contenus éducatifs.
+                        </p>
+                        <p>
+                            Rejoignez les discussions qui vous intéressent, partagez vos expériences et enrichissez vos connaissances avec la communauté.
+                        </p>
+                        <p className="homepage-salons-modal-note">
+                            Cliquez sur le bouton <strong>« Voir les Salons »</strong> pour découvrir cette nouvelle fonctionnalité.
+                        </p>
+                        <div className="homepage-salons-modal-actions">
+                            <button className="homepage-salons-modal-primary" onClick={openSalonsFromAnnouncement}>
+                                <FaUsers />
+                                Voir les Salons
+                            </button>
+                            <button className="homepage-salons-modal-secondary" onClick={dismissSalonsAnnouncement}>
+                                Fermer
+                            </button>
                         </div>
-                        
-                       
-                        <button 
-                            className="homepage-favoris-btn"
-                            onClick={() => { navigate('/favoris'); setMobileMenuOpen(false); }}
-                        >
-                            <FaHeart size={14} />
-                            Favoris
-                        </button>
-
-                        <button 
-                            className="homepage-portail-btn"
-                            onClick={() => window.open('https://classroom.cgiibnn-esursi.cd/', '_blank')}
-                            title="Accéder au Classroom"
-                        >
-                            <FaBook size={14} />
-                            Classroom
-                        </button>
-
-                        <button 
-                            className="homepage-portail-btn"
-                            onClick={() => window.open('https://portail.cgiibnn-esursi.cd/', '_blank')}
-                            title="Accéder au portail"
-                        >
-                            <FaExternalLinkAlt size={14} />
-                            Portail
-                        </button>
-                        
-                        <button 
-                            className="homepage-logout-btn"
-                            onClick={handleLogout}
-                        >
-                            <FaSignOutAlt size={14} />
-                            Déconnexion
-                        </button>
                     </div>
-                    {/* Overlay pour fermer le menu mobile */}
-                    {mobileMenuOpen && (
-                        <div 
-                            className="homepage-menu-overlay"
-                            onClick={() => setMobileMenuOpen(false)}
-                        />
-                    )}
                 </div>
-            </header>
+            )}
 
             {/* Section de recherche */}
             <section className="homepage-search-section">

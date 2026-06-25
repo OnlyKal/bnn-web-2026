@@ -10,6 +10,7 @@ import HomePage from './HomePage.jsx';
 import Profile from './Profile.jsx';
 import RessourceDetails from './RessourceDetails.jsx';
 import FavorisPage from './FavorisPage.jsx';
+import SalonsPage from './SalonsPage.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import { isAuthenticated } from './utils/auth.js';
 
@@ -64,6 +65,14 @@ function App() {
               </ProtectedRoute>
             } 
           />
+          <Route 
+            path="/salons" 
+            element={
+              <ProtectedRoute>
+                <SalonsPage />
+              </ProtectedRoute>
+            } 
+          />
           
           {/* Default route */}
           <Route 
@@ -96,7 +105,6 @@ function App() {
 }
 
 export default App;
-
 
 
 

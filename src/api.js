@@ -128,6 +128,95 @@ api.interceptors.response.use(
     }
 );
 
+const errorFieldLabels = {
+    username: "Nom d'utilisateur",
+    nom: 'Nom',
+    prenom: 'Prénom',
+    password: 'Mot de passe',
+    email: 'Email',
+    telephone: 'Téléphone',
+    sexe: 'Sexe',
+    date_naissance: 'Date de naissance',
+    faculte: 'Faculté',
+    universite: 'Université',
+    role: "Type d'utilisateur",
+    non_field_errors: 'Erreur',
+    detail: 'Erreur',
+    message: 'Erreur',
+    error: 'Erreur',
+    errors: 'Erreur'
+};
+
+const technicalErrorFields = new Set(['status', 'status_code', 'code']);
+
+const humanizeApiErrorMessage = (message, field = '') => {
+    const normalizedMessage = message.toLowerCase();
+
+    if (
+        field === 'email' &&
+        normalizedMessage.includes('utilisateur') &&
+        normalizedMessage.includes('email') &&
+        normalizedMessage.includes('existe')
+    ) {
+        return 'Cette adresse email est déjà utilisée. Veuillez utiliser une autre adresse ou vous connecter.';
+    }
+
+    if (
+        field === 'username' &&
+        normalizedMessage.includes('utilisateur') &&
+        normalizedMessage.includes('username') &&
+        normalizedMessage.includes('existe')
+    ) {
+        return "Ce nom d'utilisateur est déjà utilisé. Veuillez en choisir un autre.";
+    }
+
+    return message;
+};
+
+const formatApiErrorValue = (value, field = '') => {
+    if (!value) return '';
+
+    if (Array.isArray(value)) {
+        return value
+            .map(item => formatApiErrorValue(item, field))
+            .filter(Boolean)
+            .join('\n');
+    }
+
+    if (typeof value === 'object') {
+        return Object.entries(value)
+            .filter(([key]) => !technicalErrorFields.has(key))
+            .map(([key, nestedValue]) => formatApiErrorValue(nestedValue, key))
+            .filter(Boolean)
+            .join('\n');
+    }
+
+    const message = humanizeApiErrorMessage(String(value), field);
+    if (!field || ['detail', 'message', 'error', 'errors', 'non_field_errors'].includes(field)) {
+        return message;
+    }
+
+    const label = errorFieldLabels[field] || field;
+    return `${label}: ${message}`;
+};
+
+const getApiErrorMessage = (error, fallbackMessage = 'Une erreur est survenue') => {
+    const errorData = error.response?.data;
+
+    if (errorData) {
+        if (typeof errorData === 'string') {
+            return errorData;
+        }
+
+        const formattedMessage = formatApiErrorValue(errorData);
+        if (formattedMessage) {
+            return formattedMessage;
+        }
+    }
+
+    return error.message || fallbackMessage;
+};
+
 // Authentication API
 export const authAPI = {
     // Login user
@@ -155,33 +244,11 @@ export const authAPI = {
             console.error('Registration error details:', error.response?.data);
             console.error('Registration error status:', error.response?.status);
             console.error('Full error:', error);
-            
-            // Handle different types of validation errors
-            if (error.response?.data) {
-                const errorData = error.response.data;
-                
-                // If it's a validation error with field-specific errors
-                if (typeof errorData === 'object' && !errorData.message && !errorData.detail) {
-                    const fieldErrors = [];
-                    Object.keys(errorData).forEach(field => {
-                        if (Array.isArray(errorData[field])) {
-                            fieldErrors.push(`${field}: ${errorData[field].join(', ')}`);
-                        } else {
-                            fieldErrors.push(`${field}: ${errorData[field]}`);
-                        }
-                    });
-                    throw new Error(fieldErrors.join('\n'));
-                }
-                
-                // If it's a general error message
-                throw new Error(
-                    errorData.detail || 
-                    errorData.message || 
-                    `Erreur ${error.response.status}: ${JSON.stringify(errorData)}`
-                );
-            }
-            
-            throw new Error(`Erreur lors de l'inscription (${error.response?.status || 'inconnu'}). Veuillez réessayer.`);
+
+            throw new Error(getApiErrorMessage(
+                error,
+                `Erreur lors de l'inscription (${error.response?.status || 'inconnu'}). Veuillez réessayer.`
+            ));
         }
     },
 
@@ -522,6 +589,204 @@ export const favorisAPI = {
         } catch (error) {
             console.warn('Erreur lors de la vérification des favoris:', error);
             return false;
+        }
+    }
+};
+
+// Salons API
+export const salonsAPI = {
+    getSalons: async (search = '') => {
+        try {
+            const response = await api.get('/salons/', {
+                params: search ? { search } : {}
+            });
+            return response.data;
+        } catch (error) {
+            throw new Error(
+                error.response?.data?.detail ||
+                error.response?.data?.message ||
+                'Erreur lors du chargement des salons'
+            );
+        }
+    },
+
+    getSalon: async (salonId) => {
+        try {
+            const response = await api.get(`/salons/${salonId}/`);
+            return response.data;
+        } catch (error) {
+            throw new Error(
+                error.response?.data?.detail ||
+                error.response?.data?.message ||
+                'Erreur lors du chargement du salon'
+            );
+        }
+    },
+
+    createSalon: async (formData) => {
+        try {
+            const response = await api.post('/salons/', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            return response.data;
+        } catch (error) {
+            throw new Error(
+                error.response?.data?.detail ||
+                error.response?.data?.message ||
+                'Erreur lors de la creation du salon'
+            );
+        }
+    },
+
+    updateSalon: async (salonId, salonData) => {
+        try {
+            const response = await api.patch(`/salons/${salonId}/`, salonData);
+            return response.data;
+        } catch (error) {
+            throw new Error(
+                error.response?.data?.detail ||
+                error.response?.data?.message ||
+                'Erreur lors de la modification du salon'
+            );
+        }
+    },
+
+    deleteSalon: async (salonId) => {
+        try {
+            const response = await api.delete(`/salons/${salonId}/`);
+            return response.data;
+        } catch (error) {
+            throw new Error(
+                error.response?.data?.detail ||
+                error.response?.data?.message ||
+                'Erreur lors de la suppression du salon'
+            );
+        }
+    },
+
+    addRessources: async (salonId, formData) => {
+        try {
+            const response = await api.post(`/salons/${salonId}/ressources/`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            return response.data;
+        } catch (error) {
+            throw new Error(
+                error.response?.data?.detail ||
+                error.response?.data?.message ||
+                'Erreur lors de l\'ajout des ressources'
+            );
+        }
+    },
+
+    joinSalon: async (salonId) => {
+        try {
+            const response = await api.post(`/salons/${salonId}/join/`);
+            return response.data;
+        } catch (error) {
+            throw new Error(
+                error.response?.data?.detail ||
+                error.response?.data?.message ||
+                'Erreur lors de l\'adhesion au salon'
+            );
+        }
+    },
+
+    quitSalon: async (salonId) => {
+        try {
+            const response = await api.post(`/salons/${salonId}/quit/`);
+            return response.data;
+        } catch (error) {
+            throw new Error(
+                error.response?.data?.detail ||
+                error.response?.data?.message ||
+                'Erreur lors de la sortie du salon'
+            );
+        }
+    },
+
+    getMembers: async (salonId) => {
+        try {
+            const response = await api.get(`/salons/${salonId}/members/`);
+            return response.data;
+        } catch (error) {
+            throw new Error(
+                error.response?.data?.detail ||
+                error.response?.data?.message ||
+                'Erreur lors du chargement des membres'
+            );
+        }
+    },
+
+    getMessages: async (salonId, afterId = null) => {
+        try {
+            const response = await api.get(`/salons/${salonId}/messages/`, {
+                params: afterId ? { after_id: afterId } : {}
+            });
+            return response.data;
+        } catch (error) {
+            throw new Error(
+                error.response?.data?.detail ||
+                error.response?.data?.message ||
+                'Erreur lors du chargement des messages'
+            );
+        }
+    },
+
+    sendMessage: async (salonId, payload) => {
+        try {
+            const isFormData = payload instanceof FormData;
+            const response = await api.post(`/salons/${salonId}/messages/`, payload, {
+                headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : undefined
+            });
+            return response.data;
+        } catch (error) {
+            throw new Error(
+                error.response?.data?.detail ||
+                error.response?.data?.message ||
+                'Erreur lors de l\'envoi du message'
+            );
+        }
+    },
+
+    getNotifications: async (unreadOnly = false) => {
+        try {
+            const response = await api.get('/salons/notifications/', {
+                params: unreadOnly ? { unread_only: 1 } : {}
+            });
+            return response.data;
+        } catch (error) {
+            throw new Error(
+                error.response?.data?.detail ||
+                error.response?.data?.message ||
+                'Erreur lors du chargement des notifications'
+            );
+        }
+    },
+
+    markNotificationsRead: async () => {
+        try {
+            const response = await api.post('/salons/notifications/mark-read/');
+            return response.data;
+        } catch (error) {
+            throw new Error(
+                error.response?.data?.detail ||
+                error.response?.data?.message ||
+                'Erreur lors du marquage des notifications'
+            );
+        }
+    },
+
+    markNotificationRead: async (notificationId) => {
+        try {
+            const response = await api.post(`/salons/notifications/${notificationId}/mark-read/`);
+            return response.data;
+        } catch (error) {
+            throw new Error(
+                error.response?.data?.detail ||
+                error.response?.data?.message ||
+                'Erreur lors du marquage de la notification'
+            );
         }
     }
 };
