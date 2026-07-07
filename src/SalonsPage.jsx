@@ -24,6 +24,7 @@ import { getMediaUrl } from './config';
 import { useToast } from './hooks/useToast';
 import { ToastContainer } from './components/ToastContainer';
 import AppNavigation from './components/AppNavigation';
+import { addLocalHistoryItem } from './utils/localHistory';
 
 const emptySalonForm = {
     titre: '',
@@ -300,6 +301,14 @@ const SalonsPage = () => {
                 titre: salon?.titre || '',
                 description: salon?.description || ''
             });
+            addLocalHistoryItem({
+                type: 'salon',
+                title: salon?.titre || 'Salon ouvert',
+                description: salon?.description || 'Discussion consultée',
+                url: '/salons',
+                icon: 'salon',
+                metadata: { salonId }
+            });
             return salon;
         } catch (error) {
             showError(error.message);
@@ -350,6 +359,24 @@ const SalonsPage = () => {
         const timer = setTimeout(() => fetchSalons(searchTerm), 350);
         return () => clearTimeout(timer);
     }, [searchTerm, fetchSalons]);
+
+    useEffect(() => {
+        const query = searchTerm.trim();
+        if (query.length < 2) return;
+
+        const timer = setTimeout(() => {
+            addLocalHistoryItem({
+                type: 'search',
+                title: query,
+                description: 'Recherche effectuée dans les salons',
+                url: '/salons',
+                icon: 'search',
+                metadata: { query: `salons:${query}` }
+            });
+        }, 450);
+
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
 
     useEffect(() => {
         const interval = setInterval(fetchNotifications, 20000);

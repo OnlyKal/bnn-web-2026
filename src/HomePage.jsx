@@ -25,6 +25,7 @@ import { mockRessources } from './mockData';
 import { getMediaUrl, getFileUrl } from './config';
 import { cachedApiCall, invalidateCache } from './utils/apiCache';
 import AppNavigation from './components/AppNavigation';
+import { addLocalHistoryItem } from './utils/localHistory';
 
 const SALONS_ANNOUNCEMENT_KEY = 'bnnSalonsAnnouncement:v1';
 
@@ -297,6 +298,14 @@ const HomePage = () => {
         }
 
         searchDebounceRef.current = setTimeout(() => {
+            addLocalHistoryItem({
+                type: 'search',
+                title: value.trim(),
+                description: 'Recherche effectuée dans les ressources',
+                url: `/home?search=${encodeURIComponent(value.trim())}`,
+                icon: 'search',
+                metadata: { query: value.trim() }
+            });
             performServerSearchWithFallback(value, 0);
         }, 500);
     };
@@ -1022,6 +1031,14 @@ const HomePage = () => {
 
     const handleViewResource = (ressource) => {
         saveHomePageState(); // Save state before navigation
+        addLocalHistoryItem({
+            type: 'resource',
+            title: ressource.titre || 'Ressource consultée',
+            description: ressource.domaine?.nom || ressource.type || 'Ressource ouverte depuis l’accueil',
+            url: `/ressources/${ressource.id}`,
+            icon: 'resource',
+            metadata: { resourceId: ressource.id }
+        });
         navigate(`/ressources/${ressource.id}`, { state: { ressource } });
     };
 

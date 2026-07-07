@@ -28,6 +28,7 @@ import PDFViewer from './components/PDFViewer';
 import EPUBViewer from './components/EPUBViewer';
 import VideoViewer from './components/VideoViewer';
 import AppNavigation from './components/AppNavigation';
+import { addLocalHistoryItem } from './utils/localHistory';
 
 const RessourceDetails = () => {
     const { id } = useParams();
@@ -201,6 +202,19 @@ const RessourceDetails = () => {
         }
     }, [id, location.state]);
 
+    useEffect(() => {
+        if (!ressource?.id) return;
+
+        addLocalHistoryItem({
+            type: 'resource',
+            title: ressource.titre || 'Ressource consultée',
+            description: ressource.domaine?.nom || ressource.type || 'Page de détail ouverte',
+            url: `/ressources/${ressource.id}`,
+            icon: 'resource',
+            metadata: { resourceId: ressource.id }
+        });
+    }, [ressource?.id]);
+
     // Vérifier le statut des favoris
     const checkFavoriteStatus = async (ressourceId) => {
         try {
@@ -228,12 +242,28 @@ const RessourceDetails = () => {
                 await favorisAPI.removeFavori(ressource.id);
                 setIsFavorite(false);
                 window.dispatchEvent(new Event('favorites:changed'));
+                addLocalHistoryItem({
+                    type: 'favorite',
+                    title: ressource.titre || 'Favori retiré',
+                    description: 'Ressource retirée des favoris',
+                    url: `/ressources/${ressource.id}`,
+                    icon: 'favorite',
+                    metadata: { resourceId: ressource.id, action: 'removed' }
+                });
                 showNotification('Retiré des favoris', 'success');
             } else {
                 // Ajouter aux favoris
                 await favorisAPI.addFavori(ressource.id);
                 setIsFavorite(true);
                 window.dispatchEvent(new Event('favorites:changed'));
+                addLocalHistoryItem({
+                    type: 'favorite',
+                    title: ressource.titre || 'Favori ajouté',
+                    description: 'Ressource ajoutée aux favoris',
+                    url: `/ressources/${ressource.id}`,
+                    icon: 'favorite',
+                    metadata: { resourceId: ressource.id, action: 'added' }
+                });
                 showNotification('Ajouté aux favoris', 'success');
             }
         } catch (error) {

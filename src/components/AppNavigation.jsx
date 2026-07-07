@@ -5,6 +5,7 @@ import {
     LuGlobe,
     LuGraduationCap,
     LuHeart,
+    LuHistory,
     LuHouse,
     LuLogOut,
     LuMenu,
@@ -17,6 +18,7 @@ import { favorisAPI } from '../api';
 import { getCurrentUser, logout } from '../utils/auth';
 import { getMediaUrl } from '../config';
 import logoBlancImg from '../assets/Logoblanc.png';
+import { addLocalHistoryItem, getUnseenHistoryCount, markLocalHistorySeen } from '../utils/localHistory';
 
 const getFavorisCountFromResponse = (response) => {
     if (typeof response?.count === 'number') return response.count;
@@ -33,6 +35,7 @@ const AppNavigation = ({ favoriteCountOverride = null }) => {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const [favoriteCount, setFavoriteCount] = useState(0);
+    const [unseenHistoryCount, setUnseenHistoryCount] = useState(0);
     const user = getCurrentUser();
 
     const displayName = 'Bihango';
@@ -50,6 +53,36 @@ const AppNavigation = ({ favoriteCountOverride = null }) => {
             setFavoriteCount(0);
         }
     };
+
+    useEffect(() => {
+        const pageTitles = {
+            '/home': 'Accueil',
+            '/profile': 'Profil',
+            '/favoris': 'Favoris',
+            '/salons': 'Salons',
+            '/historique': 'Historique'
+        };
+
+        const pageTitle = pageTitles[location.pathname] || 'Page consultée';
+        addLocalHistoryItem({
+            type: 'page',
+            title: pageTitle,
+            description: `Page ouverte: ${pageTitle}`,
+            url: location.pathname,
+            icon: 'page'
+        });
+
+        if (location.pathname === '/historique') {
+            setTimeout(markLocalHistorySeen, 0);
+        }
+    }, [location.pathname]);
+
+    useEffect(() => {
+        const refreshUnseenHistory = () => setUnseenHistoryCount(getUnseenHistoryCount());
+        refreshUnseenHistory();
+        window.addEventListener('local-history:changed', refreshUnseenHistory);
+        return () => window.removeEventListener('local-history:changed', refreshUnseenHistory);
+    }, []);
 
     useEffect(() => {
         const handleOutsideClick = (event) => {
@@ -137,6 +170,13 @@ const AppNavigation = ({ favoriteCountOverride = null }) => {
             icon: LuGlobe,
             isActive: false,
             onClick: () => window.open('https://portail.cgiibnn-esursi.cd/', '_blank', 'noopener,noreferrer')
+        },
+        {
+            label: 'Historique',
+            icon: LuHistory,
+            isActive: location.pathname === '/historique',
+            hasPulseBadge: location.pathname !== '/historique' && unseenHistoryCount > 0,
+            onClick: () => navigate('/historique')
         }
     ];
 
@@ -193,6 +233,12 @@ const AppNavigation = ({ favoriteCountOverride = null }) => {
                                         >
                                             {item.badge > 99 ? '99+' : item.badge}
                                         </span>
+                                    )}
+                                    {item.hasPulseBadge && (
+                                        <span
+                                            className="homepage-nav-pulse-badge"
+                                            aria-label="Nouvel historique"
+                                        />
                                     )}
                                 </button>
                             );

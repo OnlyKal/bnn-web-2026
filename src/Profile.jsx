@@ -21,11 +21,12 @@ import {
 } from 'react-icons/fa';
 import {
     LuArrowRight,
-    LuBell,
+    LuChartBar,
     LuBookOpen,
     LuCalendar,
     LuCamera,
     LuGraduationCap,
+    LuHistory,
     LuHeart,
     LuIdCard,
     LuKeyRound,
@@ -40,12 +41,46 @@ import {
     LuUser,
     LuVenetianMask
 } from 'react-icons/lu';
-import { getCurrentUser, logout, isAuthenticated, saveSession, getSession } from './utils/auth';
+import { getCurrentUser, logout, isAuthenticated, saveSession } from './utils/auth';
 import { userAPI, fileUtils, validators, favorisAPI } from './api';
 import { getMediaUrl } from './config';
 import { useToast } from './hooks/useToast';
 import { ToastContainer } from './components/ToastContainer';
 import AppNavigation from './components/AppNavigation';
+import { addLocalHistoryItem } from './utils/localHistory';
+
+const normalizeUserPayload = (payload) => {
+    if (!payload) return null;
+    return payload.data || payload.user || payload.profile || payload;
+};
+
+const getRoleLabel = (user) => {
+    const role = user?.role || user?.type_utilisateur || user?.typeUtilisateur || user?.profil;
+
+    if (role && typeof role === 'object') {
+        return role.nom || role.name || role.libelle || role.label || role.code || 'Non renseigné';
+    }
+
+    const roleLabels = {
+        chercheur: 'Chercheur',
+        etudiant: 'Etudiant',
+        professeur: 'Professeur',
+        autres: 'Autres',
+        admin: 'Administrateur',
+        administrateur: 'Administrateur'
+    };
+
+    return roleLabels[String(role || '').toLowerCase()] || role || 'Non renseigné';
+};
+
+const isAdministrator = (user) => {
+    const role = user?.role || user?.type_utilisateur || user?.typeUtilisateur || user?.profil;
+    const roleValue = role && typeof role === 'object'
+        ? role.nom || role.name || role.libelle || role.label || role.code
+        : role;
+
+    return ['administrateur', 'admin'].includes(String(roleValue || '').toLowerCase());
+};
 
 function Profile() {
     const [user, setUser] = useState(null);
@@ -72,7 +107,6 @@ function Profile() {
             return;
         }
 
-        // Get current user data
         const currentUser = getCurrentUser();
         setUser(currentUser);
         setFormData({
@@ -82,6 +116,30 @@ function Profile() {
             email: currentUser.email || '',
             role: currentUser.role || 'chercheur',
         });
+
+        const refreshProfile = async () => {
+            try {
+                const response = await userAPI.getProfile();
+                const freshUser = normalizeUserPayload(response);
+                const token = localStorage.getItem('authToken');
+
+                if (freshUser && token) {
+                    saveSession(token, freshUser);
+                    setUser(freshUser);
+                    setFormData({
+                        nom: freshUser.nom || '',
+                        prenom: freshUser.prenom || '',
+                        telephone: freshUser.telephone || '',
+                        email: freshUser.email || '',
+                        role: freshUser.role || 'chercheur',
+                    });
+                }
+            } catch (error) {
+                console.warn('Impossible de rafraîchir le profil:', error.message);
+            }
+        };
+
+        refreshProfile();
     }, [navigate]);
 
     useEffect(() => {
@@ -230,12 +288,11 @@ function Profile() {
 
             // Send to API
             // console.log('Sending password change request...');
-            const response = await userAPI.changePassword({
+            await userAPI.changePassword({
                 old_password: passwordData.oldPassword,
                 new_password: passwordData.newPassword
             });
 
-            // console.log('Password change response:', response);
             showSuccess('Mot de passe mis à jour avec succès !');
             
             // Reset form and close modal
@@ -268,11 +325,6 @@ function Profile() {
         setLoading(true);
 
         try {
-            // Debug: Check authentication
-            const { token: authToken } = getSession();
-            // console.log('Current auth token:', authToken ? `${authToken.substring(0, 20)}...` : 'No token found');
-            // console.log('Is authenticated:', isAuthenticated());
-            
             // Call the real API to update profile
             // console.log('Updating profile with:', formData);
             const response = await userAPI.updateProfile(formData);
@@ -314,7 +366,8 @@ function Profile() {
 
     const displayName = 'Bihango Justin';
     const username = '@tony';
-    const roleLabel = 'Autres';
+    const roleLabel = getRoleLabel(user);
+    const canAccessStatsReport = isAdministrator(user);
     const initial = displayName[0];
     const joinDate = formatProfileDate(user.date_inscription || user.date_joined || user.created_at);
     const fullName = user.prenom && user.nom ? `${user.prenom} ${user.nom}` : displayName;
@@ -347,40 +400,109 @@ function Profile() {
             icon: LuHeart,
             title: 'Mes Favoris',
             description: 'Retrouver vos ressources enregistrées',
-            onClick: () => navigate('/favoris')
+            onClick: () => {
+                addLocalHistoryItem({
+                    type: 'action',
+                    title: 'Action rapide: Mes Favoris',
+                    description: 'Ouverture des favoris depuis le profil',
+                    url: '/favoris',
+                    icon: 'favorite'
+                });
+                navigate('/favoris');
+            }
         },
         {
             icon: LuKeyRound,
             title: 'Modifier le mot de passe',
             description: 'Renforcer la sécurité du compte',
-            onClick: () => setChangingPassword(true)
+            onClick: () => {
+                addLocalHistoryItem({
+                    type: 'action',
+                    title: 'Action rapide: Mot de passe',
+                    description: 'Ouverture du formulaire de sécurité',
+                    url: '/profile',
+                    icon: 'action'
+                });
+                setChangingPassword(true);
+            }
         },
         {
             icon: LuBookOpen,
             title: 'Mes Ressources',
             description: 'Parcourir la bibliothèque disponible',
-            onClick: goToHome
+            onClick: () => {
+                addLocalHistoryItem({
+                    type: 'action',
+                    title: 'Action rapide: Mes Ressources',
+                    description: 'Retour vers la bibliothèque',
+                    url: '/home',
+                    icon: 'resource'
+                });
+                goToHome();
+            }
         },
         {
             icon: LuSettings,
             title: 'Paramètres',
             description: 'Ajuster vos préférences personnelles',
-            onClick: () => setEditing(true)
+            onClick: () => {
+                addLocalHistoryItem({
+                    type: 'action',
+                    title: 'Action rapide: Paramètres',
+                    description: 'Edition du profil utilisateur',
+                    url: '/profile',
+                    icon: 'action'
+                });
+                setEditing(true);
+            }
         },
         {
-            icon: LuBell,
-            title: 'Notifications',
-            description: 'Consulter les alertes et mises à jour',
-            onClick: () => showSuccess('Les notifications seront disponibles bientôt.')
+            icon: LuHistory,
+            title: 'Historique',
+            description: 'Revoir vos dernières activités locales',
+            onClick: () => {
+                addLocalHistoryItem({
+                    type: 'action',
+                    title: 'Action rapide: Historique',
+                    description: 'Ouverture de l’historique local',
+                    url: '/historique',
+                    icon: 'action'
+                });
+                navigate('/historique');
+            }
+        },
+        canAccessStatsReport && {
+            icon: LuChartBar,
+            title: 'Rapports statistiques',
+            description: 'Analyser les ajouts et modifications',
+            onClick: () => {
+                addLocalHistoryItem({
+                    type: 'action',
+                    title: 'Action rapide: Rapports statistiques',
+                    description: 'Ouverture du rapport des ajouts et modifications',
+                    url: '/profile/statistiques',
+                    icon: 'action'
+                });
+                navigate('/profile/statistiques');
+            }
         },
         {
             icon: LuLogOut,
             title: 'Déconnexion',
             description: 'Quitter votre session en toute sécurité',
-            onClick: handleLogout,
+            onClick: () => {
+                addLocalHistoryItem({
+                    type: 'action',
+                    title: 'Déconnexion',
+                    description: 'Session fermée depuis le profil',
+                    url: '/login',
+                    icon: 'action'
+                });
+                handleLogout();
+            },
             danger: true
         }
-    ];
+    ].filter(Boolean);
 
     const roleOptions = [
         { value: 'chercheur', label: 'Chercheur' },

@@ -19,6 +19,7 @@ import { getMediaUrl } from './config';
 import { useToast } from './hooks/useToast';
 import { ToastContainer } from './components/ToastContainer';
 import AppNavigation from './components/AppNavigation';
+import { addLocalHistoryItem } from './utils/localHistory';
 
 const FavorisPage = () => {
     const [favoris, setFavoris] = useState([]);
@@ -38,6 +39,24 @@ const FavorisPage = () => {
         }
         fetchFavoris();
     }, [navigate]);
+
+    useEffect(() => {
+        const query = searchTerm.trim();
+        if (query.length < 2) return;
+
+        const timer = setTimeout(() => {
+            addLocalHistoryItem({
+                type: 'search',
+                title: query,
+                description: 'Recherche effectuée dans les favoris',
+                url: '/favoris',
+                icon: 'search',
+                metadata: { query: `favoris:${query}` }
+            });
+        }, 450);
+
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
 
     // Récupérer la liste des favoris
     const fetchFavoris = async () => {
@@ -79,6 +98,14 @@ const FavorisPage = () => {
                 return id !== ressourceId;
             }));
             window.dispatchEvent(new Event('favorites:changed'));
+            addLocalHistoryItem({
+                type: 'favorite',
+                title: ressourceTitre,
+                description: 'Ressource retirée des favoris',
+                url: `/ressources/${ressourceId}`,
+                icon: 'favorite',
+                metadata: { resourceId: ressourceId, action: 'removed' }
+            });
             
             showNotification(`"${ressourceTitre}" retiré des favoris`, 'success');
         } catch (error) {
@@ -110,6 +137,14 @@ const FavorisPage = () => {
 
     // Naviguer vers les détails d'une ressource
     const handleViewResource = (ressource) => {
+        addLocalHistoryItem({
+            type: 'resource',
+            title: ressource.titre || 'Ressource consultée',
+            description: 'Ouverte depuis les favoris',
+            url: `/ressources/${ressource.id}`,
+            icon: 'resource',
+            metadata: { resourceId: ressource.id }
+        });
         navigate(`/ressources/${ressource.id}`, { state: { ressource } });
     };
 

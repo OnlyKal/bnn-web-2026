@@ -6,10 +6,14 @@ import { BsEyeFill, BsEyeSlash, BsEyeSlashFill } from 'react-icons/bs';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { saveSession, isAuthenticated } from '../utils/auth';
-import { authAPI } from '../services/api';
+import { authAPI, userAPI } from '../api';
 import { useToast } from '../hooks/useToast';
 import { ToastContainer } from '../components/ToastContainer';
 
+const normalizeUserPayload = (payload) => {
+    if (!payload) return null;
+    return payload.data || payload.user || payload.profile || payload;
+};
 
 
 function Connexion() {
@@ -46,11 +50,21 @@ function Connexion() {
 
             // Normalize different API response shapes: token may be at response.token, response.data.token, or response.access
             const token = response?.token || response?.data?.token || response?.access || null;
-            const userData = response?.data || response?.user || response;
+            const userData = normalizeUserPayload(response);
 
             if (token) {
-                // Save session
+                // Save session first so authenticated profile refresh can use the token.
                 saveSession(token, userData);
+
+                try {
+                    const freshProfile = await userAPI.getProfile();
+                    const freshUserData = normalizeUserPayload(freshProfile);
+                    if (freshUserData) {
+                        saveSession(token, freshUserData);
+                    }
+                } catch (profileError) {
+                    console.warn('Impossible de rafraîchir le profil après connexion:', profileError.message);
+                }
 
                 showSuccess(response.message || 'Connexion réussie !');
 
@@ -84,7 +98,7 @@ function Connexion() {
                 showError('Erreur de réseau. Vérifiez votre connexion internet.');
             } else {
                 // Other error
-                showError('Une erreur inattendue s\'est produite');
+                showError(err.message || 'Une erreur inattendue s\'est produite');
             }
         } finally {
             setLoading(false);

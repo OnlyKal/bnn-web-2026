@@ -791,6 +791,24 @@ export const salonsAPI = {
     }
 };
 
+// Statistiques des actions sur les ressources
+export const ressourcesStatsAPI = {
+    getActionsStats: async (params = {}) => {
+        try {
+            const response = await api.get('/ressources/statistiques-actions/', {
+                params
+            });
+            return response.data;
+        } catch (error) {
+            throw new Error(
+                error.response?.data?.detail ||
+                error.response?.data?.message ||
+                'Erreur lors du chargement des statistiques'
+            );
+        }
+    }
+};
+
 // Domaines API
 export const domainesAPI = {
     // Get all domains
