@@ -41,7 +41,7 @@ import {
     LuUser,
     LuVenetianMask
 } from 'react-icons/lu';
-import { getCurrentUser, logout, isAuthenticated, saveSession } from './utils/auth';
+import { getCurrentUser, getUserDisplayName, getUserHandle, logout, isAuthenticated, saveSession } from './utils/auth';
 import { userAPI, fileUtils, validators, favorisAPI } from './api';
 import { getMediaUrl } from './config';
 import { useToast } from './hooks/useToast';
@@ -364,13 +364,13 @@ function Profile() {
         );
     }
 
-    const displayName = 'Bihango Justin';
-    const username = '@tony';
+    const displayName = getUserDisplayName(user);
+    const username = getUserHandle(user);
     const roleLabel = getRoleLabel(user);
     const canAccessStatsReport = isAdministrator(user);
     const initial = displayName[0];
     const joinDate = formatProfileDate(user.date_inscription || user.date_joined || user.created_at);
-    const fullName = user.prenom && user.nom ? `${user.prenom} ${user.nom}` : displayName;
+    const fullName = displayName;
     const avatarAlt = `Avatar de ${displayName}`;
     const avatarSrc = previewAvatar || (user.avatar ? getMediaUrl(user.avatar) : null);
 

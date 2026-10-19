@@ -40,11 +40,7 @@
       "shortname": "ISP-BUTA",
       "path": "LOGO/ISP-BUTA.png"
     },
-    {
-      "name": "INSTITUT SUPÉRIEUR PÉDAGOGIQUE - UPOTO",
-      "shortname": "ISP-UPOTO",
-      "path": "LOGO/ISP-UPOTO.png"
-    },
+   
     {
       "name": "INSTITUT SUPERIEUR DES TECHNIQUES ET DE DEVELOPPEMENT D\\",
       "shortname": "ISTD-IBEMBO",
@@ -4621,6 +4617,10 @@
       "name": "UNIVERSITE DU CEPROMAD DE LISALA",
       "shortname": "CEPROMAD",
       "path": "LOGO/CEPROMAD.png"
+    }, {
+      "name": "INSTITUT SUPÉRIEUR PÉDAGOGIQUE - UPOTO",
+      "shortname": "ISP-UPOTO",
+      "path": "LOGO/ISP-UPOTO.png"
     },
     {
       "name": "UNIVERSITE DU CEPROMAD DE BUMBA",

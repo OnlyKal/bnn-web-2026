@@ -54,6 +54,38 @@ export const getCurrentUser = () => {
     return userData;
 };
 
+const getUserField = (user, fields) => {
+    if (!user) return '';
+
+    const source = user.user || user.profile || user.profil || user;
+    for (const field of fields) {
+        if (source?.[field]) return String(source[field]).trim();
+        if (user?.[field]) return String(user[field]).trim();
+    }
+
+    return '';
+};
+
+export const getUserDisplayName = (user, fallback = 'Utilisateur') => {
+    const fullName = getUserField(user, ['full_name', 'name', 'nom_complet']);
+    if (fullName) return fullName;
+
+    const nom = getUserField(user, ['nom', 'last_name']);
+    const prenom = getUserField(user, ['prenom', 'first_name']);
+    const username = getUserField(user, ['username']);
+    const email = getUserField(user, ['email']);
+
+    return [nom, prenom].filter(Boolean).join(' ') || username || email || fallback;
+};
+
+export const getUserHandle = (user) => {
+    const username = getUserField(user, ['username']);
+    const email = getUserField(user, ['email']);
+
+    if (username) return username.startsWith('@') ? username : `@${username}`;
+    return email || '';
+};
+
 /**
  * Get authorization header for API requests
  * @returns {object} - Authorization header object

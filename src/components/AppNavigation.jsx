@@ -15,7 +15,7 @@ import {
     LuX
 } from 'react-icons/lu';
 import { favorisAPI } from '../api';
-import { getCurrentUser, logout } from '../utils/auth';
+import { getCurrentUser, getUserDisplayName, logout } from '../utils/auth';
 import { getMediaUrl } from '../config';
 import logoBlancImg from '../assets/Logoblanc.png';
 import { addLocalHistoryItem, getUnseenHistoryCount, markLocalHistorySeen } from '../utils/localHistory';
@@ -38,7 +38,7 @@ const AppNavigation = ({ favoriteCountOverride = null }) => {
     const [unseenHistoryCount, setUnseenHistoryCount] = useState(0);
     const user = getCurrentUser();
 
-    const displayName = 'Bihango';
+    const displayName = getUserDisplayName(user);
     const avatarInitial = displayName[0];
     const visibleFavoriteCount = favoriteCountOverride ?? favoriteCount;
 

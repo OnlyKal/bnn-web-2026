@@ -17,7 +17,9 @@ import {
     FaThumbtack,
     FaLightbulb,
     FaClock,
-    FaUsers
+    FaUsers,
+    FaServer,
+    FaGlobe
 } from 'react-icons/fa';
 import api, { domainesAPI } from './api';
 import { isAuthenticated, getCurrentUser } from './utils/auth';
@@ -31,6 +33,7 @@ const SALONS_ANNOUNCEMENT_KEY = 'bnnSalonsAnnouncement:v1';
 
 const HomePage = () => {
     const [user, setUser] = useState(null);
+    const [activeResourceTab, setActiveResourceTab] = useState('internal');
     const [ressources, setRessources] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -1068,6 +1071,30 @@ const HomePage = () => {
         <div className="homepage-container">
             <AppNavigation />
 
+            <div className="homepage-resource-tabs" role="tablist" aria-label="Types de ressources">
+                <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeResourceTab === 'internal'}
+                    className={`homepage-resource-tab ${activeResourceTab === 'internal' ? 'active' : ''}`}
+                    onClick={() => setActiveResourceTab('internal')}
+                >
+                    <FaServer className="homepage-resource-tab-icon" aria-hidden="true" />
+                    Ressources internes
+                </button>
+                <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeResourceTab === 'external'}
+                    className={`homepage-resource-tab ${activeResourceTab === 'external' ? 'active' : ''}`}
+                    onClick={() => setActiveResourceTab('external')}
+                >
+                    <FaGlobe className="homepage-resource-tab-icon" aria-hidden="true" />
+                    Ressources externes
+                </button>
+            </div>
+
+            {activeResourceTab === 'internal' && <>
             {showSalonsAnnouncement && (
                 <div className="homepage-salons-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="salons-announcement-title">
                     <div className="homepage-salons-modal">
@@ -1551,6 +1578,7 @@ const HomePage = () => {
                     </div>
                 </div>
             </main>
+            </>}
         </div>
     );
 };
