@@ -793,10 +793,11 @@ export const salonsAPI = {
 
 // Statistiques des actions sur les ressources
 export const ressourcesStatsAPI = {
-    getActionsStats: async (params = {}) => {
+    getActionsStats: async (params = {}, options = {}) => {
         try {
             const response = await api.get('/ressources/statistiques-actions/', {
-                params
+                params,
+                signal: options.signal
             });
             return response.data;
         } catch (error) {

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     LuArrowLeft,
@@ -6,6 +6,7 @@ import {
     LuCalendarDays,
     LuDownload,
     LuFilePenLine,
+    LuFileText,
     LuFilter,
     LuPlus,
     LuRefreshCw,
@@ -18,6 +19,7 @@ import {
 import AppNavigation from './components/AppNavigation';
 import { ressourcesStatsAPI } from './api';
 import { addLocalHistoryItem } from './utils/localHistory';
+import logoBnnUrl from './Images/Logo_BBN.png';
 
 const actionConfig = {
     insertion: {
@@ -34,7 +36,12 @@ const actionConfig = {
     }
 };
 
-const formatInputDate = (date) => date.toISOString().slice(0, 10);
+const formatInputDate = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
 
 const getDefaultDates = () => {
     const end = new Date();
@@ -51,7 +58,10 @@ const formatNumber = (value) => new Intl.NumberFormat('fr-FR').format(Number(val
 
 const formatDate = (value) => {
     if (!value) return 'Non renseignée';
-    const date = new Date(value);
+    const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value));
+    const date = dateOnlyMatch
+        ? new Date(Number(dateOnlyMatch[1]), Number(dateOnlyMatch[2]) - 1, Number(dateOnlyMatch[3]))
+        : new Date(value);
     if (Number.isNaN(date.getTime())) return value;
 
     return date.toLocaleDateString('fr-FR', {
@@ -261,6 +271,37 @@ const normalizeActionRows = (payload) => {
 };
 
 const getMaxValue = (items) => Math.max(...items.map((item) => item.value), 1);
+const isCanceledRequest = (error) => error.code === 'ERR_CANCELED' || error.name === 'CanceledError';
+const getLocalDateKey = (value) => {
+    const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || ''));
+    if (dateOnlyMatch) return `${dateOnlyMatch[1]}-${dateOnlyMatch[2]}-${dateOnlyMatch[3]}`;
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'unknown';
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+const getUserTotals = (rows) => {
+    const users = new Map();
+    rows.forEach((row) => {
+        const key = String(row.userId || row.userLabel);
+        const user = users.get(key) || {
+            label: row.userLabel,
+            insertions: 0,
+            modifications: 0
+        };
+        user[row.actionType === 'insertion' ? 'insertions' : 'modifications'] += row.count;
+        users.set(key, user);
+    });
+
+    return Array.from(users.values())
+        .sort((a, b) => (b.insertions + b.modifications) - (a.insertions + a.modifications));
+};
+
+const institutionHeader = [
+    'REPUBLIQUE DEMOCRATIQUE DU CONGO',
+    "MINISTERE DE L'ESURSI",
+    'BIBLIOTHEQUE NUMERIQUE NATIONALE'
+];
 
 function StatistiquesActionsPage() {
     const navigate = useNavigate();
@@ -270,57 +311,62 @@ function StatistiquesActionsPage() {
         date_fin: defaultDates.dateFin,
         utilisateur_id: '',
         type_action: 'tous',
-        group_by: 'utilisateur_date',
         search: ''
+    });
+    const [appliedDates, setAppliedDates] = useState({
+        date_debut: defaultDates.dateDebut,
+        date_fin: defaultDates.dateFin
     });
     const [statsData, setStatsData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [exportError, setExportError] = useState('');
+    const [exportingFormat, setExportingFormat] = useState('');
     const [selectedStatsRow, setSelectedStatsRow] = useState(null);
 
-    const fetchStats = useCallback(async () => {
-        setLoading(true);
-        setError('');
-
-        try {
-            const params = {
-                group_by: filters.group_by,
-                date_debut: filters.date_debut,
-                date_fin: filters.date_fin
-            };
-
-            if (filters.utilisateur_id) {
-                params.utilisateur_id = filters.utilisateur_id;
-            }
-
-            const response = await ressourcesStatsAPI.getActionsStats(params);
-            setStatsData(response);
-        } catch (err) {
-            setError(err.message || 'Erreur lors du chargement des statistiques');
-            setStatsData(null);
-        } finally {
-            setLoading(false);
-        }
-    }, [filters.date_debut, filters.date_fin, filters.group_by, filters.utilisateur_id]);
-
     useEffect(() => {
+        const controller = new AbortController();
+
+        const fetchStats = async () => {
+            setLoading(true);
+            setError('');
+
+            try {
+                const params = {
+                    group_by: 'utilisateur_date',
+                    date_debut: appliedDates.date_debut,
+                    date_fin: appliedDates.date_fin
+                };
+
+                const response = await ressourcesStatsAPI.getActionsStats(params, {
+                    signal: controller.signal
+                });
+                setStatsData(response);
+            } catch (err) {
+                if (controller.signal.aborted || isCanceledRequest(err)) return;
+                setError(err.message || 'Erreur lors du chargement des statistiques');
+                setStatsData(null);
+            } finally {
+                if (!controller.signal.aborted) setLoading(false);
+            }
+        };
+
         fetchStats();
-    }, [fetchStats]);
+        return () => controller.abort();
+    }, [appliedDates]);
 
     const rows = useMemo(() => normalizeActionRows(statsData), [statsData]);
 
     const userOptions = useMemo(() => {
         const users = new Map();
         rows.forEach((row) => {
-            const key = row.userId || row.userLabel;
-            if (!users.has(key)) {
-                users.set(key, {
-                    id: key,
-                    label: row.userLabel
-                });
-            }
+            if (!row.userId) return;
+            const key = String(row.userId);
+            if (!users.has(key)) users.set(key, { id: key, label: row.userLabel });
         });
-        return Array.from(users.values()).sort((a, b) => a.label.localeCompare(b.label));
+        return Array.from(users.values())
+            .filter((user) => user.id)
+            .sort((a, b) => a.label.localeCompare(b.label));
     }, [rows]);
 
     const filteredRows = useMemo(() => {
@@ -332,7 +378,8 @@ function StatistiquesActionsPage() {
             const matchesType = filters.type_action === 'tous' || row.actionType === filters.type_action;
             const matchesSearch = !query ||
                 row.userLabel.toLowerCase().includes(query) ||
-                row.resource.toLowerCase().includes(query) ||
+                [row.resource, ...row.resources.map((resource) => resource.title)]
+                    .some((resource) => String(resource).toLowerCase().includes(query)) ||
                 actionConfig[row.actionType].label.toLowerCase().includes(query);
 
             return matchesUser && matchesType && matchesSearch;
@@ -347,24 +394,19 @@ function StatistiquesActionsPage() {
             .filter((row) => row.actionType === 'modification')
             .reduce((sum, row) => sum + row.count, 0);
 
-        if (filteredRows.length === rows.length && statsData?.totaux) {
-            return {
-                insertions: Number(statsData.totaux.insertions) || insertions,
-                modifications: Number(statsData.totaux.modifications) || modifications
-            };
-        }
-
         return { insertions, modifications };
-    }, [filteredRows, rows.length, statsData]);
+    }, [filteredRows]);
+    const userTotals = useMemo(() => getUserTotals(filteredRows), [filteredRows]);
 
     const userChart = useMemo(() => {
         const grouped = new Map();
         filteredRows.forEach((row) => {
-            const current = grouped.get(row.userLabel) || 0;
-            grouped.set(row.userLabel, current + row.count);
+            const key = row.userId || row.userLabel;
+            const current = grouped.get(key) || { label: row.userLabel, value: 0 };
+            grouped.set(key, { ...current, value: current.value + row.count });
         });
 
-        return Array.from(grouped, ([label, value]) => ({ label, value }))
+        return Array.from(grouped, ([key, user]) => ({ key, ...user }))
             .sort((a, b) => b.value - a.value)
             .slice(0, 8);
     }, [filteredRows]);
@@ -372,11 +414,14 @@ function StatistiquesActionsPage() {
     const periodChart = useMemo(() => {
         const grouped = new Map();
         filteredRows.forEach((row) => {
-            const label = row.date ? formatDate(row.date) : 'Date inconnue';
-            grouped.set(label, (grouped.get(label) || 0) + row.count);
+            const key = getLocalDateKey(row.date);
+            const label = key === 'unknown' ? 'Date inconnue' : formatDate(key);
+            const current = grouped.get(key) || { label, value: 0 };
+            grouped.set(key, { ...current, value: current.value + row.count });
         });
 
-        return Array.from(grouped, ([label, value]) => ({ label, value }));
+        return Array.from(grouped, ([key, period]) => ({ key, ...period }))
+            .sort((a, b) => a.key.localeCompare(b.key));
     }, [filteredRows]);
 
     const typeChart = [
@@ -385,7 +430,7 @@ function StatistiquesActionsPage() {
     ];
 
     const totalActions = totals.insertions + totals.modifications;
-    const activeUsers = userChart.length;
+    const activeUsers = new Set(filteredRows.map((row) => row.userId || row.userLabel)).size;
 
     const handleFilterChange = (event) => {
         const { name, value } = event.target;
@@ -397,7 +442,11 @@ function StatistiquesActionsPage() {
 
     const applyFilters = (event) => {
         event.preventDefault();
-        fetchStats();
+        if (!filters.date_debut || !filters.date_fin || filters.date_debut > filters.date_fin) return;
+        setAppliedDates({
+            date_debut: filters.date_debut,
+            date_fin: filters.date_fin
+        });
         addLocalHistoryItem({
             type: 'action',
             title: 'Filtrage statistiques',
@@ -413,33 +462,360 @@ function StatistiquesActionsPage() {
             date_fin: defaultDates.dateFin,
             utilisateur_id: '',
             type_action: 'tous',
-            group_by: 'utilisateur_date',
             search: ''
+        });
+        setAppliedDates({
+            date_debut: defaultDates.dateDebut,
+            date_fin: defaultDates.dateFin
         });
     };
 
-    const exportCsv = () => {
-        const header = ['Action', 'Utilisateur', 'Nombre', 'Date', 'Heure', 'Ressource'];
-        const body = filteredRows.map((row) => [
-            actionConfig[row.actionType].label,
-            row.userLabel,
-            row.count,
-            formatDate(row.date),
-            formatTime(row.time),
-            row.resource
-        ]);
+    const exportExcel = async () => {
+        setExportingFormat('excel');
+        setExportError('');
 
-        const csv = [header, ...body]
-            .map((line) => line.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(';'))
-            .join('\n');
+        try {
+            const [{ default: ExcelJS }, logoResponse] = await Promise.all([
+                import('exceljs'),
+                fetch(logoBnnUrl)
+            ]);
+            if (!logoResponse.ok) throw new Error('Le logo du rapport n’a pas pu être chargé.');
 
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `statistiques-actions-${filters.date_debut}-${filters.date_fin}.csv`;
-        link.click();
-        URL.revokeObjectURL(url);
+            const workbook = new ExcelJS.Workbook();
+            workbook.creator = 'Bibliothèque Numérique Nationale';
+            workbook.created = new Date();
+            workbook.modified = new Date();
+
+            const logoBuffer = await logoResponse.arrayBuffer();
+            const logoId = workbook.addImage({ buffer: logoBuffer, extension: 'png' });
+            const navy = '073B70';
+            const titleFont = { bold: true, size: 18, color: { argb: `FF${navy}` } };
+            const periodLabel = `Période : ${formatDate(appliedDates.date_debut)} – ${formatDate(appliedDates.date_fin)}`;
+            const generatedAt = `Généré le ${new Date().toLocaleString('fr-FR')}`;
+            const userRows = userTotals.map((user) => [
+                    user.label,
+                    user.insertions,
+                    user.modifications,
+                    user.insertions + user.modifications
+                ]);
+            const drawInstitutionHeader = (worksheet, lastColumn) => {
+                worksheet.addImage(logoId, {
+                    tl: { col: 0, row: 0 },
+                    ext: { width: 175, height: 74 }
+                });
+                for (let index = 0; index < institutionHeader.length; index += 1) {
+                    const rowNumber = index + 1;
+                    worksheet.mergeCells(`C${rowNumber}:${lastColumn}${rowNumber}`);
+                    const cell = worksheet.getCell(`C${rowNumber}`);
+                    cell.value = institutionHeader[index];
+                    cell.font = {
+                        bold: true,
+                        size: index === 2 ? 13 : 12,
+                        color: { argb: `FF${navy}` }
+                    };
+                    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                    worksheet.getRow(rowNumber).height = 24;
+                }
+            };
+
+            const summary = workbook.addWorksheet('Synthèse', {
+                properties: { tabColor: navy },
+                views: [{ state: 'frozen', ySplit: 9 }]
+            });
+            summary.columns = [
+                { width: 24 },
+                { width: 18 },
+                { width: 20 },
+                { width: 18 },
+                { width: 16 },
+                { width: 16 }
+            ];
+            drawInstitutionHeader(summary, 'F');
+            summary.mergeCells('A5:F5');
+            summary.getCell('A5').value = 'RAPPORT STATISTIQUE DES ACTIONS';
+            summary.getCell('A5').font = titleFont;
+            summary.getCell('A5').alignment = { vertical: 'middle', horizontal: 'center' };
+            summary.getRow(5).height = 32;
+            summary.mergeCells('A6:F6');
+            summary.getCell('A6').value = periodLabel;
+            summary.getCell('A6').font = { bold: true, color: { argb: `FF${navy}` } };
+            summary.getCell('A6').alignment = { horizontal: 'center' };
+            summary.mergeCells('A7:F7');
+            summary.getCell('A7').value = generatedAt;
+            summary.getCell('A7').font = { italic: true, color: { argb: 'FF667085' } };
+            summary.getCell('A7').alignment = { horizontal: 'center' };
+
+            summary.addTable({
+                name: 'TotauxGeneraux',
+                ref: 'A9',
+                headerRow: true,
+                style: { theme: 'TableStyleMedium2', showRowStripes: true },
+                columns: [{ name: 'Indicateur' }, { name: 'Total' }],
+                rows: [
+                    ['Ajouts', totals.insertions],
+                    ['Modifications', totals.modifications],
+                    ['Actions analysées', totalActions],
+                    ['Utilisateurs actifs', activeUsers]
+                ]
+            });
+            summary.mergeCells('A15:F15');
+            summary.getCell('A15').value = 'TOTAUX PAR UTILISATEUR';
+            summary.getCell('A15').font = titleFont;
+            summary.getCell('A15').alignment = { vertical: 'middle' };
+            summary.getRow(15).height = 28;
+            summary.addTable({
+                name: 'TotauxParUtilisateur',
+                ref: 'A16',
+                headerRow: true,
+                style: { theme: 'TableStyleMedium2', showRowStripes: true },
+                columns: [
+                    { name: 'Utilisateur' },
+                    { name: 'Ajouts' },
+                    { name: 'Modifications' },
+                    { name: 'Total actions' }
+                ],
+                rows: userRows
+            });
+
+            const details = workbook.addWorksheet('Détail', {
+                properties: { tabColor: '28A745' },
+                views: [{ state: 'frozen', ySplit: 9 }]
+            });
+            details.columns = [
+                { width: 20 },
+                { width: 30 },
+                { width: 14 },
+                { width: 20 },
+                { width: 16 },
+                { width: 54 }
+            ];
+            drawInstitutionHeader(details, 'F');
+            details.mergeCells('A5:F5');
+            details.getCell('A5').value = 'JOURNAL DETAILLE DES AJOUTS ET MODIFICATIONS';
+            details.getCell('A5').font = titleFont;
+            details.getCell('A5').alignment = { vertical: 'middle', horizontal: 'center' };
+            details.getRow(5).height = 32;
+            details.mergeCells('A6:F6');
+            details.getCell('A6').value = periodLabel;
+            details.getCell('A6').font = { bold: true, color: { argb: `FF${navy}` } };
+            details.mergeCells('A7:F7');
+            details.getCell('A7').value = generatedAt;
+            details.getCell('A7').font = { italic: true, color: { argb: 'FF667085' } };
+            details.mergeCells('A8:F8');
+            details.getCell('A8').value = `Filtres appliqués : ${filters.type_action === 'tous' ? 'Ajouts et modifications' : actionConfig[filters.type_action].pluralLabel}${filters.utilisateur_id ? ` — ${userOptions.find((user) => user.id === filters.utilisateur_id)?.label || 'Utilisateur sélectionné'}` : ''}${filters.search.trim() ? ` — Recherche : ${filters.search.trim()}` : ''}`;
+            details.getCell('A8').font = { italic: true, color: { argb: 'FF667085' } };
+            details.addTable({
+                name: 'JournalActions',
+                ref: 'A10',
+                headerRow: true,
+                style: { theme: 'TableStyleMedium2', showRowStripes: true },
+                columns: [
+                    { name: 'Action' },
+                    { name: 'Utilisateur' },
+                    { name: 'Nombre' },
+                    { name: 'Date' },
+                    { name: 'Heure' },
+                    { name: 'Ressource(s)' }
+                ],
+                rows: filteredRows.map((row) => [
+                    actionConfig[row.actionType].label,
+                    row.userLabel,
+                    row.count,
+                    formatDate(row.date),
+                    formatTime(row.time),
+                    row.resources.length > 1
+                        ? row.resources.map((resource) => resource.title).join(', ')
+                        : row.resource
+                ])
+            });
+
+            [summary, details].forEach((worksheet) => {
+                worksheet.eachRow((row) => {
+                    row.eachCell((cell) => {
+                        cell.alignment = { ...cell.alignment, vertical: 'middle' };
+                    });
+                });
+            });
+
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], {
+                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `rapport-statistique-${appliedDates.date_debut}-${appliedDates.date_fin}.xlsx`;
+            link.click();
+            window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } catch (err) {
+            setExportError(err.message || 'Erreur lors de la génération du fichier Excel.');
+        } finally {
+            setExportingFormat('');
+        }
+    };
+
+    const exportPdf = async () => {
+        setExportingFormat('pdf');
+        setExportError('');
+
+        try {
+            const [{ jsPDF }, autoTableModule, logoResponse] = await Promise.all([
+                import('jspdf'),
+                import('jspdf-autotable'),
+                fetch(logoBnnUrl)
+            ]);
+            if (!logoResponse.ok) throw new Error('Le logo du rapport n’a pas pu être chargé.');
+
+            const autoTable = autoTableModule.default;
+            if (typeof autoTable !== 'function') throw new Error('Le module de création des tableaux PDF est indisponible.');
+
+            const logoBlob = await logoResponse.blob();
+            const logoData = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(new Error('Le logo du rapport n’a pas pu être lu.'));
+                reader.readAsDataURL(logoBlob);
+            });
+            const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
+            const navy = [7, 59, 112];
+            const pdfNumber = (value) => formatNumber(value).replace(/[\u00a0\u202f]/g, ' ');
+            const periodLabel = `Période : ${formatDate(appliedDates.date_debut)} - ${formatDate(appliedDates.date_fin)}`;
+            const generatedAt = `Généré le ${new Date().toLocaleString('fr-FR')}`;
+            const drawInstitutionHeader = () => {
+                pdf.addImage(logoData, 'PNG', 14, 8, 43, 18);
+                pdf.setTextColor(...navy);
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(11);
+                institutionHeader.forEach((line, index) => {
+                    pdf.text(line, pageWidth / 2, 13 + index * 6, { align: 'center' });
+                });
+                pdf.setDrawColor(...navy);
+                pdf.setLineWidth(0.5);
+                pdf.line(14, 30, pageWidth - 14, 30);
+            };
+            const drawFooter = () => {
+                const pageCount = pdf.internal.getNumberOfPages();
+                for (let page = 1; page <= pageCount; page += 1) {
+                    pdf.setPage(page);
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.setFontSize(8);
+                    pdf.setTextColor(100);
+                    pdf.text(
+                        `Bibliothèque Numérique Nationale - Page ${page}/${pageCount}`,
+                        pageWidth - 14,
+                        pageHeight - 7,
+                        { align: 'right' }
+                    );
+                }
+            };
+
+            drawInstitutionHeader();
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(16);
+            pdf.setTextColor(...navy);
+            pdf.text('RAPPORT STATISTIQUE DES ACTIONS', pageWidth / 2, 39, { align: 'center' });
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(10);
+            pdf.setTextColor(60);
+            pdf.text(periodLabel, pageWidth / 2, 45, { align: 'center' });
+            pdf.text(generatedAt, pageWidth / 2, 50, { align: 'center' });
+
+            autoTable(pdf, {
+                startY: 56,
+                margin: { left: 14, right: 14, top: 38, bottom: 15 },
+                head: [['Indicateur', 'Total']],
+                body: [
+                    ['Ajouts', pdfNumber(totals.insertions)],
+                    ['Modifications', pdfNumber(totals.modifications)],
+                    ['Actions analysées', pdfNumber(totalActions)],
+                    ['Utilisateurs actifs', pdfNumber(activeUsers)]
+                ],
+                tableWidth: 100,
+                theme: 'grid',
+                headStyles: { fillColor: navy },
+                styles: { font: 'helvetica', fontSize: 9, cellPadding: 2.5 },
+                willDrawPage: drawInstitutionHeader
+            });
+
+            const userTableStart = pdf.lastAutoTable.finalY + 9;
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(11);
+            pdf.setTextColor(...navy);
+            pdf.text('TOTAUX PAR UTILISATEUR', 14, userTableStart);
+            autoTable(pdf, {
+                startY: userTableStart + 3,
+                margin: { left: 14, right: 14, top: 44, bottom: 15 },
+                head: [['Utilisateur', 'Ajouts', 'Modifications', 'Total actions']],
+                body: userTotals.map((user) => [
+                    user.label,
+                    pdfNumber(user.insertions),
+                    pdfNumber(user.modifications),
+                    pdfNumber(user.insertions + user.modifications)
+                ]),
+                theme: 'striped',
+                headStyles: { fillColor: navy },
+                styles: { font: 'helvetica', fontSize: 9, cellPadding: 2.5 },
+                willDrawPage: (data) => {
+                    drawInstitutionHeader();
+                    if (data.pageNumber > 1) {
+                        pdf.setFont('helvetica', 'bold');
+                        pdf.setFontSize(12);
+                        pdf.setTextColor(...navy);
+                        pdf.text('TOTAUX PAR UTILISATEUR (suite)', 14, 36);
+                    }
+                }
+            });
+
+            pdf.addPage();
+            drawInstitutionHeader();
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(14);
+            pdf.setTextColor(...navy);
+            pdf.text('JOURNAL DETAILLE DES AJOUTS ET MODIFICATIONS', 14, 38);
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(9);
+            pdf.setTextColor(60);
+            pdf.text(periodLabel, 14, 44);
+            const appliedFilters = `Filtres : ${filters.type_action === 'tous' ? 'Ajouts et modifications' : actionConfig[filters.type_action].pluralLabel}${filters.utilisateur_id ? ` - ${userOptions.find((user) => user.id === filters.utilisateur_id)?.label || 'Utilisateur sélectionné'}` : ''}${filters.search.trim() ? ` - Recherche : ${filters.search.trim()}` : ''}`;
+            pdf.text(appliedFilters, 14, 49, { maxWidth: pageWidth - 28 });
+            autoTable(pdf, {
+                startY: 54,
+                margin: { left: 14, right: 14, top: 44, bottom: 15 },
+                head: [['Action', 'Utilisateur', 'Nombre', 'Date', 'Heure', 'Ressource(s)']],
+                body: filteredRows.map((row) => [
+                    actionConfig[row.actionType].label,
+                    row.userLabel,
+                    pdfNumber(row.count),
+                    formatDate(row.date),
+                    formatTime(row.time),
+                    row.resources.length > 1
+                        ? row.resources.map((resource) => resource.title).join(', ')
+                        : row.resource
+                ]),
+                theme: 'striped',
+                headStyles: { fillColor: navy },
+                styles: { font: 'helvetica', fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+                columnStyles: { 5: { cellWidth: 72 } },
+                willDrawPage: (data) => {
+                    drawInstitutionHeader();
+                    if (data.pageNumber > 1) {
+                        pdf.setFont('helvetica', 'bold');
+                        pdf.setFontSize(12);
+                        pdf.setTextColor(...navy);
+                        pdf.text('JOURNAL DETAILLE (suite)', 14, 36);
+                    }
+                }
+            });
+
+            drawFooter();
+            pdf.save(`rapport-statistique-${appliedDates.date_debut}-${appliedDates.date_fin}.pdf`);
+        } catch (err) {
+            setExportError(err.message || 'Erreur lors de la génération du fichier PDF.');
+        } finally {
+            setExportingFormat('');
+        }
     };
 
     const openResourcesDrawer = (row) => {
@@ -470,7 +846,7 @@ function StatistiquesActionsPage() {
         return (
             <div className={`stats-bars ${modifier}`}>
                 {items.map((item) => (
-                    <div className="stats-bar-row" key={item.label}>
+                    <div className="stats-bar-row" key={item.key || item.label}>
                         <span className="stats-bar-label">{item.label}</span>
                         <div className="stats-bar-track" aria-hidden="true">
                             <span
@@ -484,6 +860,8 @@ function StatistiquesActionsPage() {
             </div>
         );
     };
+
+    const invalidDateRange = !filters.date_debut || !filters.date_fin || filters.date_debut > filters.date_fin;
 
     return (
         <div className="stats-page">
@@ -501,15 +879,26 @@ function StatistiquesActionsPage() {
                             Analyse des actions réalisées dans le système par utilisateur, période et type d'action.
                         </p>
                     </div>
-                    <button
-                        type="button"
-                        className="stats-export-btn"
-                        onClick={exportCsv}
-                        disabled={filteredRows.length === 0}
-                    >
-                        <LuDownload />
-                        Exporter
-                    </button>
+                    <div className="stats-export-actions">
+                        <button
+                            type="button"
+                            className="stats-back-btn"
+                            onClick={exportPdf}
+                            disabled={filteredRows.length === 0 || Boolean(exportingFormat)}
+                        >
+                            <LuFileText className={exportingFormat === 'pdf' ? 'spinning' : ''} />
+                            {exportingFormat === 'pdf' ? 'Création du PDF...' : 'Exporter PDF'}
+                        </button>
+                        <button
+                            type="button"
+                            className="stats-export-btn"
+                            onClick={exportExcel}
+                            disabled={filteredRows.length === 0 || Boolean(exportingFormat)}
+                        >
+                            <LuDownload className={exportingFormat === 'excel' ? 'spinning' : ''} />
+                            {exportingFormat === 'excel' ? 'Création du fichier...' : 'Exporter Excel'}
+                        </button>
+                    </div>
                 </section>
 
                 <form className="stats-filters" onSubmit={applyFilters}>
@@ -520,11 +909,23 @@ function StatistiquesActionsPage() {
                     <div className="stats-filter-grid">
                         <label>
                             <span>Date début</span>
-                            <input type="date" name="date_debut" value={filters.date_debut} onChange={handleFilterChange} />
+                            <input
+                                type="date"
+                                name="date_debut"
+                                value={filters.date_debut}
+                                max={filters.date_fin || undefined}
+                                onChange={handleFilterChange}
+                            />
                         </label>
                         <label>
                             <span>Date fin</span>
-                            <input type="date" name="date_fin" value={filters.date_fin} onChange={handleFilterChange} />
+                            <input
+                                type="date"
+                                name="date_fin"
+                                value={filters.date_fin}
+                                min={filters.date_debut || undefined}
+                                onChange={handleFilterChange}
+                            />
                         </label>
                         <label>
                             <span>Utilisateur</span>
@@ -545,15 +946,6 @@ function StatistiquesActionsPage() {
                                 <option value="modification">Modifications seulement</option>
                             </select>
                         </label>
-                        {/* <label>
-                            <span>Regroupement</span>
-                            <select name="group_by" value={filters.group_by} onChange={handleFilterChange}>
-                                <option value="utilisateur_date">Utilisateur et date</option>
-                                <option value="utilisateur">Utilisateur</option>
-                                <option value="date">Période</option>
-                                <option value="type_action">Type d'action</option>
-                            </select>
-                        </label> */}
                         <label className="stats-search-field">
                             <span>Recherche</span>
                             <LuSearch />
@@ -566,13 +958,19 @@ function StatistiquesActionsPage() {
                             />
                         </label>
                     </div>
-                    <button type="submit" className="stats-apply-btn" disabled={loading}>
+                    {invalidDateRange && (
+                        <div className="stats-alert" role="alert">
+                            La date de début doit être antérieure ou égale à la date de fin.
+                        </div>
+                    )}
+                    <button type="submit" className="stats-apply-btn" disabled={loading || invalidDateRange}>
                         <LuRefreshCw className={loading ? 'spinning' : ''} />
                         {loading ? 'Chargement...' : 'Appliquer les filtres'}
                     </button>
                 </form>
 
                 {error && <div className="stats-alert">{error}</div>}
+                {exportError && <div className="stats-alert" role="alert">{exportError}</div>}
 
                 <section className="stats-kpis" aria-label="Indicateurs principaux">
                     <article className="stats-kpi add">

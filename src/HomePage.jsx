@@ -19,7 +19,8 @@ import {
     FaClock,
     FaUsers,
     FaServer,
-    FaGlobe
+    FaGlobe,
+    FaInfoCircle
 } from 'react-icons/fa';
 import api, { domainesAPI } from './api';
 import { isAuthenticated, getCurrentUser } from './utils/auth';
@@ -27,13 +28,15 @@ import { mockRessources } from './mockData';
 import { getMediaUrl, getFileUrl } from './config';
 import { cachedApiCall, invalidateCache } from './utils/apiCache';
 import AppNavigation from './components/AppNavigation';
+import ExternalResources from './components/external/ExternalResources';
 import { addLocalHistoryItem } from './utils/localHistory';
+import { halApi } from './services/externalSources/halApi';
 
 const SALONS_ANNOUNCEMENT_KEY = 'bnnSalonsAnnouncement:v1';
 
 const HomePage = () => {
     const [user, setUser] = useState(null);
-    const [activeResourceTab, setActiveResourceTab] = useState('internal');
+    const [activeResourceTab, setActiveResourceTab] = useState(() => sessionStorage.getItem('homepageActiveResourceTab') || 'internal');
     const [ressources, setRessources] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -50,6 +53,8 @@ const HomePage = () => {
         totalCount: 0,        // Total items available
         pageSize: 450         // Items per page
     });
+    const [internalCountLoaded, setInternalCountLoaded] = useState(false);
+    const [externalResourceCount, setExternalResourceCount] = useState(null);
     const [resourceTypes, setResourceTypes] = useState([]);
     const [loadingTypes, setLoadingTypes] = useState(false);
     const [activeTypeFilter, setActiveTypeFilter] = useState('all');
@@ -80,6 +85,34 @@ const HomePage = () => {
     
     const navigate = useNavigate();
     const location = useLocation();
+
+    useEffect(() => {
+        sessionStorage.setItem('homepageActiveResourceTab', activeResourceTab);
+    }, [activeResourceTab]);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        halApi.getOuvrages({ page_size: 1 }, controller.signal)
+            .then((response) => {
+                if (!controller.signal.aborted) setExternalResourceCount(Number(response.total) || 0);
+            })
+            .catch(() => {});
+        return () => controller.abort();
+    }, []);
+
+    const formattedToday = new Intl.DateTimeFormat('fr-FR', {
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+    }).format(new Date());
+    const todayLabel = formattedToday.charAt(0).toLocaleUpperCase('fr-FR') + formattedToday.slice(1);
+    const internalCountLabel = internalCountLoaded
+        ? paginationInfo.totalCount.toLocaleString('fr-FR')
+        : '…';
+    const externalCountLabel = externalResourceCount === null
+        ? '…'
+        : externalResourceCount.toLocaleString('fr-FR');
+    const combinedCountLabel = internalCountLoaded && externalResourceCount !== null
+        ? (paginationInfo.totalCount + externalResourceCount).toLocaleString('fr-FR')
+        : '…';
 
     // Save state to sessionStorage before navigating away
     const saveHomePageState = () => {
@@ -118,6 +151,7 @@ const HomePage = () => {
                     setFilteredRessources(state.filteredRessources || []);
                     setPagination(state.pagination || { next: null, previous: null, hasNext: false, hasPrevious: false });
                     setPaginationInfo(state.paginationInfo || { pageIndex: 1, totalCount: 0, pageSize: 450 });
+                    setInternalCountLoaded(true);
                     setResourceTypes(state.resourceTypes || []);
                     setActiveTypeFilter(state.activeTypeFilter || 'all');
                     setAllResources(state.allResources || []);
@@ -507,6 +541,7 @@ const HomePage = () => {
                 const mockResponse = await simulateApiCall(mockRessources);
                 const ressourcesData = mockResponse.results?.data || mockResponse.results || [];
                 setRessources(ressourcesData);
+                setPaginationInfo((current) => ({ ...current, totalCount: ressourcesData.length }));
                 // Mock pagination
                 setPagination({
                     next: null,
@@ -561,6 +596,7 @@ const HomePage = () => {
                     const mockResponse = await simulateApiCall(mockRessources);
                     const ressourcesData = mockResponse.results?.data || mockResponse.results || [];
                     setRessources(ressourcesData);
+                    setPaginationInfo((current) => ({ ...current, totalCount: ressourcesData.length }));
                     setPagination({
                         next: null,
                         previous: null,
@@ -580,6 +616,7 @@ const HomePage = () => {
             });
         } finally {
             setLoading(false);
+            setInternalCountLoaded(true);
         }
     };
 
@@ -1070,7 +1107,13 @@ const HomePage = () => {
     return (
         <div className="homepage-container">
             <AppNavigation />
-
+            <aside className="homepage-resource-notice" aria-label="Nombre des ressources pédagogiques">
+                <FaInfoCircle className="homepage-resource-notice-icon" aria-hidden="true" />
+                <p>
+                    Aujourd’hui, {todayLabel}, la BNN-ESURSI référence <strong>{combinedCountLabel}</strong> ressources pédagogiques,
+                    toutes disciplines confondues : <strong>{internalCountLabel}</strong> internes et <strong>{externalCountLabel}</strong> externes.
+                </p>
+            </aside>
             <div className="homepage-resource-tabs" role="tablist" aria-label="Types de ressources">
                 <button
                     type="button"
@@ -1094,6 +1137,7 @@ const HomePage = () => {
                 </button>
             </div>
 
+            {activeResourceTab === 'external' && <ExternalResources />}
             {activeResourceTab === 'internal' && <>
             {showSalonsAnnouncement && (
                 <div className="homepage-salons-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="salons-announcement-title">

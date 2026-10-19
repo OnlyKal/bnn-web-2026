@@ -52,6 +52,14 @@ function App() {
             } 
           />
           <Route 
+            path="/ressources/externes/hal/:id" 
+            element={
+              <ProtectedRoute>
+                <RessourceDetails />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
             path="/ressources/:id" 
             element={
               <ProtectedRoute>
@@ -123,4 +131,3 @@ function App() {
 }
 
 export default App;
-

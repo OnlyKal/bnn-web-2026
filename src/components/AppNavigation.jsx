@@ -19,6 +19,7 @@ import { getCurrentUser, getUserDisplayName, logout } from '../utils/auth';
 import { getMediaUrl } from '../config';
 import logoBlancImg from '../assets/Logoblanc.png';
 import { addLocalHistoryItem, getUnseenHistoryCount, markLocalHistorySeen } from '../utils/localHistory';
+import { getExternalFavorites } from '../utils/externalFavorites';
 
 const getFavorisCountFromResponse = (response) => {
     if (typeof response?.count === 'number') return response.count;
@@ -47,10 +48,10 @@ const AppNavigation = ({ favoriteCountOverride = null }) => {
 
         try {
             const response = await favorisAPI.getFavoris();
-            setFavoriteCount(getFavorisCountFromResponse(response));
+            setFavoriteCount(getFavorisCountFromResponse(response) + getExternalFavorites().length);
         } catch (error) {
             console.warn('Erreur lors du chargement du compteur favoris:', error.message);
-            setFavoriteCount(0);
+            setFavoriteCount(getExternalFavorites().length);
         }
     };
 

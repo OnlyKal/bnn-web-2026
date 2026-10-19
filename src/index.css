@@ -2600,6 +2600,15 @@ svg.icon-connexion,
   color: white;
 }
 
+.ressource-details-main > .ressource-details-back-btn {
+  margin: 0 0 0.65rem;
+  color: #1e42ac;
+}
+
+.ressource-details-main > .ressource-details-back-btn:hover {
+  color: #0a1f38;
+}
+
 .ressource-details-title {
   margin: 0;
   font-size: var(--font-size-xl);
@@ -4834,6 +4843,37 @@ input[type="date"].form-input::-webkit-calendar-picker-indicator {
   /* box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); */
 }
 
+.homepage-resource-notice {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0.8rem 1.5rem;
+  border: 0;
+  border-radius: 0;
+  background: #e8f5ec;
+  color: #1e462b;
+}
+
+.homepage-resource-notice-icon {
+  flex: 0 0 auto;
+  color: #237342;
+  font-size: 1.1rem;
+}
+
+.homepage-resource-notice p {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+}
+
+.homepage-resource-notice strong {
+  color: #195c32;
+  font-weight: 700;
+}
+
 .homepage-resource-tabs {
   display: flex;
   align-items: flex-end;
@@ -4893,6 +4933,15 @@ input[type="date"].form-input::-webkit-calendar-picker-indicator {
 }
 
 @media (max-width: 480px) {
+  .homepage-resource-notice {
+    align-items: flex-start;
+    padding: 0.7rem 0.75rem;
+  }
+
+  .homepage-resource-notice p {
+    font-size: var(--font-size-xs);
+  }
+
   .homepage-resource-tabs {
     padding-inline: 0.5rem;
   }
@@ -11825,6 +11874,13 @@ input[type="date"].form-input::-webkit-calendar-picker-indicator {
   margin-bottom: 1rem;
 }
 
+.stats-export-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
 .stats-eyebrow {
   display: inline-flex;
   align-items: center;
@@ -11888,6 +11944,7 @@ input[type="date"].form-input::-webkit-calendar-picker-indicator {
 }
 
 .stats-export-btn:disabled,
+.stats-back-btn:disabled,
 .stats-apply-btn:disabled {
   opacity: 0.65;
   cursor: not-allowed;
@@ -12436,6 +12493,7 @@ input[type="date"].form-input::-webkit-calendar-picker-indicator {
   .stats-chart-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
 }
 
 @media (max-width: 768px) {
@@ -12462,6 +12520,14 @@ input[type="date"].form-input::-webkit-calendar-picker-indicator {
   .stats-back-btn,
   .stats-export-btn {
     width: 100%;
+  }
+
+  .stats-export-actions {
+    width: 100%;
+  }
+
+  .stats-export-actions > button {
+    flex: 1;
   }
 
   .stats-search-field {

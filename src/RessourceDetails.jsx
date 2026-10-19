@@ -29,11 +29,18 @@ import EPUBViewer from './components/EPUBViewer';
 import VideoViewer from './components/VideoViewer';
 import AppNavigation from './components/AppNavigation';
 import { addLocalHistoryItem } from './utils/localHistory';
+import { addExternalFavorite, hasExternalFavorite, removeExternalFavorite } from './utils/externalFavorites';
+import { halApi, getHalDocumentUrl, mapHalOuvrageToRessource } from './services/externalSources/halApi';
 
 const RessourceDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const location = useLocation();
+    const isExternalHal = location.state?.externalSource === 'HAL' || location.pathname.startsWith('/ressources/externes/hal/');
+    const returnToPreviousLocation = () => {
+        if (window.history.state?.idx > 0) navigate(-1);
+        else navigate('/');
+    };
     const [ressource, setRessource] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -45,6 +52,7 @@ const RessourceDetails = () => {
     const [viewerTitle, setViewerTitle] = useState('');
     const [viewerLoading, setViewerLoading] = useState(false);
     const [viewerError, setViewerError] = useState('');
+    const [externalDocumentError, setExternalDocumentError] = useState('');
     const [viewerObjectUrl, setViewerObjectUrl] = useState('');
     const [viewerEpubHeaders, setViewerEpubHeaders] = useState({});
     const [epubRenderKey, setEpubRenderKey] = useState(0);
@@ -69,7 +77,7 @@ const RessourceDetails = () => {
 
     // Calculer la taille des fichiers en les téléchargeant (même approche que le viewer)
     useEffect(() => {
-        if (!ressource?.fichiers?.length) return;
+        if (isExternalHal || !ressource?.fichiers?.length) return;
         let cancelled = false;
         const { token } = getSession();
 
@@ -96,7 +104,7 @@ const RessourceDetails = () => {
         loadSizes();
 
         return () => { cancelled = true; };
-    }, [ressource]);
+    }, [ressource, isExternalHal]);
 
     // Récupérer les détails de la ressource depuis le state ou depuis l'API en dernier recours
     useEffect(() => {
@@ -104,6 +112,25 @@ const RessourceDetails = () => {
             try {
                 setLoading(true);
                 setError('');
+
+                if (isExternalHal) {
+                    let externalData = null;
+                    try {
+                        const response = await halApi.getOuvrage(id);
+                        externalData = response.result;
+                    } catch (detailError) {
+                        externalData = location.state?.ressource || null;
+                        if (!externalData) throw detailError;
+                    }
+                    const normalizedResource = mapHalOuvrageToRessource(externalData);
+                    if (!normalizedResource) {
+                        throw new Error('Cette ressource HAL ne contient pas de données consultables.');
+                    }
+                    setRessource(normalizedResource);
+                    setIsFavorite(hasExternalFavorite(normalizedResource.hal_id || normalizedResource.id));
+                    setLoading(false);
+                    return;
+                }
                 
                 // Essayer d'obtenir la ressource depuis le state passé par la navigation
                 if (location.state?.ressource) {
@@ -191,7 +218,9 @@ const RessourceDetails = () => {
                 }
             } catch (error) {
                 console.error('❌ Erreur lors du chargement des détails:', error);
-                setError('Erreur lors du chargement des détails');
+                setError(isExternalHal
+                    ? error.message || 'Impossible de charger cette ressource HAL.'
+                    : 'Erreur lors du chargement des détails');
             } finally {
                 setLoading(false);
             }
@@ -200,7 +229,7 @@ const RessourceDetails = () => {
         if (id) {
             fetchRessourceDetails();
         }
-    }, [id, location.state]);
+    }, [id, location.state, isExternalHal]);
 
     useEffect(() => {
         if (!ressource?.id) return;
@@ -209,14 +238,18 @@ const RessourceDetails = () => {
             type: 'resource',
             title: ressource.titre || 'Ressource consultée',
             description: ressource.domaine?.nom || ressource.type || 'Page de détail ouverte',
-            url: `/ressources/${ressource.id}`,
+                url: isExternalHal ? `/ressources/externes/hal/${ressource.hal_id || ressource.id}` : `/ressources/${ressource.id}`,
             icon: 'resource',
             metadata: { resourceId: ressource.id }
         });
-    }, [ressource?.id]);
+    }, [ressource?.id, isExternalHal]);
 
     // Vérifier le statut des favoris
     const checkFavoriteStatus = async (ressourceId) => {
+        if (isExternalHal) {
+            setIsFavorite(hasExternalFavorite(ressource?.hal_id || ressourceId));
+            return;
+        }
         try {
             if (!ressourceId) {
                 console.warn('No ressource ID provided for favorite check');
@@ -237,6 +270,36 @@ const RessourceDetails = () => {
         
         setFavoriteLoading(true);
         try {
+            if (isExternalHal) {
+                const externalId = ressource.hal_id || ressource.id;
+                if (isFavorite) {
+                    removeExternalFavorite(externalId);
+                    setIsFavorite(false);
+                    addLocalHistoryItem({
+                        type: 'favorite',
+                        title: ressource.titre || 'Favori retiré',
+                        description: 'Ressource HAL retirée des favoris',
+                        url: `/ressources/externes/hal/${externalId}`,
+                        icon: 'favorite',
+                        metadata: { resourceId: externalId, externalSource: 'HAL', action: 'removed' }
+                    });
+                    showNotification('Retiré des favoris', 'success');
+                } else {
+                    addExternalFavorite(ressource);
+                    setIsFavorite(true);
+                    addLocalHistoryItem({
+                        type: 'favorite',
+                        title: ressource.titre || 'Favori ajouté',
+                        description: 'Ressource HAL ajoutée aux favoris',
+                        url: `/ressources/externes/hal/${externalId}`,
+                        icon: 'favorite',
+                        metadata: { resourceId: externalId, externalSource: 'HAL', action: 'added' }
+                    });
+                    showNotification('Ajouté aux favoris', 'success');
+                }
+                return;
+            }
+
             if (isFavorite) {
                 // Supprimer des favoris
                 await favorisAPI.removeFavori(ressource.id);
@@ -518,11 +581,23 @@ const RessourceDetails = () => {
     const handleOpen = async (file) => {
         try {
             // Enregistrer la consultation
-            await recordConsultation(ressource.id);
+            if (!isExternalHal) await recordConsultation(ressource.id);
             const fileUrl = file?.fichier || file;
             const fileTitle = file?.titre || ressource.titre || 'Document';
             const extension = getReadableType(file, ressource) || getFileExtension(fileUrl, file?.format || ressource.format);
-            const fullUrl = getFileUrl(fileUrl);
+            const fullUrl = isExternalHal
+                ? getHalDocumentUrl(ressource)
+                : getFileUrl(fileUrl);
+
+            if (isExternalHal && extension === 'pdf') {
+                if (!fullUrl) {
+                    setExternalDocumentError('HAL ne fournit pas de lien direct vers ce document.');
+                    return;
+                }
+                setExternalDocumentError('');
+                window.open(fullUrl, '_blank', 'noopener,noreferrer');
+                return;
+            }
 
             console.log('📖 handleOpen:', {
                 fileUrl,
@@ -926,6 +1001,10 @@ const RessourceDetails = () => {
             )}
             {/* Contenu principal */}
             <div className="ressource-details-main">
+                <button type="button" className="ressource-details-back-btn" onClick={returnToPreviousLocation}>
+                    <FaArrowLeft aria-hidden="true" />
+                    Retour
+                </button>
                 <div className="ressource-details-title-panel">
                     <div className="ressource-details-title-section">
                         <h1 className="ressource-details-title">
@@ -1042,6 +1121,15 @@ const RessourceDetails = () => {
                             </div>
                         )}
 
+                        {isExternalHal && !ressource.fichiers?.length && (
+                            <div className="ressource-details-files">
+                                <h2>Fichier PDF indisponible</h2>
+                                <p>HAL ne fournit pas de lien direct vers le document pour cette ressource.</p>
+                                {ressource.source_url && <a href={ressource.source_url} target="_blank" rel="noopener noreferrer">Consulter la notice sur HAL</a>}
+                            </div>
+                        )}
+                        {isExternalHal && externalDocumentError && <div className="ressource-details-files" role="alert"><h2>Document inaccessible</h2><p>{externalDocumentError}</p>{ressource.source_url && <a href={ressource.source_url} target="_blank" rel="noopener noreferrer">Consulter la notice sur HAL</a>}</div>}
+
                         <div style={{
                             marginTop: '1rem',
                             padding: '0.65rem 1rem',
@@ -1055,6 +1143,14 @@ const RessourceDetails = () => {
                         }}>
                             <FaArrowAltCircleDown/> Cette plateforme est dédiée à la consultation uniquement.
                         </div>
+
+                        {isExternalHal && ressource.source_url && (
+                            <p style={{ marginTop: '0.75rem', textAlign: 'right' }}>
+                                <a href={ressource.source_url} target="_blank" rel="noopener noreferrer" style={{ color: '#1e42ac', fontSize: '0.8rem', fontWeight: 600 }}>
+                                    Consulter la notice HAL
+                                </a>
+                            </p>
+                        )}
                     </div>
 
                     {/* Sidebar avec informations */}
@@ -1109,6 +1205,16 @@ const RessourceDetails = () => {
                                         <p style={{ margin: '0', color: '#111827', fontSize: '0.7rem' }}>
                                             {ressource.auteurs}
                                         </p>
+                                    </div>
+                                )}
+
+                                {isExternalHal && ressource.keywords?.length > 0 && (
+                                    <div style={{ backgroundColor: 'white', padding: '0.5rem', borderRadius: '0.3rem' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginBottom: '0.25rem' }}>
+                                            <FaTags style={{ color: '#2563eb', fontSize: '0.65rem' }} />
+                                            <span style={{ fontSize: '0.65rem', fontWeight: '600', color: '#6b7280' }}>Mots-clés HAL</span>
+                                        </div>
+                                        <p style={{ margin: '0', color: '#111827', fontSize: '0.7rem' }}>{ressource.keywords.join(', ')}</p>
                                     </div>
                                 )}
 
@@ -1227,11 +1333,11 @@ const RessourceDetails = () => {
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginBottom: '0.25rem' }}>
                                             <FaCalendar style={{ color: '#2563eb', fontSize: '0.65rem' }} />
                                             <span style={{ fontSize: '0.65rem', fontWeight: '600', color: '#6b7280' }}>
-                                                Date de publication
+                                                {isExternalHal ? 'Année de publication' : 'Date de publication'}
                                             </span>
                                         </div>
                                         <p style={{ margin: '0', color: '#111827', fontSize: '0.7rem' }}>
-                                            {formatDate(ressource.date_publication)}
+                                            {isExternalHal ? ressource.date_publication : formatDate(ressource.date_publication)}
                                         </p>
                                     </div>
                                 )}

@@ -20,6 +20,7 @@ import { useToast } from './hooks/useToast';
 import { ToastContainer } from './components/ToastContainer';
 import AppNavigation from './components/AppNavigation';
 import { addLocalHistoryItem } from './utils/localHistory';
+import { getExternalFavorites, removeExternalFavorite } from './utils/externalFavorites';
 
 const FavorisPage = () => {
     const [favoris, setFavoris] = useState([]);
@@ -74,27 +75,34 @@ const FavorisPage = () => {
             } else if (Array.isArray(response)) {
                 favorisData = response;
             }
+            if (!Array.isArray(favorisData)) favorisData = [];
             
             // console.log('Favoris chargés:', favorisData);
-            setFavoris(favorisData);
+            setFavoris([...favorisData, ...getExternalFavorites()]);
         } catch (error) {
             console.error('Erreur lors du chargement des favoris:', error);
-            showError('Erreur lors du chargement de vos favoris');
-            setLoadError(true);
+            const externalFavorites = getExternalFavorites();
+            setFavoris(externalFavorites);
+            if (externalFavorites.length === 0) {
+                showError('Erreur lors du chargement de vos favoris');
+                setLoadError(true);
+            }
         } finally {
             setLoading(false);
         }
     };
 
     // Supprimer un favori
-    const handleDeleteFavorite = async (ressourceId, ressourceTitre) => {
+    const handleDeleteFavorite = async (ressourceId, ressourceTitre, isExternal = false) => {
+        const deletingKey = isExternal ? `HAL:${ressourceId}` : ressourceId;
         try {
-            setDeletingIds(prev => new Set([...prev, ressourceId]));
-            await favorisAPI.removeFavori(ressourceId);
+            setDeletingIds(prev => new Set([...prev, deletingKey]));
+            if (isExternal) removeExternalFavorite(ressourceId);
+            else await favorisAPI.removeFavori(ressourceId);
             
             // Mettre à jour la liste locale
             setFavoris(prev => prev.filter(favori => {
-                const id = favori.ressource?.id || favori.ressource_id || favori.id;
+                const id = favori.ressource?.hal_id || favori.ressource?.id || favori.ressource_id || favori.id;
                 return id !== ressourceId;
             }));
             window.dispatchEvent(new Event('favorites:changed'));
@@ -102,9 +110,9 @@ const FavorisPage = () => {
                 type: 'favorite',
                 title: ressourceTitre,
                 description: 'Ressource retirée des favoris',
-                url: `/ressources/${ressourceId}`,
+                url: isExternal ? `/ressources/externes/hal/${ressourceId}` : `/ressources/${ressourceId}`,
                 icon: 'favorite',
-                metadata: { resourceId: ressourceId, action: 'removed' }
+                metadata: { resourceId: ressourceId, ...(isExternal ? { externalSource: 'HAL' } : {}), action: 'removed' }
             });
             
             showNotification(`"${ressourceTitre}" retiré des favoris`, 'success');
@@ -114,14 +122,14 @@ const FavorisPage = () => {
         } finally {
             setDeletingIds(prev => {
                 const newSet = new Set(prev);
-                newSet.delete(ressourceId);
+                newSet.delete(deletingKey);
                 return newSet;
             });
         }
     };
 
-    const requestDeleteFavorite = (ressourceId, ressourceTitre) => {
-        setFavoriteToDelete({ id: ressourceId, title: ressourceTitre });
+    const requestDeleteFavorite = (ressourceId, ressourceTitre, isExternal = false) => {
+        setFavoriteToDelete({ id: ressourceId, title: ressourceTitre, isExternal });
     };
 
     const closeDeleteModal = () => {
@@ -130,22 +138,26 @@ const FavorisPage = () => {
 
     const confirmDeleteFavorite = async () => {
         if (!favoriteToDelete) return;
-        const { id, title } = favoriteToDelete;
+        const { id, title, isExternal } = favoriteToDelete;
         setFavoriteToDelete(null);
-        await handleDeleteFavorite(id, title);
+        await handleDeleteFavorite(id, title, isExternal);
     };
 
     // Naviguer vers les détails d'une ressource
     const handleViewResource = (ressource) => {
+        const isExternal = ressource.externalSource === 'HAL' || Boolean(ressource.hal_id);
+        const resourceId = ressource.hal_id || ressource.id;
         addLocalHistoryItem({
             type: 'resource',
             title: ressource.titre || 'Ressource consultée',
             description: 'Ouverte depuis les favoris',
-            url: `/ressources/${ressource.id}`,
+            url: isExternal ? `/ressources/externes/hal/${resourceId}` : `/ressources/${resourceId}`,
             icon: 'resource',
-            metadata: { resourceId: ressource.id }
+            metadata: { resourceId, ...(isExternal ? { externalSource: 'HAL' } : {}) }
         });
-        navigate(`/ressources/${ressource.id}`, { state: { ressource } });
+        navigate(isExternal ? `/ressources/externes/hal/${resourceId}` : `/ressources/${resourceId}`, {
+            state: isExternal ? { externalSource: 'HAL', ressource } : { ressource }
+        });
     };
 
     // Afficher une notification
@@ -363,12 +375,16 @@ const FavorisPage = () => {
                         {filteredFavoris.map((favori, index) => {
                             // Extraire les données de la ressource selon la structure
                             const ressource = getRessourceFromFavori(favori);
-                            const ressourceId = ressource.id || favori.ressource_id;
-                            const isDeleting = deletingIds.has(ressourceId);
+                            const isExternal = favori.externalSource === 'HAL' || ressource.externalSource === 'HAL' || Boolean(ressource.hal_id);
+                            const ressourceId = isExternal
+                                ? (ressource.hal_id || ressource.id)
+                                : (ressource.id || favori.ressource_id);
+                            const deletingKey = isExternal ? `HAL:${ressourceId}` : ressourceId;
+                            const isDeleting = deletingIds.has(deletingKey);
                             
                             return (
                                 <article
-                                    key={ressourceId}
+                                    key={deletingKey}
                                     className={`favoris-card ${isDeleting ? 'deleting' : ''}`}
                                     style={{ animationDelay: `${Math.min(index * 35, 280)}ms` }}
                                 >
@@ -441,7 +457,7 @@ const FavorisPage = () => {
                                             
                                             <button
                                                 className="favoris-action-btn favoris-delete-btn"
-                                                onClick={() => requestDeleteFavorite(ressourceId, ressource.titre)}
+                                                onClick={() => requestDeleteFavorite(ressourceId, ressource.titre, isExternal)}
                                                 disabled={isDeleting}
                                                 title="Retirer des favoris"
                                             >
