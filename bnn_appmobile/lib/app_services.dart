@@ -4,6 +4,7 @@ import 'data/services/auth_service.dart';
 import 'data/services/favoris_service.dart';
 import 'data/services/file_service.dart';
 import 'data/services/hal_service.dart';
+import 'data/services/openalex_service.dart';
 import 'data/services/ressources_service.dart';
 import 'data/services/salons_service.dart';
 import 'data/services/stats_service.dart';
@@ -23,6 +24,7 @@ class AppServices {
     required this.favoris,
     required this.ressources,
     required this.hal,
+    required this.openAlex,
     required this.files,
     required this.salons,
     required this.stats,
@@ -35,6 +37,7 @@ class AppServices {
     ServiceBuilder<FavorisService>? favoris,
     ServiceBuilder<RessourcesService>? ressources,
     HalService? hal,
+    OpenAlexService? openAlex,
     ServiceBuilder<SalonsService>? salons,
     ServiceBuilder<StatsService>? stats,
   }) {
@@ -48,6 +51,7 @@ class AppServices {
       favoris: (favoris ?? FavorisService.new)(client),
       ressources: (ressources ?? RessourcesService.new)(client),
       hal: hal ?? HalService(),
+      openAlex: openAlex ?? OpenAlexService(),
       files: FileService(storage),
       salons: (salons ?? SalonsService.new)(client),
       stats: (stats ?? StatsService.new)(client),
@@ -61,6 +65,7 @@ class AppServices {
   final FavorisService favoris;
   final RessourcesService ressources;
   final HalService hal;
+  final OpenAlexService openAlex;
   final FileService files;
   final SalonsService salons;
   final StatsService stats;

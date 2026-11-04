@@ -13,6 +13,7 @@ import '../../../state/shell_controller.dart';
 import '../../widgets/common.dart';
 import '../../widgets/feedback.dart';
 import '../../widgets/states.dart';
+import '../resource/openalex_details_screen.dart';
 import '../resource/resource_navigation.dart';
 import '../stats/statistics_screen.dart';
 
@@ -70,6 +71,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final target = item.target;
     if (target == null) return false;
     if (target == HistoryTarget.resource) return asJson(item.metadata['resource']) != null;
+    if (target == HistoryTarget.openAlex) return (item.metadata['workId']?.toString() ?? '').isNotEmpty;
     if (target == HistoryTarget.statistics) {
       return context.read<SessionController>().user?.isAdmin ?? false;
     }
@@ -93,6 +95,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
       case HistoryTarget.homeSearch:
         final query = item.metadata['query']?.toString();
         if (query != null) shell.openHomeSearch(query);
+      case HistoryTarget.openAlex:
+        final workId = item.metadata['workId']?.toString();
+        if (workId != null && workId.isNotEmpty) {
+          Navigator.of(context).push(MaterialPageRoute(builder: (_) => OpenAlexDetailsScreen(workId: workId)));
+        }
       case HistoryTarget.statistics:
         Navigator.of(context).push(MaterialPageRoute(builder: (_) => const StatisticsScreen()));
       default:

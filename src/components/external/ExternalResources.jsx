@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaEye, FaFilePdf, FaSearch, FaTimes } from 'react-icons/fa';
-import { halApi, getHalFileUrl, isPdfFile } from '../../services/externalSources/halApi';
-import halLogo from '../../assets/hal-logo.png';
+import { FaEye, FaSearch, FaTimes } from 'react-icons/fa';
+import { halApi } from '../../services/externalSources/halApi';
+import PdfCover from '../common/PdfCover';
 import '../../styles/ExternalResources.css';
 
 const PAGE_SIZE = 10;
@@ -239,9 +239,8 @@ const ExternalResources = () => {
 
                         {!loading && !error && ouvrages.length > 0 && <div className="homepage-resources-grid external-hal-grid">
                             {ouvrages.map((ouvrage) => {
-                                const ouvrageFile = getHalFileUrl(ouvrage);
                                 return <article className="homepage-resource-card" key={ouvrage.id || ouvrage.hal_id} onClick={() => navigate(`/ressources/externes/hal/${encodeURIComponent(ouvrage.hal_id || ouvrage.id)}`, { state: { externalSource: 'HAL', ressource: ouvrage } })}>
-                                    <div className="homepage-resource-image external-hal-cover"><img src={halLogo} alt="HAL" /><div className="homepage-format-icon">{isPdfFile(ouvrageFile) ? <FaFilePdf /> : 'HAL'}</div></div>
+                                    <div className="homepage-resource-image"><PdfCover><div className="homepage-format-icon">HAL</div></PdfCover></div>
                                     <div className="homepage-resource-content">
                                         <h3 className="homepage-resource-title">{ouvrage.title || 'Titre non disponible'}</h3>
                                         {formatDomains(ouvrage.domains) && <div className="homepage-resource-subtitle" title={listFrom(ouvrage.domains).map(domainLabel).join(', ')}>{formatDomains(ouvrage.domains)}</div>}

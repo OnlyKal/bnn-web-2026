@@ -11,10 +11,13 @@ import '../../../data/services/file_service.dart';
 import 'viewer_scaffold.dart';
 
 class PdfViewerScreen extends StatefulWidget {
-  const PdfViewerScreen({super.key, required this.url, required this.title, this.browserUrl});
+  const PdfViewerScreen({super.key, required this.url, required this.title, this.browserUrl, this.loadingLabel});
 
   final String url;
   final String title;
+
+  /// Message affiché pendant le téléchargement (ex. premier affichage plus long).
+  final String? loadingLabel;
 
   /// URL proposée en repli dans le navigateur (documents externes).
   final String? browserUrl;
@@ -125,7 +128,9 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
       body: _error != null
           ? ViewerError(message: _error!, onRetry: _load, browserUrl: widget.browserUrl)
           : controller == null
-              ? ViewerLoading(progress: _progress)
+              ? (widget.loadingLabel == null
+                  ? ViewerLoading(progress: _progress)
+                  : ViewerLoading(progress: _progress, label: widget.loadingLabel!))
               : PdfViewPinch(
                   controller: controller,
                   padding: 8,

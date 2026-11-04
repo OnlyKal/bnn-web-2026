@@ -34,6 +34,7 @@ class HistoryTarget {
   static const profile = 'tab:profile';
   static const statistics = 'statistics';
   static const homeSearch = 'search:home'; // metadata.query
+  static const openAlex = 'openalex'; // metadata.workId
 }
 
 class HistoryItem {

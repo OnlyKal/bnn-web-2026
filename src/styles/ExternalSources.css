@@ -1,0 +1,404 @@
+/* Sous-onglets des ressources externes (HAL, OpenAlex Librairie). */
+.external-sources-tabs {
+  display: flex;
+  gap: 0.25rem;
+  width: min(1440px, calc(100% - 2rem));
+  margin: 0 auto;
+  border-bottom: 2px solid #1e42ac;
+}
+
+.external-sources-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 220px;
+  padding: 0.6rem 1.1rem 0.65rem;
+  margin-bottom: -2px;
+  background: transparent;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0.6rem 0.6rem 0 0;
+  color: #6b7280;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: color 180ms ease, border-color 180ms ease, background-color 180ms ease;
+}
+
+.external-sources-tab:not(.active):hover {
+  color: #1e42ac;
+  background: #f3f6fc;
+}
+
+.external-sources-tab:focus-visible {
+  outline: 3px solid rgba(30, 66, 172, 0.25);
+  outline-offset: 2px;
+}
+
+.external-sources-tab.active {
+  color: #fff;
+  background: #1e42ac;
+  border-bottom-color: #1e42ac;
+}
+
+.external-sources-tab.active .external-sources-tab-subtitle {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.external-sources-tab-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.external-sources-tab-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+  min-width: 0;
+}
+
+.external-sources-tab-title {
+  font-size: var(--font-size-sm, 0.9rem);
+  font-weight: 700;
+}
+
+.external-sources-tab-subtitle {
+  font-size: 0.75rem;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── OpenAlex : catalogue ─────────────────────────────────────── */
+.openalex-catalog-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.openalex-cover {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  background: #173a8f;
+  color: #fff;
+}
+
+.openalex-cover-icon {
+  width: 34%;
+  height: auto;
+  max-width: 2.6rem;
+  opacity: 0.9;
+}
+
+.openalex-cover-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.openalex-type-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-bottom: 0.2rem;
+  color: #1e42ac;
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.homepage-badge.openalex-badge-pdf {
+  background: #fdecec;
+  color: #b91c1c;
+}
+
+.homepage-badge.openalex-badge-oa {
+  background: #e7f6ef;
+  color: #047857;
+}
+
+.homepage-badge.openalex-badge-source {
+  background: #053677;
+  color: #fff;
+}
+
+.openalex-active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.openalex-active-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid #dbe5f5;
+  border-radius: 999px;
+  background: #eef3fb;
+  color: #1e42ac;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.openalex-active-filter:hover {
+  background: #e2eaf8;
+}
+
+.openalex-filter-error {
+  grid-column: 1 / -1;
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.openalex-limit-notice {
+  margin: 0.75rem auto 0;
+  max-width: 560px;
+  padding: 0.7rem 0.9rem;
+  border-radius: 0.6rem;
+  background: #f3f6fc;
+  color: #6b7280;
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+/* ── OpenAlex : fiche détaillée ───────────────────────────────── */
+.openalex-detail-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.6rem;
+}
+
+.openalex-detail-badges .homepage-badge {
+  max-width: none;
+  font-size: 0.7rem;
+  padding: 0.15rem 0.45rem;
+}
+
+.ressource-details-title-panel .openalex-type-label {
+  font-size: 0.72rem;
+}
+
+.openalex-access-card .file-card-icon.openalex-access-icon {
+  color: #1e42ac;
+}
+
+.openalex-access-card .file-card-icon.openalex-access-icon.pdf {
+  color: #dc2626;
+}
+
+.openalex-access-card .file-card-icon.openalex-access-icon.muted {
+  color: #9ca3af;
+}
+
+.openalex-access-text,
+.openalex-access-pending {
+  margin: 0.15rem 0 0.35rem;
+  color: #6b7280;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.openalex-access-card a.file-action-btn {
+  text-decoration: none;
+}
+
+.openalex-viewer-error {
+  margin-top: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid #fecaca;
+  border-radius: 0.6rem;
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 0.8rem;
+}
+
+.openalex-viewer-error p {
+  margin: 0 0 0.35rem;
+}
+
+.openalex-viewer-error a,
+.openalex-source-link a {
+  color: #1e42ac;
+  font-weight: 600;
+}
+
+.openalex-retracted {
+  display: flex;
+  gap: 0.7rem;
+  margin-bottom: 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #fecaca;
+  border-radius: 0.6rem;
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 0.82rem;
+}
+
+.openalex-retracted p {
+  margin: 0.2rem 0 0;
+  color: #7f1d1d;
+}
+
+.openalex-abstract {
+  max-height: 11rem;
+  overflow: hidden;
+}
+
+.openalex-abstract.expanded {
+  max-height: none;
+}
+
+.openalex-abstract p {
+  margin: 0;
+  white-space: pre-line;
+}
+
+.openalex-abstract-toggle {
+  margin-top: 0.4rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #1e42ac;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.openalex-consultation-note {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 1rem 0 0.5rem;
+  color: #6b7280;
+  font-size: 0.78rem;
+}
+
+.openalex-source-link {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.openalex-source-link a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  text-decoration: none;
+}
+
+.openalex-info-item {
+  padding: 0.5rem;
+  border-radius: 0.3rem;
+  background: #fff;
+}
+
+.openalex-info-label {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-bottom: 0.25rem;
+  color: #6b7280;
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
+.openalex-info-label svg {
+  color: #2563eb;
+  font-size: 0.65rem;
+}
+
+.openalex-info-value {
+  margin: 0;
+  color: #111827;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.openalex-info-value a {
+  color: #1e42ac;
+}
+
+.openalex-info-extra {
+  margin: 0.15rem 0 0;
+  color: #6b7280;
+  font-size: 0.65rem;
+}
+
+@media (max-width: 480px) {
+  .external-sources-tab {
+    flex: 1;
+    min-width: 0;
+    padding-inline: 0.6rem;
+  }
+}
+
+/* ── OpenAlex : filtrage par domaine ──────────────────────────── */
+.openalex-breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0 0 0.5rem;
+  font-size: 0.72rem;
+}
+
+.openalex-breadcrumb svg {
+  color: #9ca3af;
+  font-size: 0.55rem;
+}
+
+.openalex-breadcrumb button {
+  padding: 0.15rem 0.25rem;
+  border: 0;
+  border-radius: 0.3rem;
+  background: none;
+  color: #1e42ac;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+}
+
+.openalex-breadcrumb button:hover:not(:disabled) {
+  background: #eef3fb;
+}
+
+.openalex-breadcrumb button.current {
+  color: #111827;
+  cursor: default;
+}
+
+.openalex-domain-note {
+  margin: 0 0 0.5rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 0.4rem;
+  background: #f3f6fc;
+  color: #6b7280;
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.openalex-domain-level {
+  margin: 0 0 0.35rem;
+  color: #6b7280;
+  font-size: 0.66rem;
+}
+
+.openalex-domain-list {
+  max-height: 26rem;
+  overflow-y: auto;
+}

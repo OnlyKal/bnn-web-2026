@@ -9,6 +9,7 @@ import SelectUniversite from './UTILISATEURS/SelectUniversite.jsx';
 import HomePage from './HomePage.jsx';
 import Profile from './Profile.jsx';
 import RessourceDetails from './RessourceDetails.jsx';
+import OpenAlexDetails from './OpenAlexDetails.jsx';
 import FavorisPage from './FavorisPage.jsx';
 import SalonsPage from './SalonsPage.jsx';
 import HistoriquePage from './HistoriquePage.jsx';
@@ -58,6 +59,14 @@ function App() {
                 <RessourceDetails />
               </ProtectedRoute>
             } 
+          />
+          <Route
+            path="/ressources/externes/openalex/:id"
+            element={
+              <ProtectedRoute>
+                <OpenAlexDetails />
+              </ProtectedRoute>
+            }
           />
           <Route 
             path="/ressources/:id" 

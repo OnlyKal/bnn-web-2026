@@ -176,6 +176,7 @@ class HalService {
     return asInt(data['total']) ?? 0;
   }
 
+
   Future<Ressource> ouvrage(String identifier) async {
     final data = await _get('/ouvrages/${Uri.encodeComponent(identifier)}/');
     final result = asJson(data['result']);

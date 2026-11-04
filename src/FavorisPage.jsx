@@ -19,6 +19,8 @@ import { getMediaUrl } from './config';
 import { useToast } from './hooks/useToast';
 import { ToastContainer } from './components/ToastContainer';
 import AppNavigation from './components/AppNavigation';
+import { PdfLogo } from './components/common/PdfCover';
+import { isPdfFormat } from './utils/pdfFormat';
 import { addLocalHistoryItem } from './utils/localHistory';
 import { getExternalFavorites, removeExternalFavorite } from './utils/externalFavorites';
 
@@ -401,10 +403,10 @@ const FavorisPage = () => {
                                             />
                                         ) : null}
                                         <div 
-                                            className="favoris-card-placeholder"
+                                            className={`favoris-card-placeholder ${isPdfFormat(ressource.format) ? 'pdf-cover' : ''}`}
                                             style={{display: ressource.couverture ? 'none' : 'flex'}}
                                         >
-                                            <FaFileAlt />
+                                            {isPdfFormat(ressource.format) ? <PdfLogo /> : <FaFileAlt />}
                                         </div>
                                         
                                         {/* Icône de format */}

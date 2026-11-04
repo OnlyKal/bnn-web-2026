@@ -12,12 +12,14 @@ class AppConfig {
 
   static const String apiBaseUrl = '$apiServerUrl/api/bnn';
   static const String halApiUrl = '$apiServerUrl/api/hal';
+  static const String openAlexApiUrl = '$apiServerUrl/api/v1/openalex';
 
   static const String classroomUrl = 'https://classroom.cgiibnn-esursi.cd/';
   static const String portailUrl = 'https://portail.cgiibnn-esursi.cd/';
 
   static const Duration requestTimeout = Duration(seconds: 30);
   static const Duration halTimeout = Duration(seconds: 15);
+  static const Duration openAlexTimeout = Duration(seconds: 25);
 
   /// Durée de validité d'une session côté client (identique au Web : 24 h).
   static const Duration sessionLifetime = Duration(hours: 24);

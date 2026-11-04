@@ -4,6 +4,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/ressource.dart';
 import 'common.dart';
+import 'pdf_cover.dart';
 
 /// Icône et couleur associées à un format de fichier.
 (IconData, Color) formatVisual(String? format) {
@@ -34,8 +35,8 @@ IconData typeIcon(String? type) => switch ((type ?? '').toLowerCase().trim()) {
       _ => CupertinoIcons.doc_text,
     };
 
-/// Couverture d'une ressource : vignette réseau, ou logo HAL pour les
-/// ressources externes.
+/// Couverture d'une ressource : vignette réseau, ou logo PDF pour les
+/// ressources HAL et les PDF sans couverture.
 class ResourceCover extends StatelessWidget {
   const ResourceCover({super.key, required this.ressource, required this.width, required this.height, this.radius = 8});
 
@@ -46,25 +47,15 @@ class ResourceCover extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (ressource.isExternal) {
-      return Container(
-        width: width,
-        height: height,
-        padding: EdgeInsets.all(width * 0.14),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(radius),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Image.asset('assets/images/hal_logo.png', fit: BoxFit.contain),
-      );
-    }
+    final isPdf = (ressource.format ?? '').toLowerCase() == 'pdf';
+    if (ressource.isExternal) return PdfCover(width: width, height: height, radius: radius);
     return NetworkCover(
       url: ressource.coverUrl,
       width: width,
       height: height,
       radius: radius,
       fallbackIcon: typeIcon(ressource.type),
+      fallback: isPdf ? PdfCover(width: width, height: height, radius: radius) : null,
     );
   }
 }

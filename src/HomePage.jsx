@@ -28,15 +28,18 @@ import { mockRessources } from './mockData';
 import { getMediaUrl, getFileUrl } from './config';
 import { cachedApiCall, invalidateCache } from './utils/apiCache';
 import AppNavigation from './components/AppNavigation';
-import ExternalResources from './components/external/ExternalResources';
+import { PdfLogo } from './components/common/PdfCover';
+import { isPdfFormat } from './utils/pdfFormat';
+import ExternalSources from './components/external/ExternalSources';
 import { addLocalHistoryItem } from './utils/localHistory';
 import { halApi } from './services/externalSources/halApi';
+import { openAlexApi } from './services/externalSources/openAlexApi';
 
 const SALONS_ANNOUNCEMENT_KEY = 'bnnSalonsAnnouncement:v1';
 
 const HomePage = () => {
     const [user, setUser] = useState(null);
-    const [activeResourceTab, setActiveResourceTab] = useState(() => sessionStorage.getItem('homepageActiveResourceTab') || 'internal');
+    const [activeResourceTab, setActiveResourceTab] = useState(() => sessionStorage.getItem('homepageActiveResourceTab') || 'external');
     const [ressources, setRessources] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -55,6 +58,7 @@ const HomePage = () => {
     });
     const [internalCountLoaded, setInternalCountLoaded] = useState(false);
     const [externalResourceCount, setExternalResourceCount] = useState(null);
+    const [openAlexResourceCount, setOpenAlexResourceCount] = useState(null);
     const [resourceTypes, setResourceTypes] = useState([]);
     const [loadingTypes, setLoadingTypes] = useState(false);
     const [activeTypeFilter, setActiveTypeFilter] = useState('all');
@@ -91,12 +95,22 @@ const HomePage = () => {
     }, [activeResourceTab]);
 
     useEffect(() => {
+        // Une source indisponible ne doit pas bloquer le total : elle compte alors pour zéro.
         const controller = new AbortController();
         halApi.getOuvrages({ page_size: 1 }, controller.signal)
             .then((response) => {
                 if (!controller.signal.aborted) setExternalResourceCount(Number(response.total) || 0);
             })
-            .catch(() => {});
+            .catch(() => {
+                if (!controller.signal.aborted) setExternalResourceCount(0);
+            });
+        openAlexApi.getTotalCount(controller.signal)
+            .then((total) => {
+                if (!controller.signal.aborted) setOpenAlexResourceCount(total);
+            })
+            .catch(() => {
+                if (!controller.signal.aborted) setOpenAlexResourceCount(0);
+            });
         return () => controller.abort();
     }, []);
 
@@ -104,14 +118,8 @@ const HomePage = () => {
         weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
     }).format(new Date());
     const todayLabel = formattedToday.charAt(0).toLocaleUpperCase('fr-FR') + formattedToday.slice(1);
-    const internalCountLabel = internalCountLoaded
-        ? paginationInfo.totalCount.toLocaleString('fr-FR')
-        : '…';
-    const externalCountLabel = externalResourceCount === null
-        ? '…'
-        : externalResourceCount.toLocaleString('fr-FR');
-    const combinedCountLabel = internalCountLoaded && externalResourceCount !== null
-        ? (paginationInfo.totalCount + externalResourceCount).toLocaleString('fr-FR')
+    const combinedCountLabel = internalCountLoaded && externalResourceCount !== null && openAlexResourceCount !== null
+        ? (paginationInfo.totalCount + externalResourceCount + openAlexResourceCount).toLocaleString('fr-FR')
         : '…';
 
     // Save state to sessionStorage before navigating away
@@ -1110,21 +1118,10 @@ const HomePage = () => {
             <aside className="homepage-resource-notice" aria-label="Nombre des ressources pédagogiques">
                 <FaInfoCircle className="homepage-resource-notice-icon" aria-hidden="true" />
                 <p>
-                    Aujourd’hui, {todayLabel}, la BNN-ESURSI référence <strong>{combinedCountLabel}</strong> ressources pédagogiques,
-                    toutes disciplines confondues : <strong>{internalCountLabel}</strong> internes et <strong>{externalCountLabel}</strong> externes.
+                    Aujourd’hui, {todayLabel}, la BNN-ESURSI référence <strong>{combinedCountLabel}</strong> ressources pédagogiques.
                 </p>
             </aside>
             <div className="homepage-resource-tabs" role="tablist" aria-label="Types de ressources">
-                <button
-                    type="button"
-                    role="tab"
-                    aria-selected={activeResourceTab === 'internal'}
-                    className={`homepage-resource-tab ${activeResourceTab === 'internal' ? 'active' : ''}`}
-                    onClick={() => setActiveResourceTab('internal')}
-                >
-                    <FaServer className="homepage-resource-tab-icon" aria-hidden="true" />
-                    Ressources internes
-                </button>
                 <button
                     type="button"
                     role="tab"
@@ -1135,9 +1132,19 @@ const HomePage = () => {
                     <FaGlobe className="homepage-resource-tab-icon" aria-hidden="true" />
                     Ressources externes
                 </button>
+                <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeResourceTab === 'internal'}
+                    className={`homepage-resource-tab ${activeResourceTab === 'internal' ? 'active' : ''}`}
+                    onClick={() => setActiveResourceTab('internal')}
+                >
+                    <FaServer className="homepage-resource-tab-icon" aria-hidden="true" />
+                    Ressources internes
+                </button>
             </div>
 
-            {activeResourceTab === 'external' && <ExternalResources />}
+            {activeResourceTab === 'external' && <ExternalSources />}
             {activeResourceTab === 'internal' && <>
             {showSalonsAnnouncement && (
                 <div className="homepage-salons-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="salons-announcement-title">
@@ -1334,10 +1341,10 @@ const HomePage = () => {
                                                 />
                                             ) : null}
                                             <div 
-                                                className="homepage-recent-placeholder"
+                                                className={`homepage-recent-placeholder ${isPdfFormat(ressource.format) ? 'pdf-cover' : ''}`}
                                                 style={{display: ressource.couverture ? 'none' : 'flex'}}
                                             >
-                                                📄
+                                                {isPdfFormat(ressource.format) ? <PdfLogo /> : '📄'}
                                             </div>
                                         </div>
                                         <div className="homepage-recent-info">
@@ -1453,10 +1460,10 @@ const HomePage = () => {
                                                 />
                                             ) : null}
                                             <div 
-                                                className="homepage-resource-placeholder"
+                                                className={`homepage-resource-placeholder ${isPdfFormat(ressource.format) ? 'pdf-cover' : ''}`}
                                                 style={{display: ressource.couverture ? 'none' : 'flex'}}
                                             >
-                                                📄
+                                                {isPdfFormat(ressource.format) ? <PdfLogo /> : '📄'}
                                             </div>
                                             
                                             {/* Icône de format */}

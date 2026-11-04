@@ -82,6 +82,7 @@ class NetworkCover extends StatelessWidget {
     this.height,
     this.radius = 10,
     this.fallbackIcon = CupertinoIcons.book,
+    this.fallback,
     this.headers,
     this.fit = BoxFit.cover,
   });
@@ -91,12 +92,15 @@ class NetworkCover extends StatelessWidget {
   final double? height;
   final double radius;
   final IconData fallbackIcon;
+
+  /// Remplace la vignette par défaut quand l'image est absente ou illisible.
+  final Widget? fallback;
   final Map<String, String>? headers;
   final BoxFit fit;
 
   @override
   Widget build(BuildContext context) {
-    final placeholder = Container(
+    final placeholder = fallback ?? Container(
       width: width,
       height: height,
       decoration: BoxDecoration(

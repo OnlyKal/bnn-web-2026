@@ -11,7 +11,7 @@ import '../../../state/session_controller.dart';
 import '../../../state/shell_controller.dart';
 import '../../widgets/common.dart';
 import '../../widgets/external_links.dart';
-import 'external_resources_view.dart';
+import 'external_sources_view.dart';
 import 'internal_resources_view.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -25,25 +25,28 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  late bool _external = LocalStore.instance.getString(HomeScreen.tabKey) == 'external';
+  late bool _external = LocalStore.instance.getString(HomeScreen.tabKey) != 'internal';
   late bool _externalVisited = _external;
   int? _internalCount;
-  int? _externalCount;
+  int? _halCount;
+  int? _openAlexCount;
 
   @override
   void initState() {
     super.initState();
-    _loadExternalCount();
+    _loadExternalCounts();
     WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowAnnouncement());
   }
 
-  Future<void> _loadExternalCount() async {
-    try {
-      final total = await context.read<AppServices>().hal.totalCount();
-      if (mounted) setState(() => _externalCount = total);
-    } catch (_) {
-      if (mounted) setState(() => _externalCount = 0);
-    }
+  // Une source indisponible ne doit pas bloquer le total : elle compte alors pour zéro.
+  void _loadExternalCounts() {
+    final services = context.read<AppServices>();
+    services.hal.totalCount().then((total) => total, onError: (_) => 0).then((total) {
+      if (mounted) setState(() => _halCount = total);
+    });
+    services.openAlex.totalCount().then((total) => total, onError: (_) => 0).then((total) {
+      if (mounted) setState(() => _openAlexCount = total);
+    });
   }
 
   void _setExternal(bool value) {
@@ -116,10 +119,10 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final user = context.select<SessionController, String>((s) => s.user?.prenom ?? s.user?.displayName ?? '');
+    final counts = [_internalCount, _halCount, _openAlexCount];
     final intro = _HomeIntro(
       name: user,
-      internalCount: _internalCount,
-      externalCount: _externalCount,
+      total: counts.contains(null) ? null : counts.fold<int>(0, (sum, count) => sum + count!),
     );
 
     return Scaffold(
@@ -142,8 +145,8 @@ class _HomeScreenState extends State<HomeScreen> {
               value: _external,
               onChanged: _setExternal,
               options: const [
-                SegmentOption(false, 'Ressources internes', icon: CupertinoIcons.book),
                 SegmentOption(true, 'Ressources externes', icon: CupertinoIcons.globe),
+                SegmentOption(false, 'Ressources internes', icon: CupertinoIcons.book),
               ],
             ),
           ),
@@ -157,7 +160,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     if (mounted && count != _internalCount) setState(() => _internalCount = count);
                   },
                 ),
-                _externalVisited ? ExternalResourcesView(intro: intro) : const SizedBox.shrink(),
+                _externalVisited ? ExternalSourcesView(intro: intro) : const SizedBox.shrink(),
               ],
             ),
           ),
@@ -167,98 +170,54 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-/// Salutation et chiffres clés du fonds documentaire.
+/// Salutation et nombre total de ressources référencées.
 class _HomeIntro extends StatelessWidget {
-  const _HomeIntro({required this.name, required this.internalCount, required this.externalCount});
+  const _HomeIntro({required this.name, required this.total});
 
   final String name;
-  final int? internalCount;
-  final int? externalCount;
-
-  String _label(int? value) => value == null ? '…' : formatNumber(value);
+  final int? total;
 
   @override
   Widget build(BuildContext context) {
-    final combined = internalCount != null && externalCount != null
-        ? formatNumber(internalCount! + externalCount!)
-        : '…';
+    final totalLabel = total == null ? '…' : formatNumber(total!);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           name.isEmpty ? 'Bienvenue' : 'Bonjour $name',
-          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, letterSpacing: -0.4),
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: -0.4),
         ),
         const SizedBox(height: 2),
-        Text(
-          '${formatToday(DateTime.now())} · Que souhaitez-vous consulter ?',
-          style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+        const Text(
+          'Que souhaitez-vous consulter ?',
+          style: TextStyle(color: AppColors.textMuted, fontSize: 13),
         ),
-        const SizedBox(height: 14),
-        Semantics(
-          label: 'La BNN-ESURSI référence $combined ressources : '
-              '${_label(internalCount)} internes et ${_label(externalCount)} externes.',
-          excludeSemantics: true,
-          child: SurfaceCard(
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            child: IntrinsicHeight(
-              child: Row(
-                children: [
-                  _Stat(value: combined, label: 'Ressources', icon: CupertinoIcons.collections, emphasis: true),
-                  const VerticalDivider(width: 1, color: AppColors.border),
-                  _Stat(value: _label(internalCount), label: 'Internes', icon: CupertinoIcons.book),
-                  const VerticalDivider(width: 1, color: AppColors.border),
-                  _Stat(value: _label(externalCount), label: 'Externes (HAL)', icon: CupertinoIcons.globe),
-                ],
+        const SizedBox(height: 8),
+        SurfaceCard(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              const IconTile(CupertinoIcons.collections, size: 40, iconSize: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      const TextSpan(text: 'La BNN-ESURSI référence '),
+                      TextSpan(
+                        text: totalLabel,
+                        style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.primary),
+                      ),
+                      const TextSpan(text: ' ressources pédagogiques.'),
+                    ],
+                  ),
+                  style: const TextStyle(fontSize: 13.5, height: 1.45, color: AppColors.textSecondary),
+                ),
               ),
-            ),
+            ],
           ),
         ),
       ],
-    );
-  }
-}
-
-class _Stat extends StatelessWidget {
-  const _Stat({required this.value, required this.label, required this.icon, this.emphasis = false});
-
-  final String value;
-  final String label;
-  final IconData icon;
-  final bool emphasis;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: 17, color: emphasis ? AppColors.primary : AppColors.textFaint),
-            const SizedBox(height: 6),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                value,
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.3,
-                  color: emphasis ? AppColors.primary : AppColors.textPrimary,
-                ),
-              ),
-            ),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
