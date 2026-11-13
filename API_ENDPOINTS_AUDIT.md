@@ -2,7 +2,7 @@
 
 **Date**: 11 décembre 2025  
 **Status**: ✅ Audit complet et optimisations recommandées  
-**Server**: `https://admin.cgiibnn-esursi.cd`
+**Server**: `https://admin-bnn.minesursi.gouv.cd`
 
 ---
 
@@ -245,7 +245,7 @@ const response = await api.get('/ressources/?cursor=abc123');
 **Response Structure**:
 ```javascript
 {
-    "next": "https://admin.cgiibnn-esursi.cd/api/bnn/ressources/?cursor=abc123",
+    "next": "https://admin-bnn.minesursi.gouv.cd/api/bnn/ressources/?cursor=abc123",
     "previous": null,
     "results": {
         "data": [ /* resources array */ ]
@@ -693,7 +693,7 @@ Aucun problème critique identifié
 
 ## 📞 CONTACTS & SUPPORT
 
-**Backend Server**: `https://admin.cgiibnn-esursi.cd`  
+**Backend Server**: `https://admin-bnn.minesursi.gouv.cd`  
 **Documentation API**: À fournir par équipe backend  
 **Contact Tech**: [À compléter]
 

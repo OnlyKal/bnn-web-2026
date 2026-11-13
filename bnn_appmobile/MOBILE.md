@@ -1,6 +1,6 @@
 # API utilisées par l'application mobile BNN
 
-Serveur : `https://admin.cgiibnn-esursi.cd` (modifiable avec `--dart-define=API_SERVER_URL=...`).
+Serveur : `https://admin-bnn.minesursi.gouv.cd` (modifiable avec `--dart-define=API_SERVER_URL=...`).
 
 - **API BNN** : `{serveur}/api/bnn` — en-tête `Authorization: Bearer <jeton>` sauf mention « public ».
 - **API HAL** : `{serveur}/api/hal` — publique, sans jeton.

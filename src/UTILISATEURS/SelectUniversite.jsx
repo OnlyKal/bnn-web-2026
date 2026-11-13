@@ -1,65 +1,40 @@
-import React, { useState, useEffect } from 'react';
+import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FaSearch, FaUniversity, FaBuilding } from 'react-icons/fa';
+import { FaBuilding, FaChevronRight, FaMapMarkerAlt, FaSearch, FaTimes, FaUniversity } from 'react-icons/fa';
 import { isAuthenticated, logout } from '../utils/auth';
-import { getAssetUrl } from '../config';
-import etablissementsData from '../assets/etab_update.json';
+import RegistrationLayout from '../components/registration/RegistrationLayout';
+import { findProvinceKey, getEtablissementLogo, getEtablissements, searchEtablissements } from '../utils/etablissements';
 
-const getSearchableText = (value) => String(value || '').toLowerCase();
+const PAGE_SIZE = 40;
+const STATUTS = [
+  { value: '', label: 'Tous' },
+  { value: 'Public', label: 'Publics' },
+  { value: 'Privé', label: 'Privés' }
+];
 
-const getUniversiteKey = (universite, index) => (
-  universite.code ||
-  universite.shortname ||
-  universite.name ||
-  universite.path ||
-  `universite-${index}`
-);
-
-function UniversiteCard({ universite, onSelect }) {
-  const [logoFailed, setLogoFailed] = useState(false);
-  const hasLogo = Boolean(universite.path) && !logoFailed;
-  const shortLabel = universite.shortname || universite.code || '';
-
+function UniversiteLogo({ universite }) {
+  const [failed, setFailed] = useState(false);
+  const src = getEtablissementLogo(universite);
+  if (!src || failed) {
+    return <span className="reg-logo reg-logo-placeholder"><FaUniversity aria-hidden="true" /></span>;
+  }
   return (
-    <div
-      className="universite-card"
-      onClick={() => onSelect(universite)}
-    >
-      <div className="universite-card-header">
-        <div className="universite-logo">
-          {hasLogo ? (
-            <img
-              src={getAssetUrl(universite.path)}
-              alt={`Logo ${universite.name}`}
-              className="logo-image"
-              onError={() => setLogoFailed(true)}
-            />
-          ) : (
-            <div className="logo-placeholder">
-              <FaUniversity />
-            </div>
-          )}
-        </div>
-      </div>
-      <div className="universite-card-body">
-        <h3 className="universite-name">{universite.name}</h3>
-        <p className="universite-details">
-          <span className="universite-type">{shortLabel}</span>
-        </p>
-      </div>
-      <div className="universite-card-footer">
-        <div className="select-indicator">Cliquer pour sélectionner</div>
-      </div>
-    </div>
+    <span className="reg-logo">
+      <img src={src} alt="" loading="lazy" onError={() => setFailed(true)} />
+    </span>
   );
 }
 
 function SelectUniversite() {
   const [query, setQuery] = useState('');
+  const [statut, setStatut] = useState('');
+  const [allProvinces, setAllProvinces] = useState(false);
+  const [visible, setVisible] = useState(PAGE_SIZE);
   const [isUserAuthenticated, setIsUserAuthenticated] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const selectedProvince = location.state?.selectedProvince;
+  const deferredQuery = useDeferredValue(query);
 
   // Check authentication status
   useEffect(() => {
@@ -81,15 +56,15 @@ function SelectUniversite() {
       alert(`Université sélectionnée: ${universite.name}`);
     } else {
       // If user is not authenticated, redirect to user types with selected province and university
-      navigate('/user-types', { 
-        state: { 
+      navigate('/user-types', {
+        state: {
           selectedProvince: selectedProvince,
           selectedUniversite: {
             nom: universite.name,
             shortname: universite.shortname || universite.code || '',
             logo: universite.path
           }
-        } 
+        }
       });
     }
   };
@@ -98,129 +73,138 @@ function SelectUniversite() {
     navigate('/provinces');
   };
 
-  // Normalize a province name: remove accents, lowercase, replace spaces with hyphens
-  const normalizeProv = (str) =>
-    (str || '')
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase()
-      .replace(/\s+/g, '-');
+  const hasProvince = Boolean(findProvinceKey(selectedProvince?.nom));
+  const searchAll = allProvinces || !hasProvince;
+  const scope = useMemo(
+    () => getEtablissements(searchAll ? null : selectedProvince?.nom),
+    [searchAll, selectedProvince?.nom]
+  );
+  const matches = useMemo(() => searchEtablissements(scope, deferredQuery), [scope, deferredQuery]);
+  const counts = useMemo(() => ({
+    '': matches.length,
+    Public: matches.filter((u) => u.statut === 'Public').length,
+    'Privé': matches.filter((u) => u.statut === 'Privé').length
+  }), [matches]);
+  const filtered = statut ? matches.filter((u) => u.statut === statut) : matches;
+  const shown = filtered.slice(0, visible);
+  const isStale = query !== deferredQuery;
 
-  // Find the matching key in etab_update.json for the selected province
-  const getProvKey = (provNom) => {
-    if (!provNom) return null;
-    const normalized = normalizeProv(provNom);
-    return Object.keys(etablissementsData).find(
-      (key) => normalizeProv(key) === normalized
-    ) || null;
-  };
-
-  const provKey = getProvKey(selectedProvince?.nom);
-  const universites = provKey
-    ? (etablissementsData[provKey] || [])
-    : Object.values(etablissementsData).flat();
-
-  const filtered = universites.filter((u) => {
-    const q = query.trim().toLowerCase();
-    if (!q) return true;
-    return (
-      getSearchableText(u.name).includes(q) ||
-      getSearchableText(u.shortname || u.code).includes(q)
-    );
-  });
+  // Revenir en haut de la liste quand la recherche change.
+  useEffect(() => { setVisible(PAGE_SIZE); }, [deferredQuery, statut, searchAll]);
 
   return (
-    <div className="universites-page">
-      {/* Header */}
-      <header className="universites-header">
-        <div className="universites-header-content">
-          <div className="universites-title-section">
-            <h1 className="universites-main-title">Sélection d'Université</h1>
-            <p className="universites-subtitle">Choisissez votre établissement d'enseignement</p>
-            
-            <div className="selection-breadcrumb">
-              {selectedProvince && (
-                <div className="selected-info">
-                  <span className="info-label">Province:</span>
-                  <span className="info-value">{selectedProvince.nom}</span>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          <div className="universites-nav">
-            {isUserAuthenticated ? (
-              <>
-                <button 
-                  onClick={goToHome}
-                  className="btn btn-primary"
-                >
-                  Accueil
-                </button>
-                <button 
-                  onClick={handleLogout}
-                  className="btn btn-danger"
-                >
-                  Déconnexion
-                </button>
-              </>
-            ) : (
-              <button 
-                onClick={goBackToProvinces}
-                className="btn btn-outline"
+    <RegistrationLayout
+      step={2}
+      title="Choisissez votre établissement"
+      subtitle="Recherchez votre université ou institut par son nom, son sigle ou sa ville."
+      summary={selectedProvince ? [{ label: 'Province', value: selectedProvince.nom, onEdit: goBackToProvinces }] : []}
+      back={{ label: 'Changer de province', onClick: goBackToProvinces }}
+      isAuthenticated={isUserAuthenticated}
+      onHome={goToHome}
+      onLogout={handleLogout}
+    >
+      <div className="reg-toolbar">
+        <label className="reg-search">
+          <FaSearch className="reg-search-icon" aria-hidden="true" />
+          <input
+            type="search"
+            aria-label="Rechercher un établissement"
+            placeholder="Ex. : UNIKIN, ISP Bukavu, université Kisangani…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            autoFocus
+          />
+          {query && (
+            <button type="button" className="reg-search-clear" onClick={() => setQuery('')} aria-label="Effacer la recherche">
+              <FaTimes aria-hidden="true" />
+            </button>
+          )}
+        </label>
+
+        <div className="reg-filters">
+          <div className="reg-chips" role="group" aria-label="Statut de l'établissement">
+            {STATUTS.map((option) => (
+              <button
+                key={option.value || 'all'}
+                type="button"
+                className={`reg-chip ${statut === option.value ? 'active' : ''}`}
+                aria-pressed={statut === option.value}
+                onClick={() => setStatut(option.value)}
               >
-                Changer de province
+                {option.label} <span className="reg-chip-count">{counts[option.value]}</span>
+              </button>
+            ))}
+          </div>
+          {hasProvince && (
+            <label className="reg-switch">
+              <input type="checkbox" checked={allProvinces} onChange={(e) => setAllProvinces(e.target.checked)} />
+              <span>Toutes les provinces</span>
+            </label>
+          )}
+        </div>
+
+        <p className="reg-count" aria-live="polite">
+          {filtered.length} établissement{filtered.length > 1 ? 's' : ''}
+          {searchAll ? ' dans toutes les provinces' : ` · ${selectedProvince.nom}`}
+        </p>
+      </div>
+
+      {filtered.length > 0 ? (
+        <>
+          <ul className={`reg-list ${isStale ? 'stale' : ''}`}>
+            {shown.map((u) => (
+              <li key={u.id}>
+                <button type="button" className="reg-option reg-option-row" onClick={() => handleUniversiteSelect(u)}>
+                  <UniversiteLogo universite={u} />
+                  <span className="reg-option-text">
+                    <span className="reg-option-title">{u.name}</span>
+                    <span className="reg-option-meta">
+                      {u.shortname && <span className="reg-sigle">{u.shortname}</span>}
+                      {(u.territoire || searchAll) && (
+                        <span className="reg-place">
+                          <FaMapMarkerAlt aria-hidden="true" />
+                          {[u.territoire, searchAll ? u.province : null].filter(Boolean).join(' · ')}
+                        </span>
+                      )}
+                      {u.statut && <span className={`reg-badge ${u.statut === 'Public' ? 'public' : 'prive'}`}>{u.statut}</span>}
+                    </span>
+                  </span>
+                  <FaChevronRight className="reg-option-chevron" aria-hidden="true" />
+                </button>
+              </li>
+            ))}
+          </ul>
+          {filtered.length > shown.length && (
+            <div className="reg-more">
+              <button type="button" className="reg-btn reg-btn-outline" onClick={() => setVisible((v) => v + PAGE_SIZE)}>
+                Afficher plus ({filtered.length - shown.length} restants)
+              </button>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="reg-empty">
+          <FaBuilding className="reg-empty-icon" aria-hidden="true" />
+          <h2>Aucun établissement trouvé</h2>
+          <p>
+            {query ? `Aucun établissement ne correspond à « ${query} »` : 'Aucun établissement ne correspond à ce filtre'}
+            {searchAll ? '.' : ` dans la province ${selectedProvince.nom}.`}
+          </p>
+          <div className="reg-empty-actions">
+            {!searchAll && (
+              <button type="button" className="reg-btn reg-btn-primary" onClick={() => setAllProvinces(true)}>
+                Chercher dans toutes les provinces
+              </button>
+            )}
+            {(query || statut) && (
+              <button type="button" className="reg-btn reg-btn-outline" onClick={() => { setQuery(''); setStatut(''); }}>
+                Effacer la recherche
               </button>
             )}
           </div>
         </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="universites-main">
-        <div className="universites-container">
-          {/* Search Section */}
-          <div className="universites-search-section">
-            <div className="universites-search-container">
-              <input
-                aria-label="Rechercher une université"
-                className="universites-search-input"
-                placeholder="Rechercher par nom d'établissement ou sigle..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-              <div className="universites-search-icon">
-                <FaSearch />
-              </div>
-            </div>
-            <p className="universites-search-hint">
-              {filtered.length} établissement{filtered.length > 1 ? 's' : ''} trouvé{filtered.length > 1 ? 's' : ''}
-            </p>
-          </div>
-
-          {/* Universites Grid */}
-          <div className="universites-grid">
-            {filtered.map((u, index) => (
-              <UniversiteCard
-                key={getUniversiteKey(u, index)}
-                universite={u}
-                onSelect={handleUniversiteSelect}
-              />
-            ))}
-
-            {filtered.length === 0 && (
-              <div className="universites-no-results">
-                <div className="no-results-icon">
-                  <FaBuilding />
-                </div>
-                <h3>Aucun établissement trouvé</h3>
-                <p>Essayez de modifier votre recherche</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </main>
-    </div>
+      )}
+    </RegistrationLayout>
   );
 }
 

@@ -701,7 +701,7 @@ const RessourceDetails = () => {
                     setViewerObjectUrl('');
                 }
 
-                // Construire URL proxy: /media/... au lieu de https://admin.cgiibnn-esursi.cd/media/...
+                // Construire URL proxy: /media/... au lieu de https://admin-bnn.minesursi.gouv.cd/media/...
                 let proxyUrl = fullUrl;
                 try {
                     const urlObj = new URL(fullUrl);

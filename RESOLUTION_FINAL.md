@@ -151,7 +151,7 @@ npm run dev
 ### Dans la Console (F12), Copier-Coller:
 ```javascript
 // Vérifier que la ressource existe en BD
-fetch('https://admin.cgiibnn-esursi.cd/api/bnn/ressource/all/', {
+fetch('https://admin-bnn.minesursi.gouv.cd/api/bnn/ressource/all/', {
     headers: {
         'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
         'Content-Type': 'application/json'

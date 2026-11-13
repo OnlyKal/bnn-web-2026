@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from 'react-router-dom';
-import { FaMapMarkerAlt, FaSearch } from 'react-icons/fa';
+import { FaChevronRight, FaMapMarkerAlt, FaSearch, FaTimes } from 'react-icons/fa';
 import { isAuthenticated, logout } from '../utils/auth';
 import provincesData from '../assets/province.json';
-
-const getSearchableText = (value) => String(value || '').toLowerCase();
+import RegistrationLayout from '../components/registration/RegistrationLayout';
+import { countEtablissements, normalizeSearch } from '../utils/etablissements';
 
 function Provinces() {
     const navigate = useNavigate();
@@ -35,118 +35,80 @@ function Provinces() {
         }
     };
 
-    const provinces = provincesData.provinces || [];
-    
-    // Filter provinces based on search query
-    const filteredProvinces = provinces.filter((province) => {
-        const searchQuery = query.trim().toLowerCase();
-        if (!searchQuery) return true;
-        return (
-            getSearchableText(province.nom).includes(searchQuery) ||
-            getSearchableText(province.chef_lieu).includes(searchQuery) ||
-            getSearchableText(province.code).includes(searchQuery)
-        );
-    });
+    const provinces = useMemo(() => (provincesData.provinces || [])
+        .map((province) => ({ ...province, count: countEtablissements(province.nom) }))
+        .sort((a, b) => a.nom.localeCompare(b.nom, 'fr')), []);
+
+    // Recherche sans accents sur le nom, le chef-lieu ou le code.
+    const filteredProvinces = useMemo(() => {
+        const q = normalizeSearch(query);
+        if (!q) return provinces;
+        return provinces.filter((province) =>
+            normalizeSearch(`${province.nom} ${province.chef_lieu} ${province.code}`).includes(q));
+    }, [provinces, query]);
 
     return (
-        <div className="provinces-page">
-            {/* Header */}
-            <header className="provinces-header">
-                <div className="provinces-header-content">
-                    <div className="provinces-title-section">
-                        <h1 className="provinces-main-title">Sélection de Province</h1>
-                        <p className="provinces-subtitle">Choisissez votre province de résidence</p>
-                    </div>
-                    
-                    <div className="provinces-nav">
-                        {isUserAuthenticated ? (
-                            <>
-                                <button 
-                                    onClick={goToHome}
-                                    className="btn btn-primary"
-                                >
-                                    Accueil
-                                </button>
-                                <button 
-                                    onClick={handleLogout}
-                                    className="btn btn-danger"
-                                >
-                                    Déconnexion
-                                </button>
-                            </>
-                        ) : (
-                            <button 
-                                onClick={() => navigate('/login')}
-                                className="btn btn-outline"
-                            >
-                                Retour à la connexion
-                            </button>
-                        )}
-                    </div>
+        <RegistrationLayout
+            step={1}
+            title="Où étudiez-vous ou travaillez-vous ?"
+            subtitle="Choisissez la province de votre établissement : nous vous proposerons ensuite ses universités et instituts."
+            back={{ label: 'Retour à la connexion', onClick: () => navigate('/login') }}
+            isAuthenticated={isUserAuthenticated}
+            onHome={goToHome}
+            onLogout={handleLogout}
+        >
+            <div className="reg-toolbar">
+                <label className="reg-search">
+                    <FaSearch className="reg-search-icon" aria-hidden="true" />
+                    <input
+                        type="search"
+                        aria-label="Rechercher une province"
+                        placeholder="Rechercher une province ou un chef-lieu…"
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        autoFocus
+                    />
+                    {query && (
+                        <button type="button" className="reg-search-clear" onClick={() => setQuery('')} aria-label="Effacer la recherche">
+                            <FaTimes aria-hidden="true" />
+                        </button>
+                    )}
+                </label>
+                <p className="reg-count" aria-live="polite">
+                    {filteredProvinces.length} province{filteredProvinces.length > 1 ? 's' : ''}
+                </p>
+            </div>
+
+            {filteredProvinces.length > 0 ? (
+                <div className="reg-grid reg-grid-provinces">
+                    {filteredProvinces.map((province) => (
+                        <button
+                            type="button"
+                            key={province.code}
+                            className="reg-option"
+                            onClick={() => handleProvinceSelect(province)}
+                        >
+                            <span className="reg-option-icon"><FaMapMarkerAlt aria-hidden="true" /></span>
+                            <span className="reg-option-text">
+                                <span className="reg-option-title">{province.nom}</span>
+                                <span className="reg-option-meta">
+                                    <span className="reg-nowrap">Chef-lieu : {province.chef_lieu}</span>
+                                    <span className="reg-count-pill">{province.count} établissement{province.count > 1 ? 's' : ''}</span>
+                                </span>
+                            </span>
+                            <FaChevronRight className="reg-option-chevron" aria-hidden="true" />
+                        </button>
+                    ))}
                 </div>
-            </header>
-
-            {/* Main Content */}
-            <main className="provinces-main">
-                <div className="provinces-container">
-                    <div className="provinces-intro">
-                        <p className="provinces-description">
-                            Sélectionnez votre province de résidence. Cette information nous permettra 
-                            de vous proposer les établissements d'enseignement disponibles dans votre région.
-                        </p>
-                    </div>
-
-                    {/* Search Section */}
-                    <div className="provinces-search-section">
-                        <div className="provinces-search-container">
-                            <input
-                                aria-label="Rechercher une province"
-                                className="provinces-search-input"
-                                placeholder="Rechercher par nom, chef-lieu ou code..."
-                                value={query}
-                                onChange={(e) => setQuery(e.target.value)}
-                            />
-                            <div className="provinces-search-icon">
-                                <FaSearch />
-                            </div>
-                        </div>
-                        <p className="provinces-search-hint">
-                            {filteredProvinces.length} province{filteredProvinces.length > 1 ? 's' : ''} trouvée{filteredProvinces.length > 1 ? 's' : ''}
-                        </p>
-                    </div>
-
-                    <div className="provinces-grid">
-                        {filteredProvinces.map((province) => (
-                            <div 
-                                key={province.code} 
-                                className="province-card"
-                                onClick={() => handleProvinceSelect(province)}
-                            >
-                                <div className="province-icon">
-                                    <FaMapMarkerAlt />
-                                </div>
-                                <div className="province-content">
-                                    <h3 className="province-name">{province.nom}</h3>
-                                    <p className="province-description">Chef-lieu: {province.chef_lieu}</p>
-                                </div>
-                                <div className="province-footer">
-                                    <div className="select-btn">Sélectionner</div>
-                                </div>
-                            </div>
-                        ))}
-
-                        {filteredProvinces.length === 0 && (
-                            <div className="no-results">
-                                <div className="no-results-icon">
-                                    <FaMapMarkerAlt />
-                                </div>
-                                <p>Aucune province trouvée pour "{query}"</p>
-                            </div>
-                        )}
-                    </div>
+            ) : (
+                <div className="reg-empty">
+                    <FaMapMarkerAlt className="reg-empty-icon" aria-hidden="true" />
+                    <h2>Aucune province trouvée</h2>
+                    <p>Aucune province ne correspond à « {query} ».</p>
+                    <button type="button" className="reg-btn reg-btn-outline" onClick={() => setQuery('')}>Effacer la recherche</button>
                 </div>
-            </main>
-        </div>
+            )}
+        </RegistrationLayout>
     );
 }
 

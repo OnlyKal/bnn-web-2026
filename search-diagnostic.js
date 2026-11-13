@@ -14,7 +14,7 @@ async function testSearch(query) {
             return;
         }
         
-        const url = new URL('https://admin.cgiibnn-esursi.cd/api/bnn/ressources/search/');
+        const url = new URL('https://admin-bnn.minesursi.gouv.cd/api/bnn/ressources/search/');
         url.searchParams.append('q', query);
         url.searchParams.append('limit', 50);
         url.searchParams.append('offset', 0);

@@ -1,7 +1,7 @@
 # BNN ESURSI — application mobile
 
 Application Flutter (Android / iOS) de la Bibliothèque Numérique Nationale. Elle reprend les
-fonctionnalités de BNN Web (`../src`) et utilise la même API (`https://admin.cgiibnn-esursi.cd/api/bnn`
+fonctionnalités de BNN Web (`../src`) et utilise la même API (`https://admin-bnn.minesursi.gouv.cd/api/bnn`
 et le proxy HAL `/api/hal`).
 
 ## Démarrage

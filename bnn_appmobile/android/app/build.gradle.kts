@@ -20,7 +20,7 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 android {
-    namespace = "com.nepa.bopeto"
+    namespace = "bnn.app.com"
     compileSdk = 36
     ndkVersion = "27.0.12077973"
 
@@ -34,11 +34,11 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.nepa.bopeto"
+        applicationId = "bnn.app.com"
         minSdk = 24
         targetSdk = 36
-        versionCode = 204
-        versionName = "204"
+        versionCode =323
+        versionName = "323"
     }
     signingConfigs {
             create("release") {

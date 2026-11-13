@@ -45,7 +45,7 @@ npm run dev
 ### Dans la Console (F12), Copier-Coller:
 ```javascript
 // Chercher "Political" dans TOUTES les ressources
-fetch('https://admin.cgiibnn-esursi.cd/api/bnn/ressource/all/', {
+fetch('https://admin-bnn.minesursi.gouv.cd/api/bnn/ressource/all/', {
     headers: {
         'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
         'Content-Type': 'application/json'

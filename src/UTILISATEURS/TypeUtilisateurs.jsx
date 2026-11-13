@@ -1,7 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FaSearch, FaChalkboardTeacher, FaGraduationCap, FaUsers } from 'react-icons/fa';
+import { FaSearch, FaChalkboardTeacher, FaChevronRight, FaGraduationCap, FaUsers } from 'react-icons/fa';
 import { isAuthenticated, logout } from '../utils/auth';
+import RegistrationLayout from '../components/registration/RegistrationLayout';
+
+const listeTypes = [
+    { name: 'Chercheur', value: 'chercheur', description: "Recherche académique et scientifique", icon: FaSearch },
+    { name: 'Étudiant', value: 'etudiant', description: "Apprentissage et études", icon: FaGraduationCap },
+    { name: 'Professeur', value: 'professeur', description: "Enseignement et formation", icon: FaChalkboardTeacher },
+    { name: 'Autres', value: 'autres', description: "Autres professions", icon: FaUsers }
+];
 
 function TypeUtilisateurs() {
     const navigate = useNavigate();
@@ -36,13 +44,13 @@ function TypeUtilisateurs() {
                 value: type.value,
                 description: type.description
             };
-            
-            navigate('/register', { 
-                state: { 
+
+            navigate('/register', {
+                state: {
                     selectedProvince: selectedProvince,
                     selectedUniversite: selectedUniversite,
                     selectedUserType: serializableUserType
-                } 
+                }
             });
         }
     };
@@ -51,99 +59,40 @@ function TypeUtilisateurs() {
         navigate('/select-universite', { state: { selectedProvince } });
     };
 
-    var listeTypes = [
-        { name: 'Chercheur',  value: 'chercheur',  description: "Recherche académique et scientifique", icon: FaSearch },
-        { name: 'Étudiant',   value: 'etudiant',   description: "Apprentissage et études",               icon: FaGraduationCap },
-        { name: 'Professeur', value: 'professeur', description: "Enseignement et formation",              icon: FaChalkboardTeacher },
-        { name: 'Autres',     value: 'autres',     description: "Autres professions",                    icon: FaUsers }
-    ];
+    const summary = [
+        selectedProvince && { label: 'Province', value: selectedProvince.nom, onEdit: () => navigate('/provinces') },
+        selectedUniversite && { label: 'Établissement', value: selectedUniversite.nom, onEdit: goBackToUniversites }
+    ].filter(Boolean);
 
     return (
-        <div className="user-types-page">
-            {/* Header */}
-            <header className="user-types-header">
-                <div className="user-types-header-content">
-                    <div className="user-types-title-section">
-                        <h1 className="user-types-main-title">Type d'Utilisateur</h1>
-                        <p className="user-types-subtitle">Sélectionnez votre profil professionnel</p>
-                        
-                        <div className="selection-breadcrumb">
-                            {selectedProvince && (
-                                <div className="selected-info">
-                                    <span className="info-label">Province:</span>
-                                    <span className="info-value">{selectedProvince.nom}</span>
-                                </div>
-                            )}
-                            {selectedUniversite && (
-                                <div className="selected-info">
-                                    <span className="info-label">Université:</span>
-                                    <span className="info-value">{selectedUniversite.nom}</span>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                    
-                    <div className="user-types-nav">
-                        {isUserAuthenticated ? (
-                            <>
-                                <button 
-                                    onClick={goToHome}
-                                    className="btn btn-primary"
-                                >
-                                    Accueil
-                                </button>
-                                <button 
-                                    onClick={handleLogout}
-                                    className="btn btn-danger"
-                                >
-                                    Déconnexion
-                                </button>
-                            </>
-                        ) : (
-                            <button 
-                                onClick={goBackToUniversites}
-                                className="btn btn-outline"
-                            >
-                                Changer d'université
-                            </button>
-                        )}
-                    </div>
-                </div>
-            </header>
-
-            {/* Main Content */}
-            <main className="user-types-main">
-                <div className="user-types-container">
-                    <div className="user-types-intro">
-                        <p className="user-types-description">
-                            Choisissez le type de compte qui correspond à votre profil. 
-                            Cela nous permettra de personnaliser votre expérience.
-                        </p>
-                    </div>
-
-                    <div className="user-types-grid">
-                        {listeTypes.map((type, index) => (
-                            <div 
-                                key={index} 
-                                className="user-type-card"
-                                onClick={() => handleTypeSelect(type)}
-                            >
-                                <div className="user-type-icon">
-                                    <type.icon />
-                                </div>
-                                <div className="user-type-content">
-                                    <h3 className="user-type-name">{type.name}</h3>
-                                    <p className="user-type-description">{type.description}</p>
-                                </div>
-                                <div className="user-type-footer">
-                                    <div className="select-btn">Sélectionner</div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </main>
-        </div>
+        <RegistrationLayout
+            step={3}
+            title="Quel est votre profil ?"
+            subtitle="Choisissez le type de compte qui vous correspond : il personnalise votre expérience sur la BNN."
+            summary={summary}
+            back={{ label: "Changer d'établissement", onClick: goBackToUniversites }}
+            isAuthenticated={isUserAuthenticated}
+            onHome={goToHome}
+            onLogout={handleLogout}
+        >
+            <div className="reg-grid reg-grid-types">
+                {listeTypes.map((type) => (
+                    <button
+                        type="button"
+                        key={type.value}
+                        className="reg-option reg-option-card"
+                        onClick={() => handleTypeSelect(type)}
+                    >
+                        <span className="reg-option-icon reg-option-icon-lg"><type.icon aria-hidden="true" /></span>
+                        <span className="reg-option-text">
+                            <span className="reg-option-title">{type.name}</span>
+                            <span className="reg-option-meta">{type.description}</span>
+                        </span>
+                        <FaChevronRight className="reg-option-chevron" aria-hidden="true" />
+                    </button>
+                ))}
+            </div>
+        </RegistrationLayout>
     );
 }
 

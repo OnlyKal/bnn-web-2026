@@ -12620,3 +12620,40 @@ input[type="date"].form-input::-webkit-calendar-picker-indicator {
     grid-area: delete;
   }
 }
+
+/* Inscription : nom d'utilisateur généré automatiquement */
+.username-generated {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.username-generated .form-input {
+  flex: 1;
+  min-width: 0;
+  background: #f3f6fc;
+  color: #1e42ac;
+  font-weight: 600;
+  cursor: default;
+}
+
+.username-generated-refresh {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  border: 1px solid #dce3ef;
+  border-radius: 0.5rem;
+  background: #fff;
+  color: #1e42ac;
+  cursor: pointer;
+}
+
+.username-generated-refresh:hover:not(:disabled) {
+  background: #eef3fb;
+}
+
+.username-generated-refresh:disabled {
+  color: #9ca3af;
+  cursor: not-allowed;
+}

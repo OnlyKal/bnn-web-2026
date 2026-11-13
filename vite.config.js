@@ -9,7 +9,7 @@ export default defineConfig({
     host: true,
     proxy: {
       '/media': {
-        target: 'https://admin.cgiibnn-esursi.cd',
+        target: 'https://admin-bnn.minesursi.gouv.cd',
         changeOrigin: true,
         secure: false
       }

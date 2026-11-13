@@ -3,7 +3,7 @@
 # Script de test pour la recherche API
 # Usage: bash test-search.sh
 
-API_URL="https://admin.cgiibnn-esursi.cd/api/bnn"
+API_URL="https://admin-bnn.minesursi.gouv.cd/api/bnn"
 
 echo "========================================="
 echo "🧪 TEST RECHERCHE API"

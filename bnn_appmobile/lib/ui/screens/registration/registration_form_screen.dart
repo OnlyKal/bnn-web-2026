@@ -7,6 +7,7 @@ import '../../../app_services.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/json_utils.dart';
+import '../../../core/utils/username.dart';
 import '../../../core/utils/validators.dart';
 import '../../../data/models/registration.dart';
 import '../../../data/services/auth_service.dart';
@@ -27,7 +28,6 @@ class RegistrationFormScreen extends StatefulWidget {
 
 class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _username = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
   final _confirm = TextEditingController();
@@ -35,6 +35,8 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
   final _prenom = TextEditingController();
   final _telephone = TextEditingController(text: '+243');
   final _faculte = TextEditingController();
+  final _usernameField = TextEditingController();
+  String _usernameSuffix = randomUsernameSuffix();
   String? _sexe;
   DateTime? _birthDate;
   bool _obscure = true;
@@ -43,9 +45,28 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
 
   bool get _isStudent => widget.selection.userType?.value == 'etudiant';
 
+  String get _username => buildUsername(_nom.text, _prenom.text, _usernameSuffix);
+
+  @override
+  void initState() {
+    super.initState();
+    _nom.addListener(_syncUsername);
+    _prenom.addListener(_syncUsername);
+  }
+
+  void _syncUsername() {
+    final username = _username;
+    if (_usernameField.text != username) setState(() => _usernameField.text = username);
+  }
+
+  void _regenerateUsername() {
+    _usernameSuffix = randomUsernameSuffix();
+    _syncUsername();
+  }
+
   @override
   void dispose() {
-    for (final c in [_username, _email, _password, _confirm, _nom, _prenom, _telephone, _faculte]) {
+    for (final c in [_email, _password, _confirm, _nom, _prenom, _telephone, _faculte, _usernameField]) {
       c.dispose();
     }
     super.dispose();
@@ -72,6 +93,10 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
       showError(context, 'Veuillez corriger les champs signalés.');
       return;
     }
+    if (!Validators.isUsername(_username)) {
+      showError(context, "Le nom doit contenir des lettres pour générer le nom d'utilisateur.");
+      return;
+    }
     final selection = widget.selection;
     setState(() => _loading = true);
     final services = context.read<AppServices>();
@@ -79,7 +104,7 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
     try {
       final response = await services.auth.register(
         RegistrationData(
-          username: _username.text,
+          username: _username,
           nom: _nom.text,
           prenom: _prenom.text,
           password: _password.text,
@@ -126,88 +151,6 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           padding: const EdgeInsets.fromLTRB(16, 18, 16, 32),
           children: [
-            _Section(
-              icon: CupertinoIcons.person_crop_circle,
-              title: 'Informations de connexion',
-              children: [
-                TextFormField(
-                  controller: _username,
-                  enabled: !_loading,
-                  autocorrect: false,
-                  textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(
-                    labelText: "Nom d'utilisateur *",
-                    helperText: 'Visible par les autres utilisateurs (3 à 20 caractères)',
-                    prefixIcon: Icon(CupertinoIcons.at, size: 20),
-                  ),
-                  validator: (v) {
-                    if (!Validators.isFilled(v)) return "Le nom d'utilisateur est requis";
-                    if (!Validators.isUsername(v!)) {
-                      return 'Lettres, chiffres et _ uniquement (3 à 20 caractères)';
-                    }
-                    return null;
-                  },
-                ),
-                TextFormField(
-                  controller: _email,
-                  enabled: !_loading,
-                  keyboardType: TextInputType.emailAddress,
-                  autocorrect: false,
-                  textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(
-                    labelText: 'Email *',
-                    helperText: 'Utilisé pour la connexion et les notifications',
-                    prefixIcon: Icon(CupertinoIcons.envelope, size: 20),
-                  ),
-                  validator: (v) {
-                    if (!Validators.isFilled(v)) return "L'email est requis";
-                    if (!Validators.isEmail(v!)) return "Format d'email invalide";
-                    return null;
-                  },
-                ),
-              ],
-            ),
-            _Section(
-              icon: CupertinoIcons.lock_shield,
-              title: 'Sécurité du compte',
-              children: [
-                TextFormField(
-                  controller: _password,
-                  enabled: !_loading,
-                  obscureText: _obscure,
-                  textInputAction: TextInputAction.next,
-                  decoration: InputDecoration(
-                    labelText: 'Mot de passe *',
-                    helperText: 'Au moins 8 caractères',
-                    prefixIcon: const Icon(CupertinoIcons.lock, size: 20),
-                    suffixIcon: IconButton(
-                      tooltip: _obscure ? 'Afficher' : 'Masquer',
-                      icon: Icon(_obscure ? CupertinoIcons.eye_slash : CupertinoIcons.eye, size: 20),
-                      onPressed: () => setState(() => _obscure = !_obscure),
-                    ),
-                  ),
-                  validator: (v) {
-                    if (!Validators.isFilled(v)) return 'Le mot de passe est requis';
-                    if (!Validators.isPassword(v!)) {
-                      return 'Le mot de passe doit contenir au moins 8 caractères';
-                    }
-                    return null;
-                  },
-                ),
-                TextFormField(
-                  controller: _confirm,
-                  enabled: !_loading,
-                  obscureText: _obscure,
-                  textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(
-                    labelText: 'Confirmer le mot de passe *',
-                    prefixIcon: Icon(CupertinoIcons.lock, size: 20),
-                  ),
-                  validator: (v) =>
-                      v != _password.text ? 'Les mots de passe ne correspondent pas' : null,
-                ),
-              ],
-            ),
             _Section(
               icon: CupertinoIcons.person,
               title: 'Informations personnelles',
@@ -295,6 +238,91 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
                     validator: (v) =>
                         Validators.required(v, 'La faculté est requise pour les étudiants'),
                   ),
+              ],
+            ),
+            _Section(
+              icon: CupertinoIcons.person_crop_circle,
+              title: 'Informations de connexion',
+              children: [
+                TextFormField(
+                  controller: _usernameField,
+                  readOnly: true,
+                  enableInteractiveSelection: false,
+                  canRequestFocus: false,
+                  style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.primary),
+                  decoration: InputDecoration(
+                    labelText: "Nom d'utilisateur",
+                    hintText: 'Généré à partir du nom et du prénom',
+                    helperText: 'Créé automatiquement : nom + 2 lettres du prénom + 2 chiffres',
+                    helperMaxLines: 2,
+                    filled: true,
+                    fillColor: AppColors.primarySoft,
+                    prefixIcon: const Icon(CupertinoIcons.at, size: 20),
+                    suffixIcon: IconButton(
+                      tooltip: "Générer d'autres chiffres",
+                      icon: const Icon(CupertinoIcons.arrow_2_circlepath, size: 20),
+                      onPressed: _loading || _usernameField.text.isEmpty ? null : _regenerateUsername,
+                    ),
+                  ),
+                ),
+                TextFormField(
+                  controller: _email,
+                  enabled: !_loading,
+                  keyboardType: TextInputType.emailAddress,
+                  autocorrect: false,
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(
+                    labelText: 'Email *',
+                    helperText: 'Utilisé pour la connexion et les notifications',
+                    prefixIcon: Icon(CupertinoIcons.envelope, size: 20),
+                  ),
+                  validator: (v) {
+                    if (!Validators.isFilled(v)) return "L'email est requis";
+                    if (!Validators.isEmail(v!)) return "Format d'email invalide";
+                    return null;
+                  },
+                ),
+              ],
+            ),
+            _Section(
+              icon: CupertinoIcons.lock_shield,
+              title: 'Sécurité du compte',
+              children: [
+                TextFormField(
+                  controller: _password,
+                  enabled: !_loading,
+                  obscureText: _obscure,
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(
+                    labelText: 'Mot de passe *',
+                    helperText: 'Au moins 8 caractères',
+                    prefixIcon: const Icon(CupertinoIcons.lock, size: 20),
+                    suffixIcon: IconButton(
+                      tooltip: _obscure ? 'Afficher' : 'Masquer',
+                      icon: Icon(_obscure ? CupertinoIcons.eye_slash : CupertinoIcons.eye, size: 20),
+                      onPressed: () => setState(() => _obscure = !_obscure),
+                    ),
+                  ),
+                  validator: (v) {
+                    if (!Validators.isFilled(v)) return 'Le mot de passe est requis';
+                    if (!Validators.isPassword(v!)) {
+                      return 'Le mot de passe doit contenir au moins 8 caractères';
+                    }
+                    return null;
+                  },
+                ),
+                TextFormField(
+                  controller: _confirm,
+                  enabled: !_loading,
+                  obscureText: _obscure,
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(
+                    labelText: 'Confirmer le mot de passe *',
+                    prefixIcon: Icon(CupertinoIcons.lock, size: 20),
+                  ),
+                  validator: (v) =>
+                      v != _password.text ? 'Les mots de passe ne correspondent pas' : null,
+                ),
               ],
             ),
             const SizedBox(height: 8),

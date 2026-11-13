@@ -22,7 +22,7 @@
 │    Debounce/Throttle (debounce.js)      │ ← Réduit appels inutiles
 ├─────────────────────────────────────────┤
 │    Endpoints API (28 total)              │
-│    └── Backend: admin.cgiibnn-esursi.cd│
+│    └── Backend: admin-bnn.minesursi.gouv.cd│
 └─────────────────────────────────────────┘
 ```
 
@@ -389,7 +389,7 @@ console.log(getCacheStats());
 ### Token refresh échoue?
 ```javascript
 // 1. Vérifier endpoint existe
-// 2. Test: curl https://admin.cgiibnn-esursi.cd/api/bnn/auth/refresh/
+// 2. Test: curl https://admin-bnn.minesursi.gouv.cd/api/bnn/auth/refresh/
 // 3. Check logs: "Token refresh failed"
 // 4. Vérifier format retour: { token: "..." }
 ```
@@ -468,7 +468,7 @@ console.log(getCacheStats());
 
 ## 📞 SUPPORT & CONTACTS
 
-**Backend**: `https://admin.cgiibnn-esursi.cd`  
+**Backend**: `https://admin-bnn.minesursi.gouv.cd`  
 **API Docs**: [À compléter avec équipe backend]  
 **Issues/Bugs**: [À compléter avec canal support]  
 

@@ -1,4 +1,4 @@
-package com.nepa.bopeto
+package bnn.app.com
 
 import io.flutter.embedding.android.FlutterActivity
 

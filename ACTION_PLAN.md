@@ -92,7 +92,7 @@ Copier-coller dans la console (F12):
 
 ```javascript
 // Vérifier si la ressource existe
-fetch('https://admin.cgiibnn-esursi.cd/api/bnn/ressource/all/', {
+fetch('https://admin-bnn.minesursi.gouv.cd/api/bnn/ressource/all/', {
     headers: {
         'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
         'Content-Type': 'application/json'
@@ -161,7 +161,7 @@ Demande: Réindexer ou vérifier l'état du service de recherche
 ### Action Requise
 ```javascript
 // Exécuter dans la console pour trouver le titre exact:
-fetch('https://admin.cgiibnn-esursi.cd/api/bnn/ressource/all/', {
+fetch('https://admin-bnn.minesursi.gouv.cd/api/bnn/ressource/all/', {
     headers: {
         'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
         'Content-Type': 'application/json'

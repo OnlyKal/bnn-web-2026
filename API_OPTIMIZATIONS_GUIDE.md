@@ -358,6 +358,6 @@ analytics.track('api_request', requestMetrics);
 
 **Fait par**: GitHub Copilot  
 **Configuration**: Vite + React 18 + Axios  
-**Server**: https://admin.cgiibnn-esursi.cd  
+**Server**: https://admin-bnn.minesursi.gouv.cd  
 
 Prochaine révision: Après 2 semaines d'utilisation en production

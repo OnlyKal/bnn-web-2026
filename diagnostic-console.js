@@ -12,7 +12,7 @@ async function checkIfResourceExists() {
         
         // Essayer de récupérer TOUTES les ressources
         // // console.log('📥 Récupération de toutes les ressources...');
-        const response = await fetch('https://admin.cgiibnn-esursi.cd/api/bnn/ressource/all/', {
+        const response = await fetch('https://admin-bnn.minesursi.gouv.cd/api/bnn/ressource/all/', {
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
@@ -56,7 +56,7 @@ async function testSearchForExactTitle(title) {
     try {
         const token = localStorage.getItem('access_token') || localStorage.getItem('token');
         
-        const url = new URL('https://admin.cgiibnn-esursi.cd/api/bnn/ressources/search/');
+        const url = new URL('https://admin-bnn.minesursi.gouv.cd/api/bnn/ressources/search/');
         url.searchParams.append('q', title);
         url.searchParams.append('limit', 100);
         
@@ -103,7 +103,7 @@ async function testSearchVariants() {
     
     for (const query of queries) {
         try {
-            const url = new URL('https://admin.cgiibnn-esursi.cd/api/bnn/ressources/search/');
+            const url = new URL('https://admin-bnn.minesursi.gouv.cd/api/bnn/ressources/search/');
             url.searchParams.append('q', query);
             url.searchParams.append('limit', 10);
             

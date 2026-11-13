@@ -17,13 +17,13 @@
 import { API_BASE_URL, API_SERVER_URL, getMediaUrl, getFileUrl, getAssetUrl } from './config';
 
 // console.log('API_SERVER_URL:', API_SERVER_URL);
-// Doit afficher: https://admin.cgiibnn-esursi.cd ou http://localhost:8000
+// Doit afficher: https://admin-bnn.minesursi.gouv.cd ou http://localhost:8000
 
 // console.log('API_BASE_URL:', API_BASE_URL);
 // Doit afficher: {API_SERVER_URL}/api/bnn
 
 // console.log('Test getMediaUrl:', getMediaUrl('/media/image.jpg'));
-// Doit afficher: https://admin.cgiibnn-esursi.cd/media/image.jpg
+// Doit afficher: https://admin-bnn.minesursi.gouv.cd/media/image.jpg
 ```
 
 **✅ Vérification Réussie Si**:
@@ -51,13 +51,13 @@ import api from './api';
 ```javascript
 // 1. Ouvrir Network tab (F12)
 // 2. Faire requête normale
-fetch('https://admin.cgiibnn-esursi.cd/api/bnn/user/profile/')
+fetch('https://admin-bnn.minesursi.gouv.cd/api/bnn/user/profile/')
 
 // 3. Expirer token manuellement
 localStorage.removeItem('authToken');
 
 // 4. Faire nouvelle requête
-fetch('https://admin.cgiibnn-esursi.cd/api/bnn/user/profile/')
+fetch('https://admin-bnn.minesursi.gouv.cd/api/bnn/user/profile/')
 
 // 5. Check console pour logs
 // Doit voir: "🔄 Attempting to refresh token..."

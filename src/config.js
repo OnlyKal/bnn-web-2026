@@ -10,7 +10,7 @@
 
 // API Server Base URL (without /api/bnn path)
 // Uses environment variable if available, otherwise defaults to localhost
-export const API_SERVER_URL = import.meta.env.VITE_API_SERVER_URL || 'https://admin.cgiibnn-esursi.cd';
+export const API_SERVER_URL = import.meta.env.VITE_API_SERVER_URL || 'https://admin-bnn.minesursi.gouv.cd';
 // export const API_SERVER_URL = import.meta.env.VITE_API_SERVER_URL || 'http://localhost:8000';
 
 // API Base URL (with /api/bnn path)

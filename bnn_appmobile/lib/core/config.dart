@@ -7,7 +7,7 @@ class AppConfig {
 
   static const String apiServerUrl = String.fromEnvironment(
     'API_SERVER_URL',
-    defaultValue: 'https://admin.cgiibnn-esursi.cd',
+    defaultValue: 'https://admin-bnn.minesursi.gouv.cd',
   );
 
   static const String apiBaseUrl = '$apiServerUrl/api/bnn';
