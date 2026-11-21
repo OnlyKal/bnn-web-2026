@@ -12,9 +12,10 @@ import '../favorites/favorites_screen.dart';
 import '../history/history_screen.dart';
 import '../home/home_screen.dart';
 import '../profile/profile_screen.dart';
+import '../rdc/rdc_home_screen.dart';
 import '../salons/salons_screen.dart';
 
-/// Navigation principale de l'application (barre inférieure à 5 onglets).
+/// Navigation principale de l'application (barre inférieure à 6 onglets).
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
 
@@ -28,6 +29,7 @@ class _MainShellState extends State<MainShell> {
 
   static const _titles = {
     AppTab.home: 'Accueil',
+    AppTab.rdc: 'Encyclopédie RDC',
     AppTab.favorites: 'Favoris',
     AppTab.salons: 'Salons',
     AppTab.history: 'Historique',
@@ -36,6 +38,7 @@ class _MainShellState extends State<MainShell> {
 
   static const _targets = {
     AppTab.home: HistoryTarget.home,
+    AppTab.rdc: HistoryTarget.rdc,
     AppTab.favorites: HistoryTarget.favorites,
     AppTab.salons: HistoryTarget.salons,
     AppTab.history: HistoryTarget.history,
@@ -78,6 +81,7 @@ class _MainShellState extends State<MainShell> {
 
   Widget _buildTab(AppTab tab) => switch (tab) {
         AppTab.home => const HomeScreen(),
+        AppTab.rdc => const RdcHomeScreen(),
         AppTab.favorites => const FavoritesScreen(),
         AppTab.salons => const SalonsScreen(),
         AppTab.history => const HistoryScreen(),
@@ -143,6 +147,12 @@ class _BottomBar extends StatelessWidget {
             icon: Icon(CupertinoIcons.book),
             selectedIcon: Icon(CupertinoIcons.book_fill),
             label: 'Accueil',
+          ),
+          const NavigationDestination(
+            icon: Icon(Icons.public_outlined),
+            selectedIcon: Icon(Icons.public),
+            label: 'Mon Pays',
+            tooltip: 'Encyclopédie de la RDC',
           ),
           NavigationDestination(
             icon: badged(CupertinoIcons.heart, count: favoritesCount),

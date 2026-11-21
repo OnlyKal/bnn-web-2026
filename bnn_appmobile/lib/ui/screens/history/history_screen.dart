@@ -15,6 +15,7 @@ import '../../widgets/feedback.dart';
 import '../../widgets/states.dart';
 import '../resource/openalex_details_screen.dart';
 import '../resource/resource_navigation.dart';
+import '../stats/consultations_screen.dart';
 import '../stats/statistics_screen.dart';
 
 const _filters = [
@@ -72,7 +73,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     if (target == null) return false;
     if (target == HistoryTarget.resource) return asJson(item.metadata['resource']) != null;
     if (target == HistoryTarget.openAlex) return (item.metadata['workId']?.toString() ?? '').isNotEmpty;
-    if (target == HistoryTarget.statistics) {
+    if (target == HistoryTarget.statistics || target == HistoryTarget.consultations) {
       return context.read<SessionController>().user?.isAdmin ?? false;
     }
     return true;
@@ -88,6 +89,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
         shell.goTo(AppTab.home);
       case HistoryTarget.favorites:
         shell.goTo(AppTab.favorites);
+      case HistoryTarget.rdc:
+        shell.goTo(AppTab.rdc);
       case HistoryTarget.salons:
         shell.goTo(AppTab.salons);
       case HistoryTarget.profile:
@@ -102,6 +105,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
         }
       case HistoryTarget.statistics:
         Navigator.of(context).push(MaterialPageRoute(builder: (_) => const StatisticsScreen()));
+      case HistoryTarget.consultations:
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ConsultationsScreen()));
       default:
         break;
     }

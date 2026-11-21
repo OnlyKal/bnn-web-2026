@@ -3,11 +3,11 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
     LuChevronDown,
     LuGlobe,
-    LuGraduationCap,
     LuHeart,
     LuHistory,
     LuHouse,
     LuLogOut,
+    LuMapPinned,
     LuMenu,
     LuMessageCircle,
     LuSettings,
@@ -61,10 +61,12 @@ const AppNavigation = ({ favoriteCountOverride = null }) => {
             '/profile': 'Profil',
             '/favoris': 'Favoris',
             '/salons': 'Salons',
-            '/historique': 'Historique'
+            '/historique': 'Historique',
+            '/rdc': 'Encyclopédie RDC'
         };
 
-        const pageTitle = pageTitles[location.pathname] || 'Page consultée';
+        const pageTitle = pageTitles[location.pathname]
+            || (location.pathname.startsWith('/rdc/') ? 'Encyclopédie RDC' : 'Page consultée');
         addLocalHistoryItem({
             type: 'page',
             title: pageTitle,
@@ -148,6 +150,13 @@ const AppNavigation = ({ favoriteCountOverride = null }) => {
             onClick: () => navigate('/home')
         },
         {
+            label: 'Mon Pays',
+            title: 'Encyclopédie de la RDC',
+            icon: LuMapPinned,
+            isActive: location.pathname === '/rdc' || location.pathname.startsWith('/rdc/'),
+            onClick: () => navigate('/rdc')
+        },
+        {
             label: 'Favoris',
             icon: LuHeart,
             isActive: location.pathname === '/favoris',
@@ -159,12 +168,6 @@ const AppNavigation = ({ favoriteCountOverride = null }) => {
             icon: LuMessageCircle,
             isActive: location.pathname === '/salons',
             onClick: () => navigate('/salons')
-        },
-        {
-            label: 'Classroom',
-            icon: LuGraduationCap,
-            isActive: false,
-            onClick: () => window.open('https://classroom.cgiibnn-esursi.cd/', '_blank', 'noopener,noreferrer')
         },
         {
             label: 'Portail',
@@ -222,6 +225,7 @@ const AppNavigation = ({ favoriteCountOverride = null }) => {
                                     className={`homepage-nav-item ${item.isActive ? 'active' : ''}`}
                                     onClick={() => handleNavClick(item)}
                                     aria-current={item.isActive ? 'page' : undefined}
+                                    title={item.title}
                                 >
                                     <span className="homepage-nav-active-indicator" aria-hidden="true" />
                                     <Icon className="homepage-nav-icon" size={17} strokeWidth={1.8} />

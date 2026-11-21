@@ -1,0 +1,1264 @@
+{
+ "version": 1,
+ "categories": [
+  {
+   "nom": "Histoire politique et institutionnelle",
+   "slug": "histoire-politique-et-institutionnelle",
+   "icone": "histoire",
+   "couleur": "#1e42ac",
+   "carte": false,
+   "chronologie": true,
+   "description": "Périodes historiques, régimes politiques, chefs d'État, institutions, grandes réformes et événements qui ont façonné la RDC.",
+   "enfants": [
+    {
+     "nom": "Périodes et régimes politiques",
+     "slug": "periodes-et-regimes-politiques",
+     "nature": "article",
+     "sources": [
+      {
+       "items": [
+        "Q3137684",
+        "Q796583",
+        "Q1768252",
+        "Q209327",
+        "Q1796223",
+        "Q76048",
+        "Q213510",
+        "Q618399",
+        "Q6500954",
+        "Q920346"
+       ]
+      }
+     ]
+    },
+    {
+     "nom": "Événements politiques majeurs",
+     "slug": "evenements-politiques-majeurs",
+     "nature": "evenement",
+     "sources": [
+      {
+       "evenements": true
+      },
+      {
+       "items": [
+        "Q13582",
+        "Q3513409",
+        "Q1773926",
+        "Q1148907",
+        "Q2992945",
+        "Q838695",
+        "Q75756",
+        "Q1781531"
+       ]
+      }
+     ]
+    },
+    {
+     "nom": "Présidents et chefs d'État",
+     "slug": "presidents-et-chefs-detat",
+     "nature": "personnalite",
+     "sources": [
+      {
+       "poste": "Q3409199"
+      }
+     ]
+    },
+    {
+     "nom": "Institutions et évolution constitutionnelle",
+     "slug": "institutions-et-evolution-constitutionnelle",
+     "nature": "institution",
+     "sources": [
+      {
+       "items": [
+        "Q2995164",
+        "Q282928",
+        "Q1574334",
+        "Q3510889",
+        "Q3000938",
+        "Q3112604"
+       ]
+      }
+     ]
+    },
+    {
+     "nom": "Gouvernements et grandes réformes",
+     "slug": "gouvernements-et-grandes-reformes",
+     "nature": "institution",
+     "sources": [
+      {
+       "poste": "Q3401753"
+      },
+      {
+       "items": [
+        "Q3574986"
+       ]
+      }
+     ]
+    },
+    {
+     "nom": "Indépendance, transitions, conflits et accords",
+     "slug": "independance-transitions-conflits-et-accords",
+     "nature": "evenement",
+     "sources": [
+      {
+       "items": [
+        "Q3513409",
+        "Q1773926",
+        "Q1148907",
+        "Q919629",
+        "Q16951713",
+        "Q2822826",
+        "Q838695",
+        "Q75756"
+       ]
+      }
+     ]
+    },
+    {
+     "nom": "Personnalités historiques et figures politiques",
+     "slug": "personnalites-historiques-et-figures-politiques",
+     "nature": "personnalite",
+     "sources": [
+      {
+       "items": [
+        "Q161672",
+        "Q334830",
+        "Q742357",
+        "Q467347",
+        "Q168629",
+        "Q971340",
+        "Q316942",
+        "Q206048",
+        "Q1457609"
+       ]
+      }
+     ]
+    }
+   ],
+   "couverture": "Q161672"
+  },
+  {
+   "nom": "Géographie et organisation administrative",
+   "slug": "geographie-et-organisation-administrative",
+   "icone": "geographie",
+   "couleur": "#0f766e",
+   "carte": true,
+   "chronologie": false,
+   "description": "Les 26 provinces, villes et territoires, relief, climat, hydrographie, population, langues et activités économiques.",
+   "enfants": [
+    {
+     "nom": "Villes et territoires",
+     "slug": "villes-et-territoires",
+     "nature": "lieu",
+     "sources": [
+      {
+       "classes": [
+        "Q117214267"
+       ],
+       "article": false
+      },
+      {
+       "items": [
+        "Q3838"
+       ]
+      }
+     ]
+    },
+    {
+     "nom": "Relief, climat et végétation",
+     "slug": "relief-climat-et-vegetation",
+     "nature": "site_naturel",
+     "sources": [
+      {
+       "classes": [
+        "Q8072",
+        "Q8502"
+       ],
+       "article": true
+      },
+      {
+       "items": [
+        "Q1796978",
+        "Q4711888",
+        "Q182061",
+        "Q3079079"
+       ]
+      }
+     ]
+    },
+    {
+     "nom": "Hydrographie",
+     "slug": "hydrographie",
+     "nature": "site_naturel",
+     "sources": [
+      {
+       "classes": [
+        "Q4022",
+        "Q23397",
+        "Q34038"
+       ],
+       "article": true
+      },
+      {
+       "items": [
+        "Q3503",
+        "Q932289"
+       ]
+      }
+     ]
+    },
+    {
+     "nom": "Population et démographie",
+     "slug": "population-et-demographie",
+     "nature": "article",
+     "sources": [
+      {
+       "items": [
+        "Q3044304",
+        "Q2741073"
+       ]
+      }
+     ]
+    },
+    {
+     "nom": "Langues et cultures régionales",
+     "slug": "langues-et-cultures-regionales",
+     "nature": "patrimoine",
+     "sources": [
+      {
+       "items": [
+        "Q2741073",
+        "Q36217",
+        "Q33702",
+        "Q7838",
+        "Q34173",
+        "Q358860",
+        "Q805841",
+        "Q640090",
+        "Q927706"
+       ]
+      }
+     ]
+    },
+    {
+     "nom": "Activités économiques",
+     "slug": "activites-economiques",
+     "nature": "article",
+     "sources": [
+      {
+       "items": [
+        "Q2333351",
+        "Q4414780",
+        "Q391647"
+       ]
+      }
+     ]
+    }
+   ],
+   "couverture": "Q3503"
+  },
+  {
+   "nom": "Infrastructures et transport",
+   "slug": "infrastructures-et-transport",
+   "icone": "transport",
+   "couleur": "#b45309",
+   "carte": true,
+   "chronologie": false,
+   "description": "Routes, chemins de fer, ports, aéroports, ponts, grands ouvrages et corridors de transport.",
+   "enfants": [
+    {
+     "nom": "Routes nationales et provinciales",
+     "slug": "routes-nationales-et-provinciales",
+     "nature": "infrastructure",
+     "sources": [
+      {
+       "classes": [
+        "Q34442"
+       ],
+       "article": false
+      }
+     ]
+    },
+    {
+     "nom": "Chemins de fer",
+     "slug": "chemins-de-fer",
+     "nature": "infrastructure",
+     "sources": [
+      {
+       "classes": [
+        "Q728937",
+        "Q55488"
+       ],
+       "article": false
+      },
+      {
+       "items": [
+        "Q1481581",
+        "Q1908043"
+       ]
+      }
+     ]
+    },
+    {
+     "nom": "Ports fluviaux et maritimes",
+     "slug": "ports-fluviaux-et-maritimes",
+     "nature": "infrastructure",
+     "sources": [
+      {
+       "classes": [
+        "Q44782"
+       ],
+       "article": false
+      },
+      {
+       "items": [
+        "Q3398512",
+        "Q65135019"
+       ]
+      }
+     ]
+    },
+    {
+     "nom": "Aéroports et aérodromes",
+     "slug": "aeroports-et-aerodromes",
+     "nature": "infrastructure",
+     "sources": [
+      {
+       "classes": [
+        "Q1248784"
+       ],
+       "article": true
+      }
+     ]
+    },
+    {
+     "nom": "Ponts et grands ouvrages",
+     "slug": "ponts-et-grands-ouvrages",
+     "nature": "infrastructure",
+     "sources": [
+      {
+       "classes": [
+        "Q12280"
+       ],
+       "article": false
+      },
+      {
+       "items": [
+        "Q2849739",
+        "Q19524"
+       ]
+      }
+     ]
+    },
+    {
+     "nom": "Corridors de transport",
+     "slug": "corridors-de-transport",
+     "nature": "infrastructure",
+     "sources": [
+      {
+       "items": [
+        "Q1908043",
+        "Q3398512",
+        "Q65135019",
+        "Q3503"
+       ]
+      }
+     ]
+    }
+   ],
+   "couverture": "Q2849739"
+  },
+  {
+   "nom": "Énergie et ressources hydrauliques",
+   "slug": "energie-et-ressources-hydrauliques",
+   "icone": "energie",
+   "couleur": "#0369a1",
+   "carte": true,
+   "chronologie": false,
+   "description": "Barrages hydroélectriques, centrales, cours d’eau, potentiel et projets énergétiques.",
+   "enfants": [
+    {
+     "nom": "Barrages hydroélectriques en service",
+     "slug": "barrages-hydroelectriques-en-service",
+     "nature": "infrastructure",
+     "sources": [
+      {
+       "classes": [
+        "Q12323",
+        "Q15911738"
+       ],
+       "article": false
+      }
+     ]
+    },
+    {
+     "nom": "Barrages en construction et projets",
+     "slug": "barrages-en-construction-et-projets",
+     "nature": "infrastructure",
+     "sources": [
+      {
+       "items": [
+        "Q2884957",
+        "Q19524"
+       ]
+      }
+     ]
+    },
+    {
+     "nom": "Centrales électriques",
+     "slug": "centrales-electriques",
+     "nature": "infrastructure",
+     "sources": [
+      {
+       "classes": [
+        "Q15911738",
+        "Q159719"
+       ],
+       "article": false
+      }
+     ]
+    },
+    {
+     "nom": "Principaux cours d'eau",
+     "slug": "principaux-cours-deau",
+     "nature": "site_naturel",
+     "sources": [
+      {
+       "items": [
+        "Q3503",
+        "Q186541",
+        "Q171649",
+        "Q389614",
+        "Q22150997",
+        "Q5511",
+        "Q125912"
+       ]
+      }
+     ]
+    },
+    {
+     "nom": "Potentiel et projets énergétiques stratégiques",
+     "slug": "potentiel-et-projets-energetiques-strategiques",
+     "nature": "article",
+     "sources": [
+      {
+       "items": [
+        "Q57825640",
+        "Q2884957",
+        "Q19524",
+        "Q125912"
+       ]
+      }
+     ]
+    }
+   ],
+   "couverture": "Q19524"
+  },
+  {
+   "nom": "Parcs nationaux et biodiversité",
+   "slug": "parcs-nationaux-et-biodiversite",
+   "icone": "nature",
+   "couleur": "#15803d",
+   "carte": true,
+   "chronologie": false,
+   "description": "Parcs nationaux, réserves et aires protégées, faune, flore, espèces endémiques et écosystèmes.",
+   "enfants": [
+    {
+     "nom": "Parcs nationaux",
+     "slug": "parcs-nationaux",
+     "nature": "site_naturel",
+     "sources": [
+      {
+       "classes": [
+        "Q46169"
+       ],
+       "article": false
+      }
+     ]
+    },
+    {
+     "nom": "Réserves naturelles et aires protégées",
+     "slug": "reserves-naturelles-et-aires-protegees",
+     "nature": "site_naturel",
+     "sources": [
+      {
+       "classes": [
+        "Q179049",
+        "Q473972"
+       ],
+       "article": false
+      },
+      {
+       "items": [
+        "Q457304"
+       ]
+      }
+     ]
+    },
+    {
+     "nom": "Faune",
+     "slug": "faune",
+     "nature": "espece",
+     "sources": [
+      {
+       "items": [
+        "Q82037",
+        "Q19537",
+        "Q737878",
+        "Q3072",
+        "Q338996",
+        "Q189514"
+       ]
+      }
+     ]
+    },
+    {
+     "nom": "Flore",
+     "slug": "flore",
+     "nature": "espece",
+     "sources": [
+      {
+       "items": [
+        "Q3079079",
+        "Q158579"
+       ]
+      }
+     ]
+    },
+    {
+     "nom": "Espèces endémiques",
+     "slug": "especes-endemiques",
+     "nature": "espece",
+     "sources": [
+      {
+       "items": [
+        "Q82037",
+        "Q19537",
+        "Q338996",
+        "Q3072"
+       ]
+      }
+     ]
+    },
+    {
+     "nom": "Écosystèmes et sites naturels remarquables",
+     "slug": "ecosystemes-et-sites-naturels-remarquables",
+     "nature": "site_naturel",
+     "sources": [
+      {
+       "classes": [
+        "Q34038",
+        "Q8072"
+       ],
+       "article": true
+      },
+      {
+       "items": [
+        "Q38417",
+        "Q214696",
+        "Q932289"
+       ]
+      }
+     ]
+    }
+   ],
+   "couverture": "Q223589"
+  },
+  {
+   "nom": "Ressources naturelles et matières premières",
+   "slug": "ressources-naturelles-et-matieres-premieres",
+   "icone": "ressources",
+   "couleur": "#a16207",
+   "carte": true,
+   "chronologie": false,
+   "description": "Minerais, pétrole et gaz, forêts, ressources agricoles et hydrauliques, zones et projets d’exploitation.",
+   "enfants": [
+    {
+     "nom": "Minerais (cuivre, cobalt, lithium, or, diamant, coltan…)",
+     "slug": "minerais-cuivre-cobalt-lithium-or-diamant-coltan",
+     "nature": "ressource",
+     "sources": [
+      {
+       "items": [
+        "Q518713",
+        "Q740",
+        "Q753",
+        "Q568",
+        "Q897",
+        "Q5283"
+       ]
+      }
+     ]
+    },
+    {
+     "nom": "Pétrole et gaz naturel",
+     "slug": "petrole-et-gaz-naturel",
+     "nature": "ressource",
+     "sources": [
+      {
+       "items": [
+        "Q1024669",
+        "Q125912"
+       ]
+      }
+     ]
+    },
+    {
+     "nom": "Bois et ressources forestières",
+     "slug": "bois-et-ressources-forestieres",
+     "nature": "ressource",
+     "sources": [
+      {
+       "items": [
+        "Q3079079",
+        "Q158579"
+       ]
+      }
+     ]
+    },
+    {
+     "nom": "Ressources agricoles",
+     "slug": "ressources-agricoles",
+     "nature": "ressource",
+     "sources": [
+      {
+       "items": [
+        "Q4414780"
+       ]
+      }
+     ]
+    },
+    {
+     "nom": "Zones minières et bassins de production",
+     "slug": "zones-minieres-et-bassins-de-production",
+     "nature": "ressource",
+     "sources": [
+      {
+       "classes": [
+        "Q820477"
+       ],
+       "article": false
+      }
+     ]
+    },
+    {
+     "nom": "Entreprises et projets d'exploitation",
+     "slug": "entreprises-et-projets-dexploitation",
+     "nature": "ressource",
+     "sources": [
+      {
+       "items": [
+        "Q391647",
+        "Q763185"
+       ]
+      }
+     ]
+    }
+   ],
+   "couverture": "Q1159531"
+  },
+  {
+   "nom": "Patrimoine culturel et touristique",
+   "slug": "patrimoine-culturel-et-touristique",
+   "icone": "patrimoine",
+   "couleur": "#be123c",
+   "carte": true,
+   "chronologie": false,
+   "description": "Sites historiques, monuments, architecture, traditions, musiques, danses, arts et tourisme.",
+   "enfants": [
+    {
+     "nom": "Sites historiques",
+     "slug": "sites-historiques",
+     "nature": "patrimoine",
+     "sources": [
+      {
+       "propriete": [
+        "P1435",
+        "Q9259"
+       ]
+      },
+      {
+       "items": [
+        "Q796583",
+        "Q1781531"
+       ]
+      }
+     ]
+    },
+    {
+     "nom": "Monuments et lieux emblématiques",
+     "slug": "monuments-et-lieux-emblematiques",
+     "nature": "patrimoine",
+     "sources": [
+      {
+       "classes": [
+        "Q33506",
+        "Q4989906"
+       ],
+       "article": false
+      },
+      {
+       "items": [
+        "Q24030906",
+        "Q2849739"
+       ]
+      }
+     ]
+    },
+    {
+     "nom": "Patrimoine architectural",
+     "slug": "patrimoine-architectural",
+     "nature": "patrimoine",
+     "sources": [
+      {
+       "classes": [
+        "Q2977",
+        "Q16970"
+       ],
+       "article": false
+      },
+      {
+       "items": [
+        "Q24030906",
+        "Q337502"
+       ]
+      }
+     ]
+    },
+    {
+     "nom": "Traditions et cultures",
+     "slug": "traditions-et-cultures",
+     "nature": "patrimoine",
+     "sources": [
+      {
+       "items": [
+        "Q358860",
+        "Q805841",
+        "Q640090",
+        "Q927706",
+        "Q209327"
+       ]
+      }
+     ]
+    },
+    {
+     "nom": "Sites touristiques",
+     "slug": "sites-touristiques",
+     "nature": "patrimoine",
+     "sources": [
+      {
+       "propriete": [
+        "P1435",
+        "Q9259"
+       ]
+      },
+      {
+       "items": [
+        "Q38417",
+        "Q214696",
+        "Q125912"
+       ]
+      }
+     ]
+    },
+    {
+     "nom": "Musiques, danses et arts",
+     "slug": "musiques-danses-et-arts",
+     "nature": "patrimoine",
+     "sources": [
+      {
+       "items": [
+        "Q3453150",
+        "Q1752683",
+        "Q3337494",
+        "Q18414853",
+        "Q1378892",
+        "Q736274",
+        "Q735736"
+       ]
+      }
+     ]
+    },
+    {
+     "nom": "Patrimoine immatériel",
+     "slug": "patrimoine-immateriel",
+     "nature": "patrimoine",
+     "sources": [
+      {
+       "items": [
+        "Q3453150",
+        "Q18414853"
+       ]
+      }
+     ]
+    }
+   ],
+   "couverture": "Q3453150"
+  }
+ ],
+ "pays": [
+  "Q974",
+  "Q213510",
+  "Q6500954",
+  "Q76048",
+  "Q618399"
+ ],
+ "provinces": [
+  {
+   "qid": "Q652056",
+   "code": "BC",
+   "nom": "Bas-Uélé",
+   "slug": "bas-uele",
+   "chef_lieu": "Buta",
+   "latitude": 2.79,
+   "longitude": 24.73,
+   "zoom": 6
+  },
+  {
+   "qid": "Q988104",
+   "code": "EQ",
+   "nom": "Équateur",
+   "slug": "equateur",
+   "chef_lieu": "Mbandaka",
+   "latitude": 0.048,
+   "longitude": 18.26,
+   "zoom": 6
+  },
+  {
+   "qid": "Q130268",
+   "code": "HK",
+   "nom": "Haut-Katanga",
+   "slug": "haut-katanga",
+   "chef_lieu": "Lubumbashi",
+   "latitude": -11.66,
+   "longitude": 27.48,
+   "zoom": 6
+  },
+  {
+   "qid": "Q605672",
+   "code": "HL",
+   "nom": "Haut-Lomami",
+   "slug": "haut-lomami",
+   "chef_lieu": "Kamina",
+   "latitude": -8.738,
+   "longitude": 24.99,
+   "zoom": 6
+  },
+  {
+   "qid": "Q751632",
+   "code": "HU",
+   "nom": "Haut-Uélé",
+   "slug": "haut-uele",
+   "chef_lieu": "Isiro",
+   "latitude": 2.774,
+   "longitude": 27.616,
+   "zoom": 6
+  },
+  {
+   "qid": "Q24909562",
+   "code": "IT",
+   "nom": "Ituri",
+   "slug": "ituri",
+   "chef_lieu": "Bunia",
+   "latitude": 1.567,
+   "longitude": 30.25,
+   "zoom": 6
+  },
+  {
+   "qid": "Q6373961",
+   "code": "KS",
+   "nom": "Kasaï",
+   "slug": "kasai",
+   "chef_lieu": "Tshikapa",
+   "latitude": -6.417,
+   "longitude": 20.8,
+   "zoom": 6
+  },
+  {
+   "qid": "Q6702952",
+   "code": "KC",
+   "nom": "Kasaï Central",
+   "slug": "kasai-central",
+   "chef_lieu": "Kananga",
+   "latitude": -5.896,
+   "longitude": 22.417,
+   "zoom": 6
+  },
+  {
+   "qid": "Q917992",
+   "code": "KO",
+   "nom": "Kasaï Oriental",
+   "slug": "kasai-oriental",
+   "chef_lieu": "Mbuji-Mayi",
+   "latitude": -6.136,
+   "longitude": 23.59,
+   "zoom": 6
+  },
+  {
+   "qid": "Q3838",
+   "code": "KB",
+   "nom": "Kinshasa",
+   "slug": "kinshasa",
+   "chef_lieu": "Kinshasa",
+   "latitude": -4.325,
+   "longitude": 15.322,
+   "zoom": 9
+  },
+  {
+   "qid": "Q1043494",
+   "code": "KN",
+   "nom": "Kongo Central",
+   "slug": "kongo-central",
+   "chef_lieu": "Matadi",
+   "latitude": -5.816,
+   "longitude": 13.45,
+   "zoom": 6
+  },
+  {
+   "qid": "Q24205498",
+   "code": "KW",
+   "nom": "Kwango",
+   "slug": "kwango",
+   "chef_lieu": "Kenge",
+   "latitude": -4.867,
+   "longitude": 17.033,
+   "zoom": 6
+  },
+  {
+   "qid": "Q559537",
+   "code": "KL",
+   "nom": "Kwilu",
+   "slug": "kwilu",
+   "chef_lieu": "Bandundu",
+   "latitude": -3.317,
+   "longitude": 17.367,
+   "zoom": 6
+  },
+  {
+   "qid": "Q241886",
+   "code": "LO",
+   "nom": "Lomami",
+   "slug": "lomami",
+   "chef_lieu": "Kabinda",
+   "latitude": -6.133,
+   "longitude": 24.483,
+   "zoom": 6
+  },
+  {
+   "qid": "Q1159531",
+   "code": "LU",
+   "nom": "Lualaba",
+   "slug": "lualaba",
+   "chef_lieu": "Kolwezi",
+   "latitude": -10.716,
+   "longitude": 25.472,
+   "zoom": 6
+  },
+  {
+   "qid": "Q1163429",
+   "code": "MA",
+   "nom": "Mai-Ndombe",
+   "slug": "mai-ndombe",
+   "chef_lieu": "Inongo",
+   "latitude": -1.95,
+   "longitude": 18.27,
+   "zoom": 6
+  },
+  {
+   "qid": "Q130566",
+   "code": "MN",
+   "nom": "Maniema",
+   "slug": "maniema",
+   "chef_lieu": "Kindu",
+   "latitude": -2.95,
+   "longitude": 25.92,
+   "zoom": 6
+  },
+  {
+   "qid": "Q847527",
+   "code": "MO",
+   "nom": "Mongala",
+   "slug": "mongala",
+   "chef_lieu": "Lisala",
+   "latitude": 2.15,
+   "longitude": 21.517,
+   "zoom": 6
+  },
+  {
+   "qid": "Q130625",
+   "code": "NK",
+   "nom": "Nord-Kivu",
+   "slug": "nord-kivu",
+   "chef_lieu": "Goma",
+   "latitude": -1.679,
+   "longitude": 29.226,
+   "zoom": 6
+  },
+  {
+   "qid": "Q843312",
+   "code": "NU",
+   "nom": "Nord-Ubangi",
+   "slug": "nord-ubangi",
+   "chef_lieu": "Gbadolite",
+   "latitude": 4.28,
+   "longitude": 21.0,
+   "zoom": 6
+  },
+  {
+   "qid": "Q209829",
+   "code": "SA",
+   "nom": "Sankuru",
+   "slug": "sankuru",
+   "chef_lieu": "Lusambo",
+   "latitude": -4.97,
+   "longitude": 23.44,
+   "zoom": 6
+  },
+  {
+   "qid": "Q488326",
+   "code": "SU",
+   "nom": "Sud-Kivu",
+   "slug": "sud-kivu",
+   "chef_lieu": "Bukavu",
+   "latitude": -2.508,
+   "longitude": 28.86,
+   "zoom": 6
+  },
+  {
+   "qid": "Q834551",
+   "code": "SB",
+   "nom": "Sud-Ubangi",
+   "slug": "sud-ubangi",
+   "chef_lieu": "Gemena",
+   "latitude": 3.25,
+   "longitude": 19.77,
+   "zoom": 6
+  },
+  {
+   "qid": "Q826585",
+   "code": "TA",
+   "nom": "Tanganyika",
+   "slug": "tanganyika",
+   "chef_lieu": "Kalemie",
+   "latitude": -5.947,
+   "longitude": 29.194,
+   "zoom": 6
+  },
+  {
+   "qid": "Q630900",
+   "code": "TO",
+   "nom": "Tshopo",
+   "slug": "tshopo",
+   "chef_lieu": "Kisangani",
+   "latitude": 0.516,
+   "longitude": 25.19,
+   "zoom": 6
+  },
+  {
+   "qid": "Q427246",
+   "code": "TS",
+   "nom": "Tshuapa",
+   "slug": "tshuapa",
+   "chef_lieu": "Boende",
+   "latitude": -0.28,
+   "longitude": 20.876,
+   "zoom": 6
+  }
+ ],
+ "periodes": [
+  {
+   "nom": "Royaumes et sociétés précoloniales",
+   "slug": "royaumes-et-societes-precoloniales",
+   "annee_debut": null,
+   "annee_fin": 1885,
+   "couleur": "#7c2d12"
+  },
+  {
+   "nom": "État indépendant du Congo",
+   "slug": "etat-independant-du-congo",
+   "annee_debut": 1885,
+   "annee_fin": 1908,
+   "couleur": "#9a3412"
+  },
+  {
+   "nom": "Congo belge",
+   "slug": "congo-belge",
+   "annee_debut": 1908,
+   "annee_fin": 1960,
+   "couleur": "#a16207"
+  },
+  {
+   "nom": "Première République",
+   "slug": "premiere-republique",
+   "annee_debut": 1960,
+   "annee_fin": 1965,
+   "couleur": "#15803d"
+  },
+  {
+   "nom": "Deuxième République (Zaïre)",
+   "slug": "deuxieme-republique-zaire",
+   "annee_debut": 1965,
+   "annee_fin": 1997,
+   "couleur": "#0f766e"
+  },
+  {
+   "nom": "Transitions politiques",
+   "slug": "transitions-politiques",
+   "annee_debut": 1997,
+   "annee_fin": 2006,
+   "couleur": "#0369a1"
+  },
+  {
+   "nom": "Troisième République",
+   "slug": "troisieme-republique",
+   "annee_debut": 2006,
+   "annee_fin": null,
+   "couleur": "#1e42ac"
+  }
+ ],
+ "localites": {
+  "Q7703797": "territoire",
+  "Q117214267": "ville"
+ },
+ "vedette": [
+  "Q3503",
+  "Q223589",
+  "Q19524",
+  "Q161672",
+  "Q82037",
+  "Q3453150",
+  "Q3838",
+  "Q38417"
+ ],
+ "exclure_evenements": "championnat|football|jeux olympiques|jeux paralympiques|coupe d|^\\d{4} (en|au) |zoologique|institut|supercoupe|ligue des champions",
+ "faits": [
+  [
+   "P36",
+   "Chef-lieu / capitale"
+  ],
+  [
+   "P131",
+   "Situé dans"
+  ],
+  [
+   "P2046",
+   "Superficie"
+  ],
+  [
+   "P1082",
+   "Population"
+  ],
+  [
+   "P2044",
+   "Altitude"
+  ],
+  [
+   "P2048",
+   "Hauteur"
+  ],
+  [
+   "P2043",
+   "Longueur"
+  ],
+  [
+   "P2053",
+   "Bassin versant"
+  ],
+  [
+   "P885",
+   "Source (cours d’eau)"
+  ],
+  [
+   "P403",
+   "Embouchure"
+  ],
+  [
+   "P4552",
+   "Massif"
+  ],
+  [
+   "P706",
+   "Situé sur"
+  ],
+  [
+   "P571",
+   "Création / fondation"
+  ],
+  [
+   "P1619",
+   "Mise en service"
+  ],
+  [
+   "P580",
+   "Début"
+  ],
+  [
+   "P582",
+   "Fin"
+  ],
+  [
+   "P585",
+   "Date"
+  ],
+  [
+   "P569",
+   "Naissance"
+  ],
+  [
+   "P19",
+   "Lieu de naissance"
+  ],
+  [
+   "P570",
+   "Décès"
+  ],
+  [
+   "P20",
+   "Lieu de décès"
+  ],
+  [
+   "P106",
+   "Profession"
+  ],
+  [
+   "P102",
+   "Parti politique"
+  ],
+  [
+   "P2109",
+   "Puissance installée"
+  ],
+  [
+   "P137",
+   "Exploitant"
+  ],
+  [
+   "P127",
+   "Propriétaire"
+  ],
+  [
+   "P1435",
+   "Statut patrimonial"
+  ],
+  [
+   "P2250",
+   "Espérance de vie"
+  ],
+  [
+   "P1098",
+   "Locuteurs"
+  ],
+  [
+   "P141",
+   "Statut UICN"
+  ],
+  [
+   "P238",
+   "Code IATA"
+  ],
+  [
+   "P239",
+   "Code OACI"
+  ]
+ ]
+}

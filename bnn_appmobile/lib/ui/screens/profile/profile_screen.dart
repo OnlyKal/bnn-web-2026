@@ -20,6 +20,7 @@ import '../../../state/shell_controller.dart';
 import '../../widgets/common.dart';
 import '../../widgets/external_links.dart';
 import '../../widgets/feedback.dart';
+import '../stats/consultations_screen.dart';
 import '../stats/statistics_screen.dart';
 import 'change_password_sheet.dart';
 import 'edit_profile_screen.dart';
@@ -169,6 +170,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               target: HistoryTarget.statistics);
           Navigator.of(context).push(MaterialPageRoute(builder: (_) => const StatisticsScreen()));
         }, color: AppColors.warning),
+      if (user.isAdmin)
+        _QuickAction(CupertinoIcons.eye_fill, 'Statistiques de consultation', 'Suivre les consultations BNN, HAL et OpenAlex', () {
+          _logAction('Action rapide : Statistiques de consultation', 'Ouverture des statistiques de consultation',
+              target: HistoryTarget.consultations);
+          Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ConsultationsScreen()));
+        }, color: AppColors.violet),
     ];
     final account = <_QuickAction>[
       _QuickAction(CupertinoIcons.person_crop_circle, 'Modifier le profil', 'Mettre à jour vos informations', openEdit),

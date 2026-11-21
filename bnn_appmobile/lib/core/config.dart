@@ -14,6 +14,18 @@ class AppConfig {
   static const String halApiUrl = '$apiServerUrl/api/hal';
   static const String openAlexApiUrl = '$apiServerUrl/api/v1/openalex';
 
+  /// Statistiques des consultations (BNN interne, HAL, OpenAlex) — routes publiques.
+  static const String consultationsApiUrl = '$apiServerUrl/api/consultations';
+
+  /// Encyclopédie de la RDC (API publique en lecture, sans jeton).
+  static const String rdcApiUrl = '$apiBaseUrl/rdc';
+
+  /// Fond de carte OpenStreetMap des cartes interactives.
+  static const String mapTileUrl = String.fromEnvironment(
+    'MAP_TILE_URL',
+    defaultValue: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  );
+
   static const String classroomUrl = 'https://classroom.cgiibnn-esursi.cd/';
   static const String portailUrl = 'https://portail.cgiibnn-esursi.cd/';
 

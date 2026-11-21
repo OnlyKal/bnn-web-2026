@@ -32,7 +32,9 @@ class HistoryTarget {
   static const salons = 'tab:salons';
   static const history = 'tab:history';
   static const profile = 'tab:profile';
+  static const rdc = 'tab:rdc';
   static const statistics = 'statistics';
+  static const consultations = 'consultations';
   static const homeSearch = 'search:home'; // metadata.query
   static const openAlex = 'openalex'; // metadata.workId
 }

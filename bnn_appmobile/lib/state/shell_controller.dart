@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-enum AppTab { home, favorites, salons, history, profile }
+enum AppTab { home, rdc, favorites, salons, history, profile }
 
 /// Onglet actif de la navigation principale (permet de changer d'onglet
 /// depuis n'importe quel écran : annonce des salons, historique…).

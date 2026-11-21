@@ -1,6 +1,8 @@
 import 'core/network/api_client.dart';
 import 'core/storage/session_storage.dart';
 import 'data/services/auth_service.dart';
+import 'data/services/consultations_service.dart';
+import 'data/services/encyclopedie_service.dart';
 import 'data/services/favoris_service.dart';
 import 'data/services/file_service.dart';
 import 'data/services/hal_service.dart';
@@ -28,6 +30,8 @@ class AppServices {
     required this.files,
     required this.salons,
     required this.stats,
+    required this.encyclopedie,
+    required this.consultations,
   });
 
   factory AppServices.create({
@@ -40,6 +44,8 @@ class AppServices {
     OpenAlexService? openAlex,
     ServiceBuilder<SalonsService>? salons,
     ServiceBuilder<StatsService>? stats,
+    EncyclopedieService? encyclopedie,
+    ConsultationsService? consultations,
   }) {
     final storage = session ?? SessionStorage();
     final client = ApiClient(storage);
@@ -55,6 +61,8 @@ class AppServices {
       files: FileService(storage),
       salons: (salons ?? SalonsService.new)(client),
       stats: (stats ?? StatsService.new)(client),
+      encyclopedie: encyclopedie ?? EncyclopedieService(),
+      consultations: consultations ?? ConsultationsService(),
     );
   }
 
@@ -69,4 +77,6 @@ class AppServices {
   final FileService files;
   final SalonsService salons;
   final StatsService stats;
+  final EncyclopedieService encyclopedie;
+  final ConsultationsService consultations;
 }

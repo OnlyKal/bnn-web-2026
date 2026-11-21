@@ -22,6 +22,7 @@ import {
 import {
     LuArrowRight,
     LuChartBar,
+    LuEye,
     LuBookOpen,
     LuCalendar,
     LuCamera,
@@ -484,6 +485,36 @@ function Profile() {
                     icon: 'action'
                 });
                 navigate('/profile/statistiques');
+            }
+        },
+        canAccessStatsReport && {
+            icon: LuEye,
+            title: 'Statistiques de consultation',
+            description: 'Suivre les consultations BNN, HAL et OpenAlex',
+            onClick: () => {
+                addLocalHistoryItem({
+                    type: 'action',
+                    title: 'Action rapide: Statistiques de consultation',
+                    description: 'Ouverture des statistiques de consultation',
+                    url: '/profile/consultations',
+                    icon: 'action'
+                });
+                navigate('/profile/consultations');
+            }
+        },
+        {
+            icon: LuShieldCheck,
+            title: 'Politique de confidentialité',
+            description: 'Comprendre comment vos données sont protégées',
+            onClick: () => {
+                addLocalHistoryItem({
+                    type: 'action',
+                    title: 'Action rapide: Politique de confidentialité',
+                    description: 'Consultation de la politique de confidentialité',
+                    url: '/privacypolicy',
+                    icon: 'action'
+                });
+                navigate('/privacypolicy');
             }
         },
         {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Connexion from './UTILISATEURS/Connexion.jsx';
 import Inscription from './UTILISATEURS/Inscription.jsx';
@@ -14,13 +14,44 @@ import FavorisPage from './FavorisPage.jsx';
 import SalonsPage from './SalonsPage.jsx';
 import HistoriquePage from './HistoriquePage.jsx';
 import StatistiquesActionsPage from './StatistiquesActionsPage.jsx';
+import StatistiquesConsultationsPage from './StatistiquesConsultationsPage.jsx';
+import PrivacyPolicyPage from './PrivacyPolicyPage.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
+import RouteTitle from './components/RouteTitle.jsx';
 import { isAuthenticated } from './utils/auth.js';
+
+// Encyclopédie RDC : chargée à la demande (cartes Leaflet hors du bundle principal).
+const RdcHomePage = lazy(() => import('./encyclopedie/RdcHomePage.jsx'));
+const RdcExplorerPage = lazy(() => import('./encyclopedie/RdcExplorerPage.jsx'));
+const RdcFichePage = lazy(() => import('./encyclopedie/RdcFichePage.jsx'));
+const RdcProvincesPage = lazy(() => import('./encyclopedie/RdcProvincesPage.jsx'));
+const RdcProvincePage = lazy(() => import('./encyclopedie/RdcProvincePage.jsx'));
+const RdcChronologiePage = lazy(() => import('./encyclopedie/RdcChronologiePage.jsx'));
+const RdcCartePage = lazy(() => import('./encyclopedie/RdcCartePage.jsx'));
+
+const rdcRoutes = [
+  ['/rdc', RdcHomePage],
+  ['/rdc/explorer', RdcExplorerPage],
+  ['/rdc/categorie/:slug', RdcExplorerPage],
+  ['/rdc/fiche/:slug', RdcFichePage],
+  ['/rdc/provinces', RdcProvincesPage],
+  ['/rdc/provinces/:slug', RdcProvincePage],
+  ['/rdc/chronologie', RdcChronologiePage],
+  ['/rdc/carte', RdcCartePage],
+];
+
+const PageLoader = () => (
+  <div className="loading-container">
+    <div className="loading-spinner"></div>
+    <p className="loading-text">Chargement…</p>
+  </div>
+);
 
 function App() {
   return (
     <Router>
       <div className="App">
+        <RouteTitle />
         <Routes>
           {/* Public Routes */}
           <Route 
@@ -34,6 +65,7 @@ function App() {
           <Route path="/provinces" element={<Provinces />} />
           <Route path="/user-types" element={<TypeUtilisateurs />} />
           <Route path="/select-universite" element={<SelectUniversite />} />
+          <Route path="/privacypolicy" element={<PrivacyPolicyPage />} />
           
           {/* Protected Routes */}
           <Route 
@@ -108,7 +140,33 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/profile/consultations"
+            element={
+              <ProtectedRoute allowedRoles={['Administrateur', 'administrateur', 'admin']}>
+                <StatistiquesConsultationsPage />
+              </ProtectedRoute>
+            }
+          />
           
+          {/* Encyclopédie RDC */}
+          {rdcRoutes.map((route) => {
+            const [path, Page] = route;
+            return (
+              <Route
+                key={path}
+                path={path}
+                element={
+                  <ProtectedRoute>
+                    <Suspense fallback={<PageLoader />}>
+                      <Page />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              />
+            );
+          })}
+
           {/* Default route */}
           <Route 
             path="/" 

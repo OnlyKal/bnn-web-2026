@@ -16,6 +16,14 @@ export const API_SERVER_URL = import.meta.env.VITE_API_SERVER_URL || 'https://ad
 // API Base URL (with /api/bnn path)
 export const API_BASE_URL = `${API_SERVER_URL}/api/bnn`;
 
+// Encyclopédie RDC (API publique, voir encyclopedie/ côté serveur)
+export const RDC_API_URL = `${API_BASE_URL}/rdc`;
+
+// Fond de carte des cartes interactives (surchargeable : VITE_MAP_TILE_URL / VITE_MAP_ATTRIBUTION)
+export const MAP_TILE_URL = import.meta.env.VITE_MAP_TILE_URL || 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+export const MAP_ATTRIBUTION = import.meta.env.VITE_MAP_ATTRIBUTION
+    || '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>';
+
 // Static Assets Base URL (pour les images locales)
 export const ASSETS_URL = '/assets';
 
