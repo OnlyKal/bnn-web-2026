@@ -75,7 +75,8 @@ function Connexion() {
                 // Redirect to HomePage after successful login
                 setTimeout(() => {
                     // console.log('User logged in successfully:', userData);
-                    navigate('/home');
+                    // Invitation à un salon en attente : on y retourne après la connexion.
+                    navigate(localStorage.getItem('bnn.salonInvitation') ? '/salons' : '/home');
                 }, 1000);
             } else {
                 // Show API message if provided, otherwise standardize the message

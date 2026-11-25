@@ -293,8 +293,10 @@ const SalonsPage = () => {
     // Lien d'invitation (/salons?invitation=...) : on rejoint le salon puis on l'ouvre.
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
-        const token = params.get('invitation');
+        // Le lien peut aussi avoir été gardé avant le passage par la page de connexion.
+        const token = params.get('invitation') || localStorage.getItem('bnn.salonInvitation');
         if (!token || !isAuthenticated()) return;
+        localStorage.removeItem('bnn.salonInvitation');
         params.delete('invitation');
         const rest = params.toString();
         window.history.replaceState(null, '', `${window.location.pathname}${rest ? `?${rest}` : ''}`);
@@ -673,7 +675,7 @@ const SalonsPage = () => {
             <ToastContainer toasts={toasts} onClose={removeToast} />
             <AppNavigation />
 
-            <main className="salons-main">
+            <main className="salons-main with-members">
                 <div className="salons-page-toolbar">
                     <span className={`salon-live-status ${connected ? 'on' : 'off'}`} title={connected ? 'Mises à jour en direct' : 'Mises à jour périodiques'}>
                         {connected ? 'En direct' : 'Hors ligne direct'}
@@ -719,16 +721,6 @@ const SalonsPage = () => {
                         onError={showError}
                         submitting={submitting}
                         onSelect={openSalon}
-                    />
-                    <MembersPanel
-                        salon={selectedSalon}
-                        members={members}
-                        requests={requests}
-                        invites={invites}
-                        isCreator={isCreator}
-                        onAction={memberAction}
-                        onInfo={showSuccess}
-                        onError={showError}
                     />
                 </aside>
 
@@ -928,6 +920,20 @@ const SalonsPage = () => {
                         </>
                     )}
                 </section>
+
+                {/* Membres du salon : colonne de droite sur grand écran. */}
+                <aside className="salons-members-panel">
+                    <MembersPanel
+                        salon={selectedSalon}
+                        members={members}
+                        requests={requests}
+                        invites={invites}
+                        isCreator={isCreator}
+                        onAction={memberAction}
+                        onInfo={showSuccess}
+                        onError={showError}
+                    />
+                </aside>
             </main>
         </div>
     );

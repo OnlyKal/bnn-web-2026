@@ -31,6 +31,11 @@ function ProtectedRoute({ children, redirectTo = '/login', allowedRoles = null }
         // Check if user is authenticated
         if (!isAuthenticated()) {
             // console.log('User not authenticated, redirecting to login');
+            // Lien d'invitation d'un salon : on le garde pour après la connexion.
+            const invitation = new URLSearchParams(window.location.search).get('invitation');
+            if (window.location.pathname === '/salons' && invitation) {
+                localStorage.setItem('bnn.salonInvitation', invitation);
+            }
             window.location.href = redirectTo;
             return;
         }
