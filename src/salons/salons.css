@@ -45,7 +45,7 @@
 .salon-filter-tabs { display: flex; gap: 0.3rem; flex-wrap: wrap; margin: 0.4rem 0; }
 .salon-filter-tabs button {
   border: 1px solid #dfe3ec; background: #ffffff; border-radius: 999px;
-  padding: 0.2rem 0.65rem; font-size: var(--font-size-sm, 0.725rem); cursor: pointer;
+  padding: 0.2rem 0.65rem; font-size: var(--font-size-sm, 0.725rem); cursor: pointer; color: #152033;
 }
 .salon-filter-tabs button.active { background: #1e42ac; border-color: #1e42ac; color: #ffffff; }
 
@@ -62,7 +62,7 @@
 .salon-visibility-choice { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; margin: 0.3rem 0; }
 .salon-visibility-choice button {
   display: flex; flex-direction: column; align-items: flex-start; gap: 0.1rem;
-  border: 1px solid #dfe3ec; border-radius: 8px; background: #ffffff; padding: 0.45rem; cursor: pointer;
+  border: 1px solid #dfe3ec; border-radius: 8px; background: #ffffff; padding: 0.45rem; cursor: pointer; color: #152033;
 }
 .salon-visibility-choice button small { color: #7a8194; }
 .salon-visibility-choice button.active { border-color: #1e42ac; background: #eef2ff; }
@@ -89,7 +89,7 @@
   padding: 0.4rem 0.6rem; background: #fffbea; border: 1px solid #f5e3a3; border-radius: 8px; margin: 0.4rem 0;
 }
 .salon-pinned-bar { font-size: var(--font-size-sm, 0.725rem); }
-.salon-pinned-bar button { border: none; background: none; cursor: pointer; text-align: left; font-size: inherit; }
+.salon-pinned-bar button { border: none; background: none; cursor: pointer; text-align: left; font-size: inherit; color: inherit; }
 .salon-list-membership { margin-left: 0.35rem; }
 .salon-shared-resource strong, .salon-shared-resource em { font-size: var(--font-size-sm, 0.725rem); }
 
@@ -97,7 +97,7 @@
 .salon-message-search input { padding: 0.45rem; border: 1px solid #dfe3ec; border-radius: 6px; }
 .salon-message-search button {
   display: grid; grid-template-columns: auto 1fr auto; gap: 0.5rem; text-align: left;
-  border: none; background: #f6f7fb; border-radius: 6px; padding: 0.35rem 0.5rem; cursor: pointer;
+  border: none; background: #f6f7fb; border-radius: 6px; padding: 0.35rem 0.5rem; cursor: pointer; color: #152033;
 }
 .salon-message-search small { color: #7a8194; }
 
@@ -155,13 +155,13 @@
   display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;
   background: #eef2ff; border-left: 3px solid #1e42ac; border-radius: 6px; padding: 0.3rem 0.5rem; margin-bottom: 0.3rem;
 }
-.salon-reply-bar button { border: none; background: none; cursor: pointer; }
+.salon-reply-bar button { border: none; background: none; cursor: pointer; color: inherit; }
 .salon-mention-suggestions {
   position: absolute; bottom: 100%; left: 3rem; z-index: 20; display: flex; flex-direction: column;
   background: #ffffff; border: 1px solid #dfe3ec; border-radius: 8px; box-shadow: 0 8px 20px rgba(20, 32, 70, 0.12);
   min-width: 220px;
 }
-.salon-mention-suggestions button { border: none; background: none; text-align: left; padding: 0.4rem 0.6rem; cursor: pointer; }
+.salon-mention-suggestions button { border: none; background: none; text-align: left; padding: 0.4rem 0.6rem; cursor: pointer; color: #152033; }
 .salon-mention-suggestions button:hover { background: #f3f5fb; }
 .salon-message-form.salon-message-form-v2 { grid-template-columns: 42px 42px minmax(0, 1fr) 42px; }
 .salon-message-form button.salon-file-picker {
@@ -174,7 +174,7 @@
 .salon-share-results { display: flex; flex-direction: column; gap: 0.2rem; overflow-y: auto; }
 .salon-share-results button {
   display: flex; flex-direction: column; align-items: flex-start; text-align: left;
-  border: none; background: #f6f7fb; border-radius: 6px; padding: 0.4rem 0.5rem; cursor: pointer;
+  border: none; background: #f6f7fb; border-radius: 6px; padding: 0.4rem 0.5rem; cursor: pointer; color: #152033;
 }
 .salon-share-results button:hover { background: #eef2ff; }
 .salon-share-results small { color: #7a8194; }
