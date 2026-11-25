@@ -724,6 +724,20 @@ const SalonsPage = () => {
                     />
                 </aside>
 
+                {/* Membres du salon : colonne à gauche de la conversation. */}
+                <aside className="salons-members-panel">
+                    <MembersPanel
+                        salon={selectedSalon}
+                        members={members}
+                        requests={requests}
+                        invites={invites}
+                        isCreator={isCreator}
+                        onAction={memberAction}
+                        onInfo={showSuccess}
+                        onError={showError}
+                    />
+                </aside>
+
                 <section className="salons-detail-panel">
                     {!selectedSalon && (
                         <div className="salons-detail-empty">
@@ -920,20 +934,6 @@ const SalonsPage = () => {
                         </>
                     )}
                 </section>
-
-                {/* Membres du salon : colonne de droite sur grand écran. */}
-                <aside className="salons-members-panel">
-                    <MembersPanel
-                        salon={selectedSalon}
-                        members={members}
-                        requests={requests}
-                        invites={invites}
-                        isCreator={isCreator}
-                        onAction={memberAction}
-                        onInfo={showSuccess}
-                        onError={showError}
-                    />
-                </aside>
             </main>
         </div>
     );
