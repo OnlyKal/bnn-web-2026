@@ -10,7 +10,10 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../data/models/history_item.dart';
 import '../../../data/models/salon.dart';
+import '../../../data/services/salon_socket.dart';
+import '../../../data/services/salons_service.dart';
 import '../../../state/history_controller.dart';
+import '../../../state/session_controller.dart';
 import '../../widgets/common.dart';
 import '../../widgets/feedback.dart';
 import '../../widgets/states.dart';
@@ -26,18 +29,29 @@ class SalonsScreen extends StatefulWidget {
 
 class _SalonsScreenState extends State<SalonsScreen> with WidgetsBindingObserver {
   final _search = TextEditingController();
+  late final SalonsService _service = context.read<AppServices>().salons;
+  final _socket = SalonSocket.instance;
+  StreamSubscription<SalonSocketEvent>? _socketEvents;
   List<Salon> _salons = [];
   List<SalonNotification> _notifications = [];
+  int _unreadNotifications = 0;
+  int _nouveaux = 0;
+  SalonFiltre _filtre = SalonFiltre.tous;
   bool _loading = true;
   String? _error;
   bool _creating = false;
   Timer? _searchDebounce;
-  Timer? _notificationTimer;
+  Timer? _poll;
+  Timer? _reloadDebounce;
+  Set<String> _followed = {};
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _socket.acquire(() => context.read<AppServices>().session.authorizationHeader);
+    _socketEvents = _socket.events.listen(_onSocketEvent);
+    _socket.connected.addListener(_startPolling);
     _load();
     _fetchNotifications();
     _startPolling();
@@ -47,7 +61,16 @@ class _SalonsScreenState extends State<SalonsScreen> with WidgetsBindingObserver
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _searchDebounce?.cancel();
-    _notificationTimer?.cancel();
+    _reloadDebounce?.cancel();
+    _poll?.cancel();
+    _socket.connected.removeListener(_startPolling);
+    _socketEvents?.cancel();
+    for (final id in _followed) {
+      _socket.unsubscribe(id);
+    }
+    _socket.release();
+    // La liste a été vue : les salons actuels ne sont plus « nouveaux ».
+    _service.markSeen().catchError((_) {});
     _search.dispose();
     super.dispose();
   }
@@ -55,37 +78,100 @@ class _SalonsScreenState extends State<SalonsScreen> with WidgetsBindingObserver
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      _load(silent: true);
       _fetchNotifications();
       _startPolling();
     } else if (state == AppLifecycleState.paused) {
-      _notificationTimer?.cancel();
+      _poll?.cancel();
     }
   }
 
+  /// Rafraîchissement de secours : fréquent sans WebSocket, rare avec.
   void _startPolling() {
-    _notificationTimer?.cancel();
-    _notificationTimer = Timer.periodic(const Duration(seconds: 20), (_) => _fetchNotifications());
+    _poll?.cancel();
+    final period = _socket.connected.value ? const Duration(minutes: 2) : const Duration(seconds: 30);
+    _poll = Timer.periodic(period, (_) {
+      _load(silent: true);
+      _fetchNotifications();
+    });
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  /// Abonne le socket aux salons dont l'utilisateur est membre (compteurs de non-lus en direct).
+  void _follow(List<Salon> salons) {
+    final wanted = salons.where((s) => s.estMembre).map((s) => s.id).toSet();
+    for (final id in _followed.difference(wanted)) {
+      _socket.unsubscribe(id);
+    }
+    for (final id in wanted.difference(_followed)) {
+      _socket.subscribe(id);
+    }
+    _followed = wanted;
+  }
+
+  void _onSocketEvent(SalonSocketEvent event) {
+    if (!mounted) return;
+    switch (event.event) {
+      case 'message.created':
+        final message = SalonMessage.fromJson(event.payload);
+        final own = context.read<SessionController>().user?.matches(personJson(message.author)) ?? false;
+        setState(() {
+          _salons = [
+            for (final s in _salons)
+              s.id == event.salonId
+                  ? s.copyWith(messagesCount: s.messagesCount + 1, nonLus: own ? s.nonLus : s.nonLus + 1)
+                  : s,
+          ];
+        });
+      case 'notification.new':
+        final notification = SalonNotification.fromJson(event.payload);
+        setState(() {
+          _notifications = [notification, ..._notifications.where((n) => n.id != notification.id)];
+          _unreadNotifications++;
+        });
+      case 'salon.created' || 'salon.updated' || 'salon.deleted' || 'membership.changed' || 'members.updated':
+        _reloadSoon();
+      default:
+        break;
+    }
+  }
+
+  void _reloadSoon() {
+    _reloadDebounce?.cancel();
+    _reloadDebounce = Timer(const Duration(milliseconds: 600), () => _load(silent: true));
+  }
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
-      final salons = await context.read<AppServices>().salons.list(search: _search.text);
-      if (mounted) setState(() => _salons = salons);
+      final page = await _service.list(search: _search.text, filtre: _filtre);
+      if (!mounted) return;
+      setState(() {
+        _salons = page.salons;
+        _nouveaux = page.nouveaux;
+        _error = null;
+      });
+      _follow(page.salons);
     } on ApiException catch (e) {
-      if (mounted) setState(() => _error = e.message);
+      if (mounted && !silent) setState(() => _error = e.message);
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && !silent) setState(() => _loading = false);
     }
   }
 
   Future<void> _fetchNotifications() async {
     try {
-      final items = await context.read<AppServices>().salons.notifications();
-      if (mounted) setState(() => _notifications = items);
+      final page = await _service.notifications();
+      if (mounted) {
+        setState(() {
+          _notifications = page.items;
+          _unreadNotifications = page.nonLues;
+        });
+      }
     } on ApiException {
       // Les notifications sont secondaires : pas d'erreur bloquante.
     }
@@ -108,16 +194,27 @@ class _SalonsScreenState extends State<SalonsScreen> with WidgetsBindingObserver
     });
   }
 
-  bool _isUnread(Salon salon) =>
-      salon.hasUnread || _notifications.any((n) => n.salonId == salon.id);
-
   Future<void> _open(Salon salon) async {
-    setState(() => _notifications = _notifications.where((n) => n.salonId != salon.id).toList());
+    setState(() => _salons = [for (final s in _salons) s.id == salon.id ? s.copyWith(nonLus: 0) : s]);
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => SalonDetailScreen(salonId: salon.id, preview: salon)));
     if (mounted) {
-      _load();
+      _load(silent: true);
       _fetchNotifications();
     }
+  }
+
+  Future<void> _openById(String salonId) async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => SalonDetailScreen(salonId: salonId)));
+    if (mounted) {
+      _load(silent: true);
+      _fetchNotifications();
+    }
+  }
+
+  void _setFiltre(SalonFiltre filtre) {
+    if (filtre == _filtre) return;
+    setState(() => _filtre = filtre);
+    _load();
   }
 
   Future<void> _create() async {
@@ -129,11 +226,12 @@ class _SalonsScreenState extends State<SalonsScreen> with WidgetsBindingObserver
     if (result == null || !mounted) return;
     setState(() => _creating = true);
     try {
-      final created = await context.read<AppServices>().salons.create(
-            titre: result.titre,
-            description: result.description,
-            resources: result.resources,
-          );
+      final created = await _service.create(
+        titre: result.titre,
+        description: result.description,
+        resources: result.resources,
+        prive: result.prive,
+      );
       if (!mounted) return;
       showSuccess(context, 'Salon créé avec succès.');
       _search.clear();
@@ -152,12 +250,15 @@ class _SalonsScreenState extends State<SalonsScreen> with WidgetsBindingObserver
       isScrollControlled: true,
       builder: (sheetContext) => _NotificationsSheet(
         notifications: _notifications,
-        salons: _salons,
+        unread: _unreadNotifications,
         onMarkAll: () async {
           try {
-            await context.read<AppServices>().salons.markAllRead();
+            await _service.markAllRead();
             if (!mounted) return;
-            setState(() => _notifications = []);
+            setState(() {
+              _notifications = [for (final n in _notifications) n.markRead()];
+              _unreadNotifications = 0;
+            });
             if (sheetContext.mounted) Navigator.of(sheetContext).pop();
             showSuccess(context, 'Notifications marquées comme lues.');
           } on ApiException catch (e) {
@@ -166,15 +267,15 @@ class _SalonsScreenState extends State<SalonsScreen> with WidgetsBindingObserver
         },
         onOpen: (notification) async {
           Navigator.of(sheetContext).pop();
-          context.read<AppServices>().salons.markRead(notification.id).catchError((_) {});
+          if (!notification.lu) {
+            _service.markNotificationRead(notification.id).catchError((_) {});
+            setState(() => _unreadNotifications = (_unreadNotifications - 1).clamp(0, 1 << 30));
+          }
           final salon = _salons.where((s) => s.id == notification.salonId).firstOrNull;
           if (salon != null) {
             _open(salon);
           } else if (notification.salonId != null) {
-            await Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => SalonDetailScreen(salonId: notification.salonId!)),
-            );
-            if (mounted) _fetchNotifications();
+            _openById(notification.salonId!);
           }
         },
       ),
@@ -183,7 +284,9 @@ class _SalonsScreenState extends State<SalonsScreen> with WidgetsBindingObserver
 
   @override
   Widget build(BuildContext context) {
-    final count = _notifications.length;
+    final count = _unreadNotifications;
+    final joined = _salons.where((s) => s.estMembre).length;
+    final unreadTotal = _salons.fold<int>(0, (sum, s) => sum + s.nonLus);
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _creating ? null : _create,
@@ -207,6 +310,22 @@ class _SalonsScreenState extends State<SalonsScreen> with WidgetsBindingObserver
               ),
             ],
             bottom: SearchField(controller: _search, hint: 'Rechercher un salon', onChanged: _onSearch, onDark: true),
+          ),
+          ChipBar(
+            itemCount: SalonFiltre.values.length,
+            itemBuilder: (context, index) {
+              final filtre = SalonFiltre.values[index];
+              return ChoiceChip(
+                label: Text(switch (filtre) {
+                  SalonFiltre.tous => 'Tous',
+                  SalonFiltre.mesSalons => 'Mes salons',
+                  SalonFiltre.publics => 'Publics',
+                  SalonFiltre.prives => 'Privés',
+                }),
+                selected: _filtre == filtre,
+                onSelected: (_) => _setFiltre(filtre),
+              );
+            },
           ),
           Expanded(
             child: AppRefresh(
@@ -234,9 +353,9 @@ class _SalonsScreenState extends State<SalonsScreen> with WidgetsBindingObserver
                       child: StatusView(
                         icon: CupertinoIcons.chat_bubble_2,
                         title: 'Aucun salon trouvé',
-                        message: _search.text.isEmpty
+                        message: _search.text.isEmpty && _filtre == SalonFiltre.tous
                             ? 'Créez le premier salon de discussion.'
-                            : 'Aucun salon ne correspond à votre recherche.',
+                            : 'Aucun salon ne correspond à votre recherche ou à ce filtre.',
                       ),
                     )
                   else ...[
@@ -246,8 +365,12 @@ class _SalonsScreenState extends State<SalonsScreen> with WidgetsBindingObserver
                         child: SectionHeader(
                           icon: CupertinoIcons.chat_bubble_2,
                           title: 'Salons de discussion',
-                          subtitle: '${_salons.length} ${plural(_salons.length, 'salon')}'
-                              '${_salons.where((s) => s.estMembre).isEmpty ? '' : ' · ${_salons.where((s) => s.estMembre).length} rejoint(s)'}',
+                          subtitle: [
+                            '${_salons.length} ${plural(_salons.length, 'salon')}',
+                            if (joined > 0) '$joined rejoint(s)',
+                            if (unreadTotal > 0) '$unreadTotal non lu(s)',
+                            if (_nouveaux > 0) '$_nouveaux nouveau(x)',
+                          ].join(' · '),
                         ),
                       ),
                     ),
@@ -258,7 +381,7 @@ class _SalonsScreenState extends State<SalonsScreen> with WidgetsBindingObserver
                         separatorBuilder: (_, _) => const SizedBox(height: 10),
                         itemBuilder: (context, index) {
                           final salon = _salons[index];
-                          return _SalonCard(salon: salon, unread: _isUnread(salon), onTap: () => _open(salon));
+                          return _SalonCard(salon: salon, onTap: () => _open(salon));
                         },
                       ),
                     ),
@@ -274,14 +397,14 @@ class _SalonsScreenState extends State<SalonsScreen> with WidgetsBindingObserver
 }
 
 class _SalonCard extends StatelessWidget {
-  const _SalonCard({required this.salon, required this.unread, required this.onTap});
+  const _SalonCard({required this.salon, required this.onTap});
 
   final Salon salon;
-  final bool unread;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final unread = salon.hasUnread;
     return SurfaceCard(
       onTap: onTap,
       borderColor: unread ? AppColors.primary.withValues(alpha: 0.45) : AppColors.border,
@@ -312,6 +435,11 @@ class _SalonCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
+                    if (salon.prive)
+                      const Padding(
+                        padding: EdgeInsets.only(right: 5),
+                        child: Icon(CupertinoIcons.lock_fill, size: 14, color: AppColors.textMuted, semanticLabel: 'Salon privé'),
+                      ),
                     Expanded(
                       child: Text(
                         salon.titre,
@@ -320,13 +448,24 @@ class _SalonCard extends StatelessWidget {
                         style: TextStyle(fontWeight: unread ? FontWeight.w700 : FontWeight.w600, fontSize: 15.5),
                       ),
                     ),
+                    if (salon.estNouveau)
+                      const Padding(
+                        padding: EdgeInsets.only(left: 6),
+                        child: Pill('Nouveau', color: AppColors.violet, filled: true),
+                      ),
                     if (unread)
                       Semantics(
-                        label: 'Nouveaux messages',
+                        label: '${salon.nonLus} message(s) non lu(s)',
                         child: Container(
-                          width: 10,
-                          height: 10,
-                          decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                          margin: const EdgeInsets.only(left: 6),
+                          constraints: const BoxConstraints(minWidth: 22),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(99)),
+                          child: Text(
+                            salon.nonLus > 99 ? '99+' : '${salon.nonLus}',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.w700),
+                          ),
                         ),
                       ),
                   ],
@@ -344,10 +483,12 @@ class _SalonCard extends StatelessWidget {
                     _Meta(icon: CupertinoIcons.person_2, label: '${salon.membresCount ?? 0}'),
                     const SizedBox(width: 14),
                     _Meta(icon: CupertinoIcons.chat_bubble, label: '${salon.messagesCount}'),
+                    if (salon.estCreateur && salon.demandes > 0) ...[
+                      const SizedBox(width: 14),
+                      Pill('${salon.demandes} demande(s)', color: AppColors.warning, icon: CupertinoIcons.person_crop_circle_badge_plus),
+                    ],
                     const Spacer(),
-                    salon.estMembre
-                        ? const Pill('Membre', color: AppColors.successDark, icon: CupertinoIcons.checkmark_alt)
-                        : const Pill('À rejoindre', color: AppColors.primary, icon: CupertinoIcons.person_badge_plus),
+                    _StatutPill(salon: salon),
                   ],
                 ),
               ],
@@ -356,6 +497,26 @@ class _SalonCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _StatutPill extends StatelessWidget {
+  const _StatutPill({required this.salon});
+
+  final Salon salon;
+
+  @override
+  Widget build(BuildContext context) {
+    if (salon.estCreateur) return const Pill('Créateur', color: AppColors.navy, icon: CupertinoIcons.star_fill);
+    return switch (salon.statut) {
+      SalonStatut.membre => const Pill('Membre', color: AppColors.successDark, icon: CupertinoIcons.checkmark_alt),
+      SalonStatut.enAttente => const Pill('Demande envoyée', color: AppColors.warning, icon: CupertinoIcons.clock),
+      SalonStatut.invite => const Pill('Invité', color: AppColors.violet, icon: CupertinoIcons.envelope),
+      SalonStatut.retire => const Pill('Retiré', color: AppColors.danger),
+      _ => salon.prive
+          ? const Pill("Demander l'accès", color: AppColors.primary, icon: CupertinoIcons.lock)
+          : const Pill('À rejoindre', color: AppColors.primary, icon: CupertinoIcons.person_badge_plus),
+    };
   }
 }
 
@@ -381,13 +542,13 @@ class _Meta extends StatelessWidget {
 class _NotificationsSheet extends StatelessWidget {
   const _NotificationsSheet({
     required this.notifications,
-    required this.salons,
+    required this.unread,
     required this.onMarkAll,
     required this.onOpen,
   });
 
   final List<SalonNotification> notifications;
-  final List<Salon> salons;
+  final int unread;
   final VoidCallback onMarkAll;
   final ValueChanged<SalonNotification> onOpen;
 
@@ -401,9 +562,9 @@ class _NotificationsSheet extends StatelessWidget {
         children: [
           SheetHeader(
             title: 'Notifications',
-            subtitle: notifications.isEmpty ? null : '${notifications.length} non lue(s)',
+            subtitle: unread == 0 ? null : '$unread non lue(s)',
             icon: CupertinoIcons.bell,
-            trailing: notifications.isEmpty
+            trailing: unread == 0
                 ? null
                 : TextButton.icon(
                     onPressed: onMarkAll,
@@ -426,11 +587,14 @@ class _NotificationsSheet extends StatelessWidget {
                     separatorBuilder: (_, _) => const Divider(indent: 72, endIndent: 20),
                     itemBuilder: (context, index) {
                       final n = notifications[index];
-                      final salon = salons.where((s) => s.id == n.salonId).firstOrNull;
                       return ListTile(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
-                        leading: const IconTile(CupertinoIcons.chat_bubble_2_fill, size: 40, iconSize: 20),
-                        title: Text(salon?.titre ?? 'Salon'),
+                        tileColor: n.lu ? null : AppColors.primarySoft,
+                        leading: IconTile(_notificationIcon(n.type), size: 40, iconSize: 20),
+                        title: Text(
+                          n.salonTitre ?? 'Salon',
+                          style: TextStyle(fontWeight: n.lu ? FontWeight.w500 : FontWeight.w700),
+                        ),
                         subtitle: Text(n.message, maxLines: 2, overflow: TextOverflow.ellipsis),
                         trailing: n.date == null
                             ? null
@@ -445,3 +609,14 @@ class _NotificationsSheet extends StatelessWidget {
     );
   }
 }
+
+IconData _notificationIcon(String type) => switch (type) {
+      'mention' => CupertinoIcons.at,
+      'reponse' => CupertinoIcons.reply,
+      'invitation' => CupertinoIcons.envelope_fill,
+      'demande' => CupertinoIcons.person_crop_circle_badge_plus,
+      'acceptation' => CupertinoIcons.checkmark_seal_fill,
+      'refus' || 'retrait' => CupertinoIcons.xmark_circle_fill,
+      'signalement' => CupertinoIcons.flag_fill,
+      _ => CupertinoIcons.chat_bubble_2_fill,
+    };

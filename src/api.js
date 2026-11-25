@@ -593,202 +593,105 @@ export const favorisAPI = {
     }
 };
 
-// Salons API
-export const salonsAPI = {
-    getSalons: async (search = '') => {
-        try {
-            const response = await api.get('/salons/', {
-                params: search ? { search } : {}
-            });
-            return response.data;
-        } catch (error) {
-            throw new Error(
-                error.response?.data?.detail ||
-                error.response?.data?.message ||
-                'Erreur lors du chargement des salons'
-            );
-        }
-    },
-
-    getSalon: async (salonId) => {
-        try {
-            const response = await api.get(`/salons/${salonId}/`);
-            return response.data;
-        } catch (error) {
-            throw new Error(
-                error.response?.data?.detail ||
-                error.response?.data?.message ||
-                'Erreur lors du chargement du salon'
-            );
-        }
-    },
-
-    createSalon: async (formData) => {
-        try {
-            const response = await api.post('/salons/', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
-            return response.data;
-        } catch (error) {
-            throw new Error(
-                error.response?.data?.detail ||
-                error.response?.data?.message ||
-                'Erreur lors de la creation du salon'
-            );
-        }
-    },
-
-    updateSalon: async (salonId, salonData) => {
-        try {
-            const response = await api.patch(`/salons/${salonId}/`, salonData);
-            return response.data;
-        } catch (error) {
-            throw new Error(
-                error.response?.data?.detail ||
-                error.response?.data?.message ||
-                'Erreur lors de la modification du salon'
-            );
-        }
-    },
-
-    deleteSalon: async (salonId) => {
-        try {
-            const response = await api.delete(`/salons/${salonId}/`);
-            return response.data;
-        } catch (error) {
-            throw new Error(
-                error.response?.data?.detail ||
-                error.response?.data?.message ||
-                'Erreur lors de la suppression du salon'
-            );
-        }
-    },
-
-    addRessources: async (salonId, formData) => {
-        try {
-            const response = await api.post(`/salons/${salonId}/ressources/`, formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
-            return response.data;
-        } catch (error) {
-            throw new Error(
-                error.response?.data?.detail ||
-                error.response?.data?.message ||
-                'Erreur lors de l\'ajout des ressources'
-            );
-        }
-    },
-
-    joinSalon: async (salonId) => {
-        try {
-            const response = await api.post(`/salons/${salonId}/join/`);
-            return response.data;
-        } catch (error) {
-            throw new Error(
-                error.response?.data?.detail ||
-                error.response?.data?.message ||
-                'Erreur lors de l\'adhesion au salon'
-            );
-        }
-    },
-
-    quitSalon: async (salonId) => {
-        try {
-            const response = await api.post(`/salons/${salonId}/quit/`);
-            return response.data;
-        } catch (error) {
-            throw new Error(
-                error.response?.data?.detail ||
-                error.response?.data?.message ||
-                'Erreur lors de la sortie du salon'
-            );
-        }
-    },
-
-    getMembers: async (salonId) => {
-        try {
-            const response = await api.get(`/salons/${salonId}/members/`);
-            return response.data;
-        } catch (error) {
-            throw new Error(
-                error.response?.data?.detail ||
-                error.response?.data?.message ||
-                'Erreur lors du chargement des membres'
-            );
-        }
-    },
-
-    getMessages: async (salonId, afterId = null) => {
-        try {
-            const response = await api.get(`/salons/${salonId}/messages/`, {
-                params: afterId ? { after_id: afterId } : {}
-            });
-            return response.data;
-        } catch (error) {
-            throw new Error(
-                error.response?.data?.detail ||
-                error.response?.data?.message ||
-                'Erreur lors du chargement des messages'
-            );
-        }
-    },
-
-    sendMessage: async (salonId, payload) => {
-        try {
-            const isFormData = payload instanceof FormData;
-            const response = await api.post(`/salons/${salonId}/messages/`, payload, {
-                headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : undefined
-            });
-            return response.data;
-        } catch (error) {
-            throw new Error(
-                error.response?.data?.detail ||
-                error.response?.data?.message ||
-                'Erreur lors de l\'envoi du message'
-            );
-        }
-    },
-
-    getNotifications: async (unreadOnly = false) => {
-        try {
-            const response = await api.get('/salons/notifications/', {
-                params: unreadOnly ? { unread_only: 1 } : {}
-            });
-            return response.data;
-        } catch (error) {
-            throw new Error(
-                error.response?.data?.detail ||
-                error.response?.data?.message ||
-                'Erreur lors du chargement des notifications'
-            );
-        }
-    },
-
-    markNotificationsRead: async () => {
-        try {
-            const response = await api.post('/salons/notifications/mark-read/');
-            return response.data;
-        } catch (error) {
-            throw new Error(
-                error.response?.data?.detail ||
-                error.response?.data?.message ||
-                'Erreur lors du marquage des notifications'
-            );
-        }
-    },
-
-    markNotificationRead: async (notificationId) => {
-        try {
-            const response = await api.post(`/salons/notifications/${notificationId}/mark-read/`);
-            return response.data;
-        } catch (error) {
-            throw new Error(
-                error.response?.data?.detail ||
-                error.response?.data?.message ||
-                'Erreur lors du marquage de la notification'
-            );
-        }
+// Salons API (module Salon v2 : voir bnn-esursi-server/menu/salons/)
+const salonRequest = async (request, fallback) => {
+    try {
+        const response = await request();
+        return response.data;
+    } catch (error) {
+        const data = error.response?.data;
+        const fieldErrors = data?.errors && typeof data.errors === 'object'
+            ? Object.values(data.errors).flat().filter(Boolean).join(' ')
+            : '';
+        const wrapped = new Error(data?.detail || data?.message || fieldErrors || fallback);
+        wrapped.status = error.response?.status;
+        throw wrapped;
     }
+};
+
+const multipart = { headers: { 'Content-Type': 'multipart/form-data' } };
+
+export const salonsAPI = {
+    getSalons: (search = '', filtre = '') => salonRequest(
+        () => api.get('/salons/', { params: { ...(search ? { search } : {}), ...(filtre ? { filtre } : {}) } }),
+        'Erreur lors du chargement des salons'
+    ),
+    markSalonsSeen: () => salonRequest(() => api.post('/salons/vu/'), 'Erreur lors de la mise à jour'),
+    getSalon: (salonId) => salonRequest(() => api.get(`/salons/${salonId}/`), 'Erreur lors du chargement du salon'),
+    createSalon: (formData) => salonRequest(() => api.post('/salons/', formData, multipart), 'Erreur lors de la création du salon'),
+    updateSalon: (salonId, salonData) => salonRequest(() => api.patch(`/salons/${salonId}/`, salonData), 'Erreur lors de la modification du salon'),
+    deleteSalon: (salonId) => salonRequest(() => api.delete(`/salons/${salonId}/`), 'Erreur lors de la suppression du salon'),
+    addRessources: (salonId, formData) => salonRequest(() => api.post(`/salons/${salonId}/ressources/`, formData, multipart), "Erreur lors de l'ajout des ressources"),
+    deleteRessource: (salonId, ressourceId) => salonRequest(() => api.delete(`/salons/${salonId}/ressources/${ressourceId}/`), 'Erreur lors du retrait de la ressource'),
+    joinSalon: (salonId) => salonRequest(() => api.post(`/salons/${salonId}/join/`), "Erreur lors de l'adhésion au salon"),
+    quitSalon: (salonId) => salonRequest(() => api.post(`/salons/${salonId}/quit/`), 'Erreur lors de la sortie du salon'),
+    markRead: (salonId, messageId = null) => salonRequest(
+        () => api.post(`/salons/${salonId}/lu/`, messageId ? { message_id: messageId } : {}),
+        'Erreur lors du marquage comme lu'
+    ),
+    getMembers: (salonId) => salonRequest(() => api.get(`/salons/${salonId}/members/`), 'Erreur lors du chargement des membres'),
+    memberAction: (salonId, userId, action) => salonRequest(
+        () => api.post(`/salons/${salonId}/membres/${userId}/${action}/`),
+        "Erreur lors de l'action sur le membre"
+    ),
+    invite: (salonId, userIds) => salonRequest(() => api.post(`/salons/${salonId}/inviter/`, { utilisateurs: userIds }), "Erreur lors de l'invitation"),
+    searchUsers: (search) => salonRequest(() => api.get('/salons/utilisateurs/', { params: { search } }), 'Erreur lors de la recherche'),
+
+    getMessages: (salonId, { afterId = null, beforeId = null, search = '', limit = null } = {}) => salonRequest(
+        () => api.get(`/salons/${salonId}/messages/`, {
+            params: {
+                ...(afterId ? { after_id: afterId } : {}),
+                ...(beforeId ? { before_id: beforeId } : {}),
+                ...(search ? { search } : {}),
+                ...(limit ? { limit } : {})
+            }
+        }),
+        'Erreur lors du chargement des messages'
+    ),
+    sendMessage: (salonId, payload) => salonRequest(
+        () => api.post(`/salons/${salonId}/messages/`, payload, payload instanceof FormData ? multipart : undefined),
+        "Erreur lors de l'envoi du message"
+    ),
+    editMessage: (salonId, messageId, contenu) => salonRequest(
+        () => api.patch(`/salons/${salonId}/messages/${messageId}/`, { contenu }),
+        'Erreur lors de la modification du message'
+    ),
+    deleteMessage: (salonId, messageId) => salonRequest(
+        () => api.delete(`/salons/${salonId}/messages/${messageId}/`),
+        'Erreur lors de la suppression du message'
+    ),
+    pinMessage: (salonId, messageId, epingle) => salonRequest(
+        () => api.post(`/salons/${salonId}/messages/${messageId}/epingler/`, { epingle }),
+        "Erreur lors de l'épinglage"
+    ),
+    reportMessage: (salonId, messageId, motif) => salonRequest(
+        () => api.post(`/salons/${salonId}/messages/${messageId}/signaler/`, { motif }),
+        'Erreur lors du signalement'
+    ),
+    getReports: (salonId) => salonRequest(() => api.get(`/salons/${salonId}/signalements/`), 'Erreur lors du chargement des signalements'),
+    resolveReport: (salonId, reportId) => salonRequest(
+        () => api.post(`/salons/${salonId}/signalements/${reportId}/traiter/`),
+        'Erreur lors du traitement du signalement'
+    ),
+
+    getNotifications: (unreadOnly = false) => salonRequest(
+        () => api.get('/salons/notifications/', { params: unreadOnly ? { unread_only: 1 } : {} }),
+        'Erreur lors du chargement des notifications'
+    ),
+    markNotificationsRead: (salonId = null) => salonRequest(
+        () => api.post('/salons/notifications/mark-read/', salonId ? { salon_id: salonId } : {}),
+        'Erreur lors du marquage des notifications'
+    ),
+    markNotificationRead: (notificationId) => salonRequest(
+        () => api.post(`/salons/notifications/${notificationId}/mark-read/`),
+        'Erreur lors du marquage de la notification'
+    ),
+
+    // Recherche de ressources à partager dans un salon
+    searchBnnRessources: (q) => salonRequest(
+        () => api.get('/ressources/search/', { params: { q, limit: 8, offset: 0 } }),
+        'Erreur lors de la recherche dans la BNN'
+    )
 };
 
 // Statistiques des actions sur les ressources

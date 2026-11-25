@@ -14,6 +14,8 @@ import '../../../data/services/salons_service.dart';
 import '../../widgets/common.dart';
 import '../../widgets/external_links.dart';
 import '../../widgets/feedback.dart';
+import '../resource/openalex_details_screen.dart';
+import '../resource/resource_navigation.dart';
 import '../viewers/epub_viewer_screen.dart';
 import '../viewers/pdf_viewer_screen.dart';
 import '../viewers/video_viewer_screen.dart';
@@ -23,10 +25,14 @@ Future<List<PickedUpload>> pickUploads(BuildContext context) async {
   try {
     final result = await FilePicker.pickFiles(allowMultiple: true);
     if (result == null) return const [];
-    return result.files
+    final picked = result.files
         .where((f) => f.path != null)
         .map((f) => PickedUpload(path: f.path!, name: f.name, size: f.size))
         .toList();
+    // Même contrôle que le serveur : on écarte tout de suite les fichiers refusés.
+    final errors = picked.map(SalonFileRules.check).whereType<String>().toList();
+    if (errors.isNotEmpty && context.mounted) showError(context, errors.join('\n'));
+    return picked.where((f) => SalonFileRules.check(f) == null).toList();
   } catch (_) {
     if (context.mounted) showError(context, "Impossible d'accéder aux fichiers de l'appareil.");
     return const [];
@@ -92,9 +98,10 @@ class _ImageViewer extends StatelessWidget {
 
 /// Tuile d'une ressource partagée dans un salon.
 class SalonResourceTile extends StatelessWidget {
-  const SalonResourceTile({super.key, required this.resource});
+  const SalonResourceTile({super.key, required this.resource, this.onDelete});
 
   final SalonResource resource;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -112,11 +119,17 @@ class SalonResourceTile extends StatelessWidget {
         'lien' => 'Lien externe',
         _ => 'Document',
       }),
-      trailing: Icon(
-        resource.kind == 'lien' ? CupertinoIcons.arrow_up_right_square : CupertinoIcons.chevron_right,
-        size: 16,
-        color: AppColors.textFaint,
-      ),
+      trailing: onDelete != null
+          ? IconButton(
+              tooltip: 'Retirer la ressource',
+              onPressed: onDelete,
+              icon: const Icon(CupertinoIcons.trash, size: 18, color: AppColors.danger),
+            )
+          : Icon(
+              resource.kind == 'lien' ? CupertinoIcons.arrow_up_right_square : CupertinoIcons.chevron_right,
+              size: 16,
+              color: AppColors.textFaint,
+            ),
       onTap: resource.url == null
           ? null
           : () => resource.kind == 'lien'
@@ -129,18 +142,31 @@ class SalonResourceTile extends StatelessWidget {
 enum SalonFormMode { create, edit, resources }
 
 class SalonFormResult {
-  const SalonFormResult({this.titre = '', this.description = '', this.resources = const SalonResourcesInput()});
+  const SalonFormResult({
+    this.titre = '',
+    this.description = '',
+    this.prive = false,
+    this.resources = const SalonResourcesInput(),
+  });
 
   final String titre;
+  final bool prive;
   final String description;
   final SalonResourcesInput resources;
 }
 
 /// Feuille de création / modification d'un salon ou d'ajout de ressources.
 class SalonFormSheet extends StatefulWidget {
-  const SalonFormSheet({super.key, required this.mode, this.initialTitle = '', this.initialDescription = ''});
+  const SalonFormSheet({
+    super.key,
+    required this.mode,
+    this.initialTitle = '',
+    this.initialDescription = '',
+    this.initialPrive = false,
+  });
 
   final SalonFormMode mode;
+  final bool initialPrive;
   final String initialTitle;
   final String initialDescription;
 
@@ -154,6 +180,7 @@ class _SalonFormSheetState extends State<SalonFormSheet> {
   late final _description = TextEditingController(text: widget.initialDescription);
   final _links = TextEditingController();
   List<PickedUpload> _files = [];
+  late bool _prive = widget.initialPrive;
 
   bool get _withResources => widget.mode != SalonFormMode.edit;
   bool get _withText => widget.mode != SalonFormMode.resources;
@@ -184,10 +211,16 @@ class _SalonFormSheetState extends State<SalonFormSheet> {
         showError(context, 'Le salon accepte au maximum ${SalonsService.maxResources} ressources au total.');
         return;
       }
+      final invalid = SalonResourcesInput.splitLinks(_links.text).where((l) => !SalonFileRules.isHttpUrl(l)).toList();
+      if (invalid.isNotEmpty) {
+        showError(context, 'Lien invalide : ${invalid.first}. Utilisez une adresse http(s).');
+        return;
+      }
     }
     Navigator.of(context).pop(SalonFormResult(
       titre: _title.text.trim(),
       description: _description.text.trim(),
+      prive: _prive,
       resources: SalonResourcesInput(files: _files, links: SalonResourcesInput.splitLinks(_links.text)),
     ));
   }
@@ -253,6 +286,22 @@ class _SalonFormSheetState extends State<SalonFormSheet> {
                     validator: (v) => (v ?? '').trim().isEmpty ? 'La description est requise.' : null,
                   ),
                   const SizedBox(height: 12),
+                  Segmented<bool>(
+                    options: const [
+                      SegmentOption(false, 'Public', icon: CupertinoIcons.globe),
+                      SegmentOption(true, 'Privé', icon: CupertinoIcons.lock),
+                    ],
+                    value: _prive,
+                    onChanged: (v) => setState(() => _prive = v),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _prive
+                        ? "Sur invitation ou demande acceptée : seuls les membres voient les messages et les ressources."
+                        : 'Tout le monde peut rejoindre le salon.',
+                    style: const TextStyle(color: AppColors.textMuted, fontSize: 12.5),
+                  ),
+                  const SizedBox(height: 12),
                 ],
                 if (_withResources) ...[
                   const Text('Ressources partagées',
@@ -288,6 +337,7 @@ class _SalonFormSheetState extends State<SalonFormSheet> {
                     decoration: const InputDecoration(
                       labelText: 'Liens',
                       hintText: 'https://exemple.com (un par ligne)',
+                      helperText: 'Fichiers : PDF, EPUB, Office, images, ZIP… ${SalonFileRules.maxSizeMb} Mo max.',
                       prefixIcon: Icon(CupertinoIcons.link, size: 20),
                     ),
                   ),
@@ -312,6 +362,81 @@ class _SalonFormSheetState extends State<SalonFormSheet> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Ouvre une ressource BNN, HAL ou OpenAlex partagée dans un message.
+Future<void> openSharedResource(BuildContext context, SharedResource resource) async {
+  final services = context.read<AppServices>();
+  try {
+    switch (resource.source) {
+      case 'bnn' when resource.identifiant.isNotEmpty:
+        await openRessourceById(context, resource.identifiant);
+      case 'openalex' when resource.identifiant.isNotEmpty:
+        await Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => OpenAlexDetailsScreen(workId: resource.identifiant)),
+        );
+      case 'hal' when resource.identifiant.isNotEmpty:
+        final ressource = await services.hal.ouvrage(resource.identifiant);
+        if (context.mounted) await openRessourceDetails(context, ressource);
+      default:
+        if (resource.url != null) await openExternalUrl(context, resource.url);
+    }
+  } catch (_) {
+    if (resource.url != null && context.mounted) {
+      await openExternalUrl(context, resource.url);
+    } else if (context.mounted) {
+      showError(context, "Impossible d'ouvrir cette ressource.");
+    }
+  }
+}
+
+/// Carte d'une ressource partagée dans une bulle de message.
+class SharedResourceCard extends StatelessWidget {
+  const SharedResourceCard({super.key, required this.resource, this.onDark = false});
+
+  final SharedResource resource;
+  final bool onDark;
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = onDark ? Colors.white : AppColors.textPrimary;
+    return InkWell(
+      onTap: () => openSharedResource(context, resource),
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: onDark ? Colors.white.withValues(alpha: 0.15) : AppColors.primarySoft,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            Icon(CupertinoIcons.book_fill, size: 22, color: onDark ? Colors.white : AppColors.primary),
+            const SizedBox(width: 10),
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    resource.sourceLabel.toUpperCase(),
+                    style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: onDark ? Colors.white70 : AppColors.primary),
+                  ),
+                  Text(resource.titre,
+                      maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: fg, fontWeight: FontWeight.w600, fontSize: 13.5)),
+                  if (resource.auteurs != null && resource.auteurs!.isNotEmpty)
+                    Text(resource.auteurs!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: onDark ? Colors.white70 : AppColors.textMuted, fontSize: 12)),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
