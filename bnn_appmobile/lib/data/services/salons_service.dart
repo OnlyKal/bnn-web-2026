@@ -205,10 +205,16 @@ class SalonsService {
   static String? invitationTokenFrom(String input) {
     final text = input.trim();
     if (text.isEmpty) return null;
-    final uri = Uri.tryParse(text);
-    final fromLink = uri?.queryParameters['invitation'];
-    if (fromLink != null && fromLink.isNotEmpty) return fromLink;
-    return text.contains('://') || text.contains(' ') ? null : text;
+    // Le lien peut être collé au milieu d'un message (« Rejoignez le salon … : https://…?invitation=… »).
+    final match = RegExp(r'[?&]invitation=([^\s&#]+)').firstMatch(text);
+    if (match != null) {
+      try {
+        return Uri.decodeQueryComponent(match.group(1)!);
+      } on ArgumentError {
+        return null;
+      }
+    }
+    return text.contains('://') || text.contains(RegExp(r'\s')) ? null : text;
   }
 
   /// Rejoint le salon d'un lien d'invitation. Retourne (identifiant du salon, message).

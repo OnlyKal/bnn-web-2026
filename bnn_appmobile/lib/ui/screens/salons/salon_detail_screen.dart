@@ -916,14 +916,21 @@ class _SalonDetailScreenState extends State<SalonDetailScreen> with WidgetsBindi
         actions: [
           if (salon.estMembre)
             IconButton(tooltip: 'Rechercher', onPressed: _busy ? null : _search, icon: const Icon(CupertinoIcons.search)),
+          // Membres à portée d'un geste (équivalent de la colonne de droite sur le web).
+          if (salon.estMembre || isCreator)
+            IconButton(
+              tooltip: 'Membres',
+              onPressed: _busy ? null : _showMembers,
+              icon: Badge(
+                isLabelVisible: isCreator && salon.demandes > 0,
+                label: Text('${salon.demandes}'),
+                child: const Icon(CupertinoIcons.person_2),
+              ),
+            ),
           PopupMenuButton<String>(
             enabled: !_busy,
             tooltip: 'Plus d’actions',
-            icon: Badge(
-              isLabelVisible: isCreator && salon.demandes > 0,
-              label: Text('${salon.demandes}'),
-              child: const Icon(CupertinoIcons.ellipsis_circle),
-            ),
+            icon: const Icon(CupertinoIcons.ellipsis_circle),
             position: PopupMenuPosition.under,
             onSelected: (value) => switch (value) {
               'info' => _showInfo(),
