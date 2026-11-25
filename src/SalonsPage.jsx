@@ -290,6 +290,29 @@ const SalonsPage = () => {
         if (!isAuthenticated()) navigate('/login');
     }, [navigate]);
 
+    // Lien d'invitation (/salons?invitation=...) : on rejoint le salon puis on l'ouvre.
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const token = params.get('invitation');
+        if (!token || !isAuthenticated()) return;
+        params.delete('invitation');
+        const rest = params.toString();
+        window.history.replaceState(null, '', `${window.location.pathname}${rest ? `?${rest}` : ''}`);
+        (async () => {
+            try {
+                const response = await salonsAPI.joinByInvitation(token);
+                showSuccess(response?.message || 'Vous avez rejoint le salon');
+                const salonId = response?.data?.salon_id;
+                await fetchSalons();
+                if (salonId) openSalon({ id: salonId });
+            } catch (error) {
+                showError(error.message);
+            }
+        })();
+        // Une seule fois à l'ouverture de la page.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     useEffect(() => {
         const timer = setTimeout(fetchSalons, searchTerm ? 350 : 0);
         return () => clearTimeout(timer);

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FaCheck, FaTimes, FaUserMinus, FaUserPlus, FaUsers } from 'react-icons/fa';
+import { FaCheck, FaCopy, FaLink, FaTimes, FaUserMinus, FaUserPlus, FaUsers } from 'react-icons/fa';
 import { salonsAPI } from '../api';
 import { extractList, initials, personName } from './salonUtils';
 
@@ -72,8 +72,47 @@ const InviteBox = ({ salonId, onDone, onError }) => {
     );
 };
 
+/** Lien d'invitation généré par le serveur : les personnes qui le suivent entrent dans le salon. */
+const InvitationLinkBox = ({ salonId, onInfo, onError }) => {
+    const [link, setLink] = useState('');
+
+    useEffect(() => {
+        let active = true;
+        setLink('');
+        salonsAPI.getInvitationLink(salonId)
+            .then((response) => {
+                const token = response?.data?.token;
+                if (active && token) setLink(`${window.location.origin}/salons?invitation=${encodeURIComponent(token)}`);
+            })
+            .catch((error) => active && onError(error.message));
+        return () => { active = false; };
+    }, [salonId, onError]);
+
+    const copy = async () => {
+        try {
+            await navigator.clipboard.writeText(link);
+            onInfo("Lien d'invitation copié.");
+        } catch {
+            onError('Copie impossible : sélectionnez le lien et copiez-le.');
+        }
+    };
+
+    return (
+        <div className="salon-invite-box">
+            <small className="salons-muted">
+                Partagez ce lien : les personnes qui le suivent rejoignent le salon. Les autres peuvent demander à rejoindre.
+            </small>
+            <input type="text" readOnly value={link || 'Création du lien…'} onFocus={(event) => event.target.select()} />
+            <button type="button" className="salons-primary-btn" onClick={copy} disabled={!link}>
+                <FaCopy /> Copier le lien
+            </button>
+        </div>
+    );
+};
+
 const MembersPanel = ({ salon, members, requests, invites, isCreator, onAction, onInfo, onError }) => {
     const [showInvite, setShowInvite] = useState(false);
+    const isPrivate = salon?.visibilite === 'prive';
 
     if (!salon) {
         return (
@@ -93,10 +132,14 @@ const MembersPanel = ({ salon, members, requests, invites, isCreator, onAction, 
 
             {isCreator && (
                 <button type="button" className="salons-secondary-btn salon-invite-toggle" onClick={() => setShowInvite((v) => !v)}>
-                    <FaUserPlus /> Inviter des personnes
+                    {isPrivate ? <><FaLink /> Lien d'invitation</> : <><FaUserPlus /> Inviter des personnes</>}
                 </button>
             )}
-            {isCreator && showInvite && (
+            {/* Salon privé : pas de liste d'utilisateurs, on partage le lien généré par le serveur. */}
+            {isCreator && showInvite && isPrivate && (
+                <InvitationLinkBox salonId={salon.id} onInfo={onInfo} onError={onError} />
+            )}
+            {isCreator && showInvite && !isPrivate && (
                 <InviteBox salonId={salon.id} onDone={(message) => { onInfo(message); onAction(); }} onError={onError} />
             )}
 

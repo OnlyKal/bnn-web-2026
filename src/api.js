@@ -624,6 +624,8 @@ export const salonsAPI = {
     addRessources: (salonId, formData) => salonRequest(() => api.post(`/salons/${salonId}/ressources/`, formData, multipart), "Erreur lors de l'ajout des ressources"),
     deleteRessource: (salonId, ressourceId) => salonRequest(() => api.delete(`/salons/${salonId}/ressources/${ressourceId}/`), 'Erreur lors du retrait de la ressource'),
     joinSalon: (salonId) => salonRequest(() => api.post(`/salons/${salonId}/join/`), "Erreur lors de l'adhésion au salon"),
+    getInvitationLink: (salonId) => salonRequest(() => api.get(`/salons/${salonId}/lien-invitation/`), "Erreur lors de la création du lien d'invitation"),
+    joinByInvitation: (token) => salonRequest(() => api.post('/salons/rejoindre/', { token }), "Ce lien d'invitation n'est pas valide"),
     quitSalon: (salonId) => salonRequest(() => api.post(`/salons/${salonId}/quit/`), 'Erreur lors de la sortie du salon'),
     markRead: (salonId, messageId = null) => salonRequest(
         () => api.post(`/salons/${salonId}/lu/`, messageId ? { message_id: messageId } : {}),
