@@ -405,17 +405,38 @@ class _SalonsScreenState extends State<SalonsScreen> with WidgetsBindingObserver
                         ),
                       ),
                     ),
-                    SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-                      sliver: SliverList.separated(
-                        itemCount: _salons.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 10),
-                        itemBuilder: (context, index) {
-                          final salon = _salons[index];
-                          return _SalonCard(salon: salon, onTap: () => _open(salon));
-                        },
+                    // Salons auxquels on participe, séparés des autres pour ne pas les confondre.
+                    for (final (index, section) in [
+                      ('Mes salons', _salons.where((s) => s.estMembre || s.estCreateur).toList()),
+                      ('Autres salons', _salons.where((s) => !s.estMembre && !s.estCreateur).toList()),
+                    ].where((section) => section.$2.isNotEmpty).indexed) ...[
+                      SliverPadding(
+                        padding: EdgeInsets.fromLTRB(20, index == 0 ? 0 : 18, 20, 8),
+                        sliver: SliverToBoxAdapter(
+                          child: Text(
+                            '${section.$1.toUpperCase()}  ·  ${section.$2.length}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.6,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        sliver: SliverList.separated(
+                          itemCount: section.$2.length,
+                          separatorBuilder: (_, _) => const SizedBox(height: 10),
+                          itemBuilder: (context, i) {
+                            final salon = section.$2[i];
+                            return _SalonCard(salon: salon, onTap: () => _open(salon));
+                          },
+                        ),
+                      ),
+                    ],
+                    const SliverToBoxAdapter(child: SizedBox(height: 100)),
                   ],
                 ],
               ),
@@ -466,11 +487,6 @@ class _SalonCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    if (salon.prive)
-                      const Padding(
-                        padding: EdgeInsets.only(right: 5),
-                        child: Icon(CupertinoIcons.lock_fill, size: 14, color: AppColors.textMuted, semanticLabel: 'Salon privé'),
-                      ),
                     Expanded(
                       child: Text(
                         salon.titre,
@@ -514,6 +530,10 @@ class _SalonCard extends StatelessWidget {
                     _Meta(icon: CupertinoIcons.person_2, label: '${salon.membresCount ?? 0}'),
                     const SizedBox(width: 14),
                     _Meta(icon: CupertinoIcons.chat_bubble, label: '${salon.messagesCount}'),
+                    const SizedBox(width: 10),
+                    salon.prive
+                        ? const Pill('Privé', color: AppColors.violet, icon: CupertinoIcons.lock_fill)
+                        : const Pill('Public', color: AppColors.successDark, icon: CupertinoIcons.globe),
                     if (salon.estCreateur && salon.demandes > 0) ...[
                       const SizedBox(width: 14),
                       Pill('${salon.demandes} demande(s)', color: AppColors.warning, icon: CupertinoIcons.person_crop_circle_badge_plus),

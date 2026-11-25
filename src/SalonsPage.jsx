@@ -25,6 +25,7 @@ import AppNavigation from './components/AppNavigation';
 import { addLocalHistoryItem } from './utils/localHistory';
 import SalonList from './salons/SalonList';
 import MembersPanel from './salons/MembersPanel';
+import VisibilityBadge from './salons/VisibilityBadge';
 import MessageList from './salons/MessageList';
 import MessageComposer from './salons/MessageComposer';
 import ReportsPanel from './salons/ReportsPanel';
@@ -724,19 +725,6 @@ const SalonsPage = () => {
                     />
                 </aside>
 
-                {/* Membres du salon : colonne à gauche de la conversation. */}
-                <aside className="salons-members-panel">
-                    <MembersPanel
-                        salon={selectedSalon}
-                        members={members}
-                        requests={requests}
-                        invites={invites}
-                        isCreator={isCreator}
-                        onAction={memberAction}
-                        onInfo={showSuccess}
-                        onError={showError}
-                    />
-                </aside>
 
                 <section className="salons-detail-panel">
                     {!selectedSalon && (
@@ -762,7 +750,7 @@ const SalonsPage = () => {
                                         <h2>Messages</h2>
                                         <p>
                                             {selectedSalon.titre}
-                                            {selectedSalon.visibilite === 'prive' && <FaLock className="salon-private-icon" title="Salon privé" />}
+                                            <VisibilityBadge salon={selectedSalon} />
                                         </p>
                                         <span>
                                             <FaUsers />
@@ -934,6 +922,20 @@ const SalonsPage = () => {
                         </>
                     )}
                 </section>
+
+                {/* Membres du salon : colonne à droite, à l'opposé de la liste des salons. */}
+                <aside className="salons-members-panel">
+                    <MembersPanel
+                        salon={selectedSalon}
+                        members={members}
+                        requests={requests}
+                        invites={invites}
+                        isCreator={isCreator}
+                        onAction={memberAction}
+                        onInfo={showSuccess}
+                        onError={showError}
+                    />
+                </aside>
             </main>
         </div>
     );

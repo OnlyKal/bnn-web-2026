@@ -900,7 +900,7 @@ class _SalonDetailScreenState extends State<SalonDetailScreen> with WidgetsBindi
               Text(
                 typingNames.isNotEmpty
                     ? '${typingNames.join(', ')} ${typingNames.length > 1 ? 'écrivent' : 'écrit'}…'
-                    : '${salon.membresCount ?? _memberUsers.length} participant(s)',
+                    : '${salon.prive ? 'Privé' : 'Public'} · ${salon.membresCount ?? _memberUsers.length} participant(s)',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(

@@ -1,6 +1,7 @@
 import React from 'react';
-import { FaLock, FaPaperPlane, FaPlus, FaSearch, FaUsers } from 'react-icons/fa';
+import { FaPaperPlane, FaPlus, FaSearch, FaUsers } from 'react-icons/fa';
 import { CreateSalonForm } from './SalonForms';
+import VisibilityBadge from './VisibilityBadge';
 
 const FILTERS = [
     { id: '', label: 'Tous' },
@@ -15,6 +16,13 @@ const membershipLabel = (salon) => {
     if (salon.statut_membre === 'invite') return 'Invitation reçue';
     return salon.visibilite === 'prive' ? 'Sur demande' : 'À rejoindre';
 };
+
+/** Salons auxquels on participe, séparés des autres pour ne pas les confondre. */
+const isParticipant = (salon) => Boolean(salon.est_membre || salon.est_createur);
+const SECTIONS = [
+    { id: 'joined', label: 'Mes salons', match: isParticipant },
+    { id: 'others', label: 'Autres salons', match: (salon) => !isParticipant(salon) }
+];
 
 const SalonList = ({
     salons,
@@ -67,36 +75,46 @@ const SalonList = ({
         <div className="salons-list">
             {loading && <div className="salons-empty-state">Chargement des salons…</div>}
             {!loading && salons.length === 0 && <div className="salons-empty-state">Aucun salon trouvé</div>}
-            {!loading && salons.map((salon) => {
-                const unread = salon.non_lus_count || 0;
-                const status = selectedId === salon.id ? 'active' : unread > 0 ? 'unread' : 'idle';
+            {!loading && SECTIONS.map((section) => {
+                const items = salons.filter((salon) => section.match(salon));
+                if (items.length === 0) return null;
                 return (
-                    <button
-                        key={salon.id}
-                        className={`salon-list-item ${selectedId === salon.id ? 'active' : ''}`}
-                        onClick={() => onSelect(salon)}
-                    >
-                        <span className="salon-list-title-row">
-                            <span className={`salon-conversation-dot ${status}`} aria-hidden="true"></span>
-                            <span className="salon-list-title">{salon.titre}</span>
-                            {salon.visibilite === 'prive' && <FaLock className="salon-private-icon" title="Salon privé" />}
-                            {salon.est_nouveau && <span className="salon-badge salon-badge-new">Nouveau</span>}
-                            {unread > 0 && (
-                                <span className="salon-badge salon-badge-unread" aria-label={`${unread} message(s) non lu(s)`}>
-                                    {unread > 99 ? '99+' : unread}
-                                </span>
-                            )}
-                        </span>
-                        <span className="salon-list-description">{salon.description}</span>
-                        <span className="salon-list-stats">
-                            <FaUsers /> {salon.membres_count || 0}
-                            <FaPaperPlane /> {salon.messages_count || 0}
-                            <span className="salon-list-membership">{membershipLabel(salon)}</span>
-                            {salon.demandes_count > 0 && (
-                                <span className="salon-badge salon-badge-request">{salon.demandes_count} demande(s)</span>
-                            )}
-                        </span>
-                    </button>
+                    <div className={`salon-list-section ${section.id}`} key={section.id}>
+                        <div className="salon-list-section-title">{section.label} <span>{items.length}</span></div>
+                        {items.map((salon) => {
+                            const unread = salon.non_lus_count || 0;
+                            const status = selectedId === salon.id ? 'active' : unread > 0 ? 'unread' : 'idle';
+                            return (
+                                <button
+                                    key={salon.id}
+                                    className={`salon-list-item ${selectedId === salon.id ? 'active' : ''}`}
+                                    onClick={() => onSelect(salon)}
+                                >
+                                    <span className="salon-list-title-row">
+                                        <span className={`salon-conversation-dot ${status}`} aria-hidden="true"></span>
+                                        <span className="salon-list-title">{salon.titre}</span>
+                                        {selectedId === salon.id && <span className="salon-badge salon-badge-current">En cours</span>}
+                                        {salon.est_nouveau && <span className="salon-badge salon-badge-new">Nouveau</span>}
+                                        {unread > 0 && (
+                                            <span className="salon-badge salon-badge-unread" aria-label={`${unread} message(s) non lu(s)`}>
+                                                {unread > 99 ? '99+' : unread}
+                                            </span>
+                                        )}
+                                    </span>
+                                    <span className="salon-list-description">{salon.description}</span>
+                                    <span className="salon-list-stats">
+                                        <FaUsers /> {salon.membres_count || 0}
+                                        <FaPaperPlane /> {salon.messages_count || 0}
+                                        <VisibilityBadge salon={salon} />
+                                        <span className={`salon-list-membership ${isParticipant(salon) ? 'joined' : ''}`}>{membershipLabel(salon)}</span>
+                                        {salon.demandes_count > 0 && (
+                                            <span className="salon-badge salon-badge-request">{salon.demandes_count} demande(s)</span>
+                                        )}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
                 );
             })}
         </div>

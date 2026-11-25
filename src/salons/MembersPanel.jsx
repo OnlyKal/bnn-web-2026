@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { FaCheck, FaCopy, FaLink, FaTimes, FaUserMinus, FaUserPlus, FaUsers } from 'react-icons/fa';
 import { salonsAPI } from '../api';
 import { extractList, initials, personName } from './salonUtils';
+import VisibilityBadge from './VisibilityBadge';
 
 const InviteBox = ({ salonId, onDone, onError }) => {
     const [query, setQuery] = useState('');
@@ -128,6 +129,11 @@ const MembersPanel = ({ salon, members, requests, invites, isCreator, onAction, 
             <div className="salons-left-members-header">
                 <h3><FaUsers /> Membres du salon</h3>
                 <span>{salon.membres_count || members.length || 0}</span>
+            </div>
+            {/* Rappelle de quel salon il s'agit, pour ne pas le confondre avec les autres. */}
+            <div className="salon-members-current">
+                <strong>{salon.titre}</strong>
+                <VisibilityBadge salon={salon} />
             </div>
 
             {isCreator && (
