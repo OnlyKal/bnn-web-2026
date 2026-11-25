@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'app.dart';
 import 'app_services.dart';
 import 'core/storage/local_store.dart';
+import 'state/salon_invitation_links.dart';
 import 'state/session_controller.dart';
 
 Future<void> main() async {
@@ -30,4 +31,6 @@ Future<void> main() async {
 
   runApp(BnnApp(services: services, session: session));
   session.restore();
+  // Liens d'invitation des salons ouverts depuis un message, un e-mail…
+  SalonInvitationLinks(salons: services.salons, session: session).start();
 }

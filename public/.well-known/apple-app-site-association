@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appIDs": ["4SPXASN5ZZ.com.gtap.tracking"],
+        "appID": "4SPXASN5ZZ.com.gtap.tracking",
+        "paths": ["/salons", "/salons/*"],
+        "components": [
+          { "/": "/salons", "?": { "invitation": "?*" }, "comment": "Lien d'invitation d'un salon" }
+        ]
+      }
+    ]
+  }
+}
