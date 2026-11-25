@@ -18,6 +18,7 @@ import '../../widgets/common.dart';
 import '../../widgets/feedback.dart';
 import '../../widgets/states.dart';
 import 'salon_detail_screen.dart';
+import 'salon_sheets.dart' show promptText;
 import 'salon_widgets.dart';
 
 class SalonsScreen extends StatefulWidget {
@@ -211,6 +212,31 @@ class _SalonsScreenState extends State<SalonsScreen> with WidgetsBindingObserver
     }
   }
 
+  /// Colle un lien d'invitation (reçu par message, e-mail…) pour rejoindre le salon.
+  Future<void> _joinWithLink() async {
+    final input = await promptText(
+      context,
+      title: 'Rejoindre avec un lien',
+      hint: "Collez le lien d'invitation",
+      confirmLabel: 'Rejoindre',
+      maxLines: 3,
+    );
+    if (input == null || !mounted) return;
+    final token = SalonsService.invitationTokenFrom(input);
+    if (token == null) {
+      showError(context, "Ce lien d'invitation n'est pas valide");
+      return;
+    }
+    try {
+      final (salonId, message) = await _service.joinByInvitation(token);
+      if (!mounted) return;
+      showSuccess(context, message);
+      await _openById(salonId);
+    } on ApiException catch (e) {
+      if (mounted) showError(context, e.message);
+    }
+  }
+
   void _setFiltre(SalonFiltre filtre) {
     if (filtre == _filtre) return;
     setState(() => _filtre = filtre);
@@ -302,6 +328,11 @@ class _SalonsScreenState extends State<SalonsScreen> with WidgetsBindingObserver
             title: 'Salons',
             subtitle: 'Échangez autour de sujets thématiques et partagez des ressources avec la communauté.',
             actions: [
+              HeaderIconButton(
+                icon: CupertinoIcons.link,
+                tooltip: 'Rejoindre avec un lien',
+                onPressed: _joinWithLink,
+              ),
               HeaderIconButton(
                 icon: CupertinoIcons.bell,
                 tooltip: 'Notifications',

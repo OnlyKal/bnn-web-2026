@@ -190,6 +190,36 @@ class SalonsService {
         return pickString(asJson(response.data), ['message']) ?? 'Vous avez rejoint le salon.';
       }, "Erreur lors de l'adhésion au salon");
 
+  /// Page Salons du site web : le lien d'invitation y mène, et l'app sait aussi le lire.
+  static const String webSalonsUrl = 'https://bnn.minesursi.gouv.cd/salons';
+
+  /// Lien d'invitation généré et signé par le serveur (créateur du salon uniquement).
+  Future<String> invitationLink(String id) => _guard(() async {
+        final response = await _dio.get<dynamic>('/salons/$id/lien-invitation/');
+        final token = pickString(asJson(asJson(response.data)?['data']), ['token']);
+        if (token == null || token.isEmpty) throw ApiException("Lien d'invitation indisponible");
+        return '$webSalonsUrl?invitation=${Uri.encodeQueryComponent(token)}';
+      }, "Erreur lors de la création du lien d'invitation");
+
+  /// Extrait le jeton d'un lien d'invitation collé (ou le jeton seul).
+  static String? invitationTokenFrom(String input) {
+    final text = input.trim();
+    if (text.isEmpty) return null;
+    final uri = Uri.tryParse(text);
+    final fromLink = uri?.queryParameters['invitation'];
+    if (fromLink != null && fromLink.isNotEmpty) return fromLink;
+    return text.contains('://') || text.contains(' ') ? null : text;
+  }
+
+  /// Rejoint le salon d'un lien d'invitation. Retourne (identifiant du salon, message).
+  Future<(String, String)> joinByInvitation(String token) => _guard(() async {
+        final response = await _dio.post<dynamic>('/salons/rejoindre/', data: {'token': token});
+        final body = asJson(response.data);
+        final salonId = asJson(body?['data'])?['salon_id']?.toString();
+        if (salonId == null) throw ApiException("Ce lien d'invitation n'est pas valide");
+        return (salonId, pickString(body, ['message']) ?? 'Vous avez rejoint le salon.');
+      }, "Ce lien d'invitation n'est pas valide");
+
   Future<void> quit(String id) =>
       _guard(() => _dio.post<dynamic>('/salons/$id/quit/'), 'Erreur lors de la sortie du salon');
 

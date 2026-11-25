@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../app_services.dart';
 import '../../../core/network/api_exception.dart';
@@ -223,6 +225,9 @@ class _MembersSheetState extends State<MembersSheet> {
   Timer? _debounce;
 
   bool get _isCreator => widget.salon.estCreateur;
+  bool get _isPrivate => widget.salon.prive;
+  String? _invitationLink;
+  bool _linkLoading = false;
 
   @override
   void initState() {
@@ -247,6 +252,68 @@ class _MembersSheetState extends State<MembersSheet> {
       if (mounted) setState(() => _loading = false);
     }
   }
+
+  /// Salon privé : le serveur génère le lien ; pas de liste d'utilisateurs.
+  Future<void> _loadInvitationLink() async {
+    setState(() => _linkLoading = true);
+    try {
+      final link = await _service.invitationLink(widget.salon.id);
+      if (mounted) setState(() => _invitationLink = link);
+    } on ApiException catch (e) {
+      if (mounted) showError(context, e.message);
+    } finally {
+      if (mounted) setState(() => _linkLoading = false);
+    }
+  }
+
+  Future<void> _copyInvitationLink() async {
+    final link = _invitationLink;
+    if (link == null) return;
+    await Clipboard.setData(ClipboardData(text: link));
+    if (mounted) showSuccess(context, "Lien d'invitation copié");
+  }
+
+  Widget _invitationSection() => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Partagez ce lien : les personnes qui le suivent rejoignent le salon. '
+              'Les autres peuvent demander à rejoindre.',
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 10),
+            if (_invitationLink == null)
+              OutlinedButton.icon(
+                onPressed: _linkLoading ? null : _loadInvitationLink,
+                icon: _linkLoading ? const CupertinoActivityIndicator() : const Icon(CupertinoIcons.link),
+                label: const Text("Obtenir le lien d'invitation"),
+              )
+            else ...[
+              SelectableText(_invitationLink!, maxLines: 2, style: const TextStyle(fontSize: 12.5)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: [
+                  FilledButton.icon(
+                    onPressed: _copyInvitationLink,
+                    icon: const Icon(CupertinoIcons.doc_on_doc, size: 18),
+                    label: const Text('Copier'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => SharePlus.instance.share(ShareParams(
+                      text: 'Rejoignez le salon « ${widget.salon.titre} » sur BNN : $_invitationLink',
+                    )),
+                    icon: const Icon(CupertinoIcons.share, size: 18),
+                    label: const Text('Partager'),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      );
 
   void _onSearch(String value) {
     _debounce?.cancel();
@@ -339,12 +406,18 @@ class _MembersSheetState extends State<MembersSheet> {
                       : ListView(
                           controller: scroll,
                           children: [
+                            if (_isCreator && _isPrivate) ...[
+                              _title("Lien d'invitation"),
+                              _invitationSection(),
+                            ],
                             if (_isCreator) ...[
-                              _title('Inviter des personnes'),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16),
-                                child: SearchField(controller: _search, hint: 'Nom ou identifiant', onChanged: _onSearch),
-                              ),
+                              if (!_isPrivate) ...[
+                                _title('Inviter des personnes'),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  child: SearchField(controller: _search, hint: 'Nom ou identifiant', onChanged: _onSearch),
+                                ),
+                              ],
                               for (final user in _found)
                                 ListTile(
                                   contentPadding: const EdgeInsets.symmetric(horizontal: 20),
