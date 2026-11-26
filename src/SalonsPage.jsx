@@ -713,7 +713,7 @@ const SalonsPage = () => {
             <OpeningPopup message={openingMessage} onClose={closeOpeningPopup} />
             <AppNavigation />
 
-            <main className="salons-main with-members">
+            <main className={`salons-main with-members${selectedSalon ? '' : ' no-members'}`}>
                 <div className="salons-page-toolbar">
                     <span className={`salon-live-status ${connected ? 'on' : 'off'}`} title={connected ? 'Mises à jour en direct' : 'Mises à jour périodiques'}>
                         {connected ? 'En direct' : 'Hors ligne direct'}
@@ -1000,7 +1000,9 @@ const SalonsPage = () => {
                     )}
                 </section>
 
-                {/* Membres du salon : colonne à droite, à l'opposé de la liste des salons. */}
+                {/* Membres du salon : colonne à droite, à l'opposé de la liste des salons.
+                    Masquée tant qu'aucun salon n'est sélectionné. */}
+                {selectedSalon && (
                 <aside className="salons-members-panel">
                     <MembersPanel
                         salon={selectedSalon}
@@ -1013,6 +1015,7 @@ const SalonsPage = () => {
                         onError={showError}
                     />
                 </aside>
+                )}
             </main>
         </div>
     );

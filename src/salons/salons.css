@@ -334,3 +334,8 @@
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
   overflow: hidden; text-overflow: ellipsis;
 }
+
+/* Aucun salon sélectionné : pas de colonne des membres, la conversation prend la place. */
+@media (min-width: 901px) {
+  .salons-main.with-members.no-members { grid-template-columns: minmax(250px, 300px) minmax(0, 1fr); }
+}
