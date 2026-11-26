@@ -261,3 +261,27 @@
   font-size: var(--font-size-sm, 0.85rem);
 }
 .salon-closed-banner svg { flex-shrink: 0; margin-top: 0.2rem; }
+
+/* Heure d'ouverture */
+.salon-badge-opening { background: #e8f0ff; color: #1e42ac; white-space: nowrap; }
+.salon-opening-banner { background: #eef3ff; border-color: #cfdcf7; color: #1e3a8a; }
+.salon-field-hint { display: block; margin-top: 0.25rem; color: #6b7280; font-size: 0.75rem; }
+.salon-opening-overlay {
+  position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center;
+  background: rgba(15, 23, 42, 0.35); padding: 1rem;
+}
+.salon-opening-popup {
+  position: relative; overflow: hidden; width: min(360px, 100%); padding: 1.4rem 1.4rem 1.6rem;
+  border-radius: 14px; background: #ffffff; text-align: center; box-shadow: 0 18px 40px rgba(15, 23, 42, 0.25);
+  display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
+}
+.salon-opening-popup p { margin: 0; color: #334155; font-size: 0.92rem; line-height: 1.45; }
+.salon-opening-icon { font-size: 1.8rem; color: #1e42ac; }
+.salon-opening-close {
+  position: absolute; top: 0.5rem; right: 0.5rem; border: none; background: transparent; color: #94a3b8; cursor: pointer;
+}
+.salon-opening-progress {
+  position: absolute; left: 0; bottom: 0; height: 4px; width: 100%; background: #1e42ac;
+  transform-origin: left; animation-name: salon-opening-countdown; animation-timing-function: linear; animation-fill-mode: forwards;
+}
+@keyframes salon-opening-countdown { from { transform: scaleX(1); } to { transform: scaleX(0); } }

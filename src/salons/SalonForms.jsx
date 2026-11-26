@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FaGlobeAfrica, FaLock, FaPaperclip } from 'react-icons/fa';
-import { ACCEPTED_FILES, MAX_RESOURCES, getResourceCount, validateResources } from './salonUtils';
+import { ACCEPTED_FILES, MAX_RESOURCES, getResourceCount, toLocalInputValue, validateResources } from './salonUtils';
 
 const emptyResources = { fichiers: [], liens: '' };
 
@@ -25,14 +25,14 @@ export const UploadField = ({ id, files, onChange, label = 'Joindre fichier(s)' 
     </label>
 );
 
-const ResourceFields = ({ idPrefix, form, setForm }) => (
+const ResourceFields = ({ idPrefix, form, setForm, withLinks = true }) => (
     <>
         <UploadField
             id={`${idPrefix}-fichiers`}
             files={form.fichiers}
             onChange={(fichiers) => setForm({ ...form, fichiers })}
         />
-        <div className="salons-field-group">
+        {withLinks && <div className="salons-field-group">
             <label htmlFor={`${idPrefix}-liens`}>Liens (un par ligne)</label>
             <textarea
                 id={`${idPrefix}-liens`}
@@ -41,8 +41,19 @@ const ResourceFields = ({ idPrefix, form, setForm }) => (
                 placeholder="https://exemple.com"
                 rows="2"
             />
-        </div>
+        </div>}
     </>
+);
+
+/** Heure d'ouverture facultative : avant, seul le créateur peut entrer. */
+export const OpeningField = ({ id, value, onChange }) => (
+    <div className="salons-field-group">
+        <label htmlFor={id}>Heure d'ouverture (facultatif)</label>
+        <input id={id} type="datetime-local" value={value} onChange={(event) => onChange(event.target.value)} />
+        <small className="salon-field-hint">
+            {value ? "Avant cette heure, personne n'entre dans le salon (sauf vous), même avec le lien d'invitation." : 'Laissez vide pour ouvrir le salon tout de suite.'}
+        </small>
+    </div>
 );
 
 export const VisibilityChoice = ({ value, onChange }) => (
@@ -59,7 +70,8 @@ export const VisibilityChoice = ({ value, onChange }) => (
 );
 
 export const CreateSalonForm = ({ submitting, onSubmit, onError }) => {
-    const [form, setForm] = useState({ titre: '', description: '', visibilite: 'public', ...emptyResources });
+    const emptyForm = { titre: '', description: '', visibilite: 'public', ouverture: '', ...emptyResources };
+    const [form, setForm] = useState(emptyForm);
 
     const handleSubmit = async (event) => {
         event.preventDefault();
@@ -67,13 +79,14 @@ export const CreateSalonForm = ({ submitting, onSubmit, onError }) => {
             onError('Le titre doit contenir au moins 3 caractères.');
             return;
         }
-        const error = validateResources(form);
+        // Les ressources sont facultatives à la création.
+        const error = validateResources(form, { required: false });
         if (error) {
             onError(error);
             return;
         }
         const ok = await onSubmit(form);
-        if (ok) setForm({ titre: '', description: '', visibilite: 'public', ...emptyResources });
+        if (ok) setForm(emptyForm);
     };
 
     return (
@@ -100,7 +113,8 @@ export const CreateSalonForm = ({ submitting, onSubmit, onError }) => {
                 />
             </div>
             <VisibilityChoice value={form.visibilite} onChange={(visibilite) => setForm({ ...form, visibilite })} />
-            <ResourceFields idPrefix="salon" form={form} setForm={setForm} />
+            <OpeningField id="salon-ouverture" value={form.ouverture} onChange={(ouverture) => setForm({ ...form, ouverture })} />
+            <ResourceFields idPrefix="salon" form={form} setForm={setForm} withLinks={false} />
             <div className="salons-form-footer">
                 <span>{getResourceCount(form)} / {MAX_RESOURCES} ressources</span>
                 <button type="submit" disabled={submitting}>{submitting ? 'Création…' : 'Créer'}</button>
@@ -138,7 +152,8 @@ export const EditSalonForm = ({ salon, submitting, onSubmit, onCancel }) => {
     const [form, setForm] = useState({
         titre: salon.titre || '',
         description: salon.description || '',
-        visibilite: salon.visibilite || 'public'
+        visibilite: salon.visibilite || 'public',
+        ouverture: toLocalInputValue(salon.date_ouverture)
     });
 
     return (
@@ -146,6 +161,7 @@ export const EditSalonForm = ({ salon, submitting, onSubmit, onCancel }) => {
             <input value={form.titre} maxLength={255} onChange={(event) => setForm({ ...form, titre: event.target.value })} />
             <textarea value={form.description} rows="2" onChange={(event) => setForm({ ...form, description: event.target.value })} />
             <VisibilityChoice value={form.visibilite} onChange={(visibilite) => setForm({ ...form, visibilite })} />
+            <OpeningField id="salon-edit-ouverture" value={form.ouverture} onChange={(ouverture) => setForm({ ...form, ouverture })} />
             <div>
                 <button type="submit" disabled={submitting}>Enregistrer</button>
                 <button type="button" onClick={onCancel}>Annuler</button>

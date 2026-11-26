@@ -7,6 +7,7 @@ import '../app.dart';
 import '../core/network/api_exception.dart';
 import '../data/services/salons_service.dart';
 import '../ui/screens/salons/salon_detail_screen.dart';
+import '../ui/screens/salons/salon_widgets.dart';
 import '../ui/widgets/feedback.dart';
 import 'session_controller.dart';
 
@@ -72,7 +73,13 @@ class SalonInvitationLinks {
       await navigator?.push(MaterialPageRoute(builder: (_) => SalonDetailScreen(salonId: salonId)));
     } on ApiException catch (e) {
       final context = rootNavigatorKey.currentContext;
-      if (context != null && context.mounted) showError(context, e.message);
+      if (context != null && context.mounted) {
+        if (isNotYetOpenError(e)) {
+          showOpeningPopup(context, e.message);
+        } else {
+          showError(context, e.message);
+        }
+      }
     } finally {
       _busy = false;
     }

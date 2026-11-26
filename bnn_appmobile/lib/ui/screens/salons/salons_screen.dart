@@ -235,7 +235,12 @@ class _SalonsScreenState extends State<SalonsScreen> with WidgetsBindingObserver
       showSuccess(context, message);
       await _openById(salonId);
     } on ApiException catch (e) {
-      if (mounted) showError(context, e.message);
+      if (!mounted) return;
+      if (isNotYetOpenError(e)) {
+        showOpeningPopup(context, e.message);
+      } else {
+        showError(context, e.message);
+      }
     }
   }
 
@@ -259,6 +264,7 @@ class _SalonsScreenState extends State<SalonsScreen> with WidgetsBindingObserver
         description: result.description,
         resources: result.resources,
         prive: result.prive,
+        ouverture: result.ouverture,
       );
       if (!mounted) return;
       showSuccess(context, 'Salon créé avec succès.');
@@ -562,6 +568,9 @@ class _StatutPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (salon.ferme) return const Pill('Fermé', color: AppColors.textMuted, icon: CupertinoIcons.lock_fill);
+    if (!salon.estOuvert && salon.dateOuverture != null) {
+      return Pill('Ouvre le ${formatOuverture(salon.dateOuverture!)}', color: AppColors.primary, icon: CupertinoIcons.clock);
+    }
     if (salon.estCreateur) return const Pill('Créateur', color: AppColors.navy, icon: CupertinoIcons.star_fill);
     return switch (salon.statut) {
       SalonStatut.membre => const Pill('Membre', color: AppColors.successDark, icon: CupertinoIcons.checkmark_alt),

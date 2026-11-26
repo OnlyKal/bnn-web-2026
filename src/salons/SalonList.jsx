@@ -2,6 +2,7 @@ import React from 'react';
 import { FaPaperPlane, FaPlus, FaSearch, FaUsers } from 'react-icons/fa';
 import { CreateSalonForm } from './SalonForms';
 import VisibilityBadge from './VisibilityBadge';
+import { formatOuverture } from './salonUtils';
 
 const FILTERS = [
     { id: '', label: 'Tous' },
@@ -98,6 +99,11 @@ const SalonList = ({
                                         <span className="salon-list-title">{salon.titre}</span>
                                         {selectedId === salon.id && <span className="salon-badge salon-badge-current">En cours</span>}
                                         {salon.ferme && <span className="salon-badge salon-badge-closed">Fermé</span>}
+                                        {salon.est_ouvert === false && (
+                                            <span className="salon-badge salon-badge-opening" title="Heure d'ouverture (heure de Kinshasa)">
+                                                Ouvre le {formatOuverture(salon.date_ouverture)}
+                                            </span>
+                                        )}
                                         {salon.est_nouveau && <span className="salon-badge salon-badge-new">Nouveau</span>}
                                         {unread > 0 && (
                                             <span className="salon-badge salon-badge-unread" aria-label={`${unread} message(s) non lu(s)`}>

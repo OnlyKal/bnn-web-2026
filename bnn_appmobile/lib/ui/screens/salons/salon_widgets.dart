@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
@@ -6,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../../app_services.dart';
+import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../data/models/ressource.dart';
@@ -146,11 +149,15 @@ class SalonFormResult {
     this.titre = '',
     this.description = '',
     this.prive = false,
+    this.ouverture,
     this.resources = const SalonResourcesInput(),
   });
 
   final String titre;
   final bool prive;
+
+  /// Heure d'ouverture choisie (null : ouvert tout de suite).
+  final DateTime? ouverture;
   final String description;
   final SalonResourcesInput resources;
 }
@@ -163,10 +170,12 @@ class SalonFormSheet extends StatefulWidget {
     this.initialTitle = '',
     this.initialDescription = '',
     this.initialPrive = false,
+    this.initialOuverture,
   });
 
   final SalonFormMode mode;
   final bool initialPrive;
+  final DateTime? initialOuverture;
   final String initialTitle;
   final String initialDescription;
 
@@ -181,6 +190,7 @@ class _SalonFormSheetState extends State<SalonFormSheet> {
   final _links = TextEditingController();
   List<PickedUpload> _files = [];
   late bool _prive = widget.initialPrive;
+  late DateTime? _ouverture = widget.initialOuverture?.toLocal();
 
   bool get _withResources => widget.mode != SalonFormMode.edit;
   bool get _withText => widget.mode != SalonFormMode.resources;
@@ -203,7 +213,8 @@ class _SalonFormSheetState extends State<SalonFormSheet> {
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
     if (_withResources) {
-      if (_count < 1) {
+      // Les ressources sont facultatives à la création d'un salon.
+      if (_count < 1 && widget.mode == SalonFormMode.resources) {
         showError(context, 'Ajoutez au moins une ressource : fichier, image ou lien.');
         return;
       }
@@ -221,6 +232,7 @@ class _SalonFormSheetState extends State<SalonFormSheet> {
       titre: _title.text.trim(),
       description: _description.text.trim(),
       prive: _prive,
+      ouverture: _ouverture,
       resources: SalonResourcesInput(files: _files, links: SalonResourcesInput.splitLinks(_links.text)),
     ));
   }
@@ -302,6 +314,8 @@ class _SalonFormSheetState extends State<SalonFormSheet> {
                     style: const TextStyle(color: AppColors.textMuted, fontSize: 12.5),
                   ),
                   const SizedBox(height: 12),
+                  _OpeningPicker(value: _ouverture, onChanged: (v) => setState(() => _ouverture = v)),
+                  const SizedBox(height: 12),
                 ],
                 if (_withResources) ...[
                   const Text('Ressources partagées',
@@ -329,7 +343,7 @@ class _SalonFormSheetState extends State<SalonFormSheet> {
                       ),
                     ),
                   const SizedBox(height: 12),
-                  TextFormField(
+                  if (widget.mode == SalonFormMode.resources) TextFormField(
                     controller: _links,
                     minLines: 2,
                     maxLines: 4,
@@ -439,6 +453,97 @@ class SharedResourceCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// « 26/11/2026 à 12:00 », à l'heure de Kinshasa (UTC+1, sans heure d'été).
+String formatOuverture(DateTime moment) {
+  final k = moment.toUtc().add(const Duration(hours: 1));
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${two(k.day)}/${two(k.month)}/${k.year} à ${two(k.hour)}:${two(k.minute)}';
+}
+
+/// Le serveur refuse l'entrée parce que le salon n'est pas encore ouvert.
+bool isNotYetOpenError(Object error) =>
+    error is ApiException && error.statusCode == 403 && error.message.contains('ouvre le');
+
+/// Petit message affiché 5 secondes quand on tente d'entrer avant l'heure d'ouverture.
+Future<void> showOpeningPopup(BuildContext context, String message) async {
+  final navigator = Navigator.of(context, rootNavigator: true);
+  var open = true;
+  final timer = Timer(const Duration(seconds: 5), () {
+    if (open && navigator.mounted) navigator.pop();
+  });
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      icon: const Icon(CupertinoIcons.clock_fill, color: AppColors.primary, size: 36),
+      title: const Text('Pas encore ouvert'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(message, textAlign: TextAlign.center),
+          const SizedBox(height: 16),
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 1, end: 0),
+            duration: const Duration(seconds: 5),
+            builder: (_, value, _) => LinearProgressIndicator(value: value, minHeight: 3),
+          ),
+        ],
+      ),
+    ),
+  );
+  open = false;
+  timer.cancel();
+}
+
+/// Choix facultatif de l'heure d'ouverture d'un salon.
+class _OpeningPicker extends StatelessWidget {
+  const _OpeningPicker({required this.value, required this.onChanged});
+
+  final DateTime? value;
+  final ValueChanged<DateTime?> onChanged;
+
+  Future<void> _pick(BuildContext context) async {
+    final now = DateTime.now();
+    final initial = value ?? now.add(const Duration(hours: 1));
+    final day = await showDatePicker(
+      context: context,
+      initialDate: initial.isBefore(now) ? now : initial,
+      firstDate: DateTime(now.year, now.month, now.day),
+      lastDate: now.add(const Duration(days: 365)),
+      helpText: "Jour d'ouverture",
+    );
+    if (day == null || !context.mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initial),
+      helpText: "Heure d'ouverture",
+    );
+    if (time == null) return;
+    onChanged(DateTime(day.year, day.month, day.day, time.hour, time.minute));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        OutlinedButton.icon(
+          onPressed: () => _pick(context),
+          icon: const Icon(CupertinoIcons.clock, size: 19),
+          label: Text(value == null ? "Heure d'ouverture (facultatif)" : 'Ouvre le ${formatOuverture(value!)}'),
+        ),
+        if (value != null)
+          TextButton(onPressed: () => onChanged(null), child: const Text("Retirer l'heure d'ouverture")),
+        Text(
+          value == null
+              ? 'Laissez vide pour ouvrir le salon tout de suite.'
+              : "Avant cette heure, personne n'entre (sauf vous), même avec le lien d'invitation.",
+          style: const TextStyle(color: AppColors.textMuted, fontSize: 12.5),
+        ),
+      ],
     );
   }
 }

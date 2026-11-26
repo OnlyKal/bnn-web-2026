@@ -148,12 +148,14 @@ class SalonsService {
     required String description,
     required SalonResourcesInput resources,
     bool prive = false,
+    DateTime? ouverture,
   }) =>
       _guard(() async {
         final form = FormData.fromMap({
           'titre': titre.trim(),
           'description': description.trim(),
           'visibilite': prive ? 'prive' : 'public',
+          if (ouverture != null) 'date_ouverture': ouverture.toUtc().toIso8601String(),
         });
         await _appendResources(form, resources);
         final response = await _dio.post<dynamic>('/salons/', data: form);
@@ -161,11 +163,14 @@ class SalonsService {
         return json == null || json['id'] == null ? null : Salon.fromJson(json);
       }, 'Erreur lors de la création du salon');
 
-  Future<void> update(String id, {required String titre, required String description, bool? prive}) => _guard(
+  /// [ouverture] : `null` retire l'heure d'ouverture.
+  Future<void> update(String id, {required String titre, required String description, bool? prive, DateTime? ouverture}) =>
+      _guard(
         () => _dio.patch<dynamic>('/salons/$id/', data: {
           'titre': titre.trim(),
           'description': description.trim(),
           if (prive != null) 'visibilite': prive ? 'prive' : 'public',
+          'date_ouverture': ouverture?.toUtc().toIso8601String(),
         }),
         'Erreur lors de la modification du salon',
       );

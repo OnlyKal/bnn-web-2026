@@ -605,6 +605,8 @@ const salonRequest = async (request, fallback) => {
             : '';
         const wrapped = new Error(data?.detail || data?.message || fieldErrors || fallback);
         wrapped.status = error.response?.status;
+        wrapped.code = data?.code;
+        wrapped.dateOuverture = data?.date_ouverture;
         throw wrapped;
     }
 };

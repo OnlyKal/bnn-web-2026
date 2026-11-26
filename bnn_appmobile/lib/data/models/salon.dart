@@ -138,6 +138,8 @@ class Salon {
     this.demandes = 0,
     this.ferme = false,
     this.dateFermeture,
+    this.dateOuverture,
+    this.estOuvert = true,
     this.createur,
     this.ressources = const [],
     this.epingles = const [],
@@ -160,6 +162,8 @@ class Salon {
       demandes: asInt(json['demandes_count']) ?? 0,
       ferme: asBool(json['ferme']),
       dateFermeture: DateTime.tryParse(pickString(json, ['date_fermeture']) ?? '')?.toLocal(),
+      dateOuverture: DateTime.tryParse(pickString(json, ['date_ouverture']) ?? ''),
+      estOuvert: json['est_ouvert'] is bool ? json['est_ouvert'] as bool : true,
       createur: personJson(json['createur']),
       ressources: extractList(json['ressources']).map(SalonResource.fromJson).toList(),
       epingles: extractList(json['messages_epingles']).map(SalonMessage.fromJson).toList(),
@@ -182,6 +186,13 @@ class Salon {
   /// Salon fermé : lecture seule pour tout le monde.
   final bool ferme;
   final DateTime? dateFermeture;
+
+  /// Heure d'ouverture facultative : avant, seul le créateur peut entrer.
+  final DateTime? dateOuverture;
+  final bool estOuvert;
+
+  /// Le salon n'est pas encore ouvert pour l'utilisateur courant.
+  bool get pasEncoreOuvert => !estOuvert && !estCreateur;
   final Json? createur;
   final List<SalonResource> ressources;
   final List<SalonMessage> epingles;
@@ -203,6 +214,8 @@ class Salon {
         demandes: demandes,
         ferme: ferme,
         dateFermeture: dateFermeture,
+        dateOuverture: dateOuverture,
+        estOuvert: estOuvert,
         createur: createur,
         ressources: ressources,
         epingles: epingles,

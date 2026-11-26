@@ -58,6 +58,27 @@ export const formatMessageTime = (value) => {
     return new Date(value).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 };
 
+/** Heure d'ouverture d'un salon, affichée à l'heure de Kinshasa : « 26/11/2026 à 12:00 ». */
+export const formatOuverture = (value) => {
+    if (!value) return '';
+    const date = new Date(value);
+    const options = { timeZone: 'Africa/Kinshasa' };
+    const jour = date.toLocaleDateString('fr-FR', { ...options, day: '2-digit', month: '2-digit', year: 'numeric' });
+    const heure = date.toLocaleTimeString('fr-FR', { ...options, hour: '2-digit', minute: '2-digit' });
+    return `${jour} à ${heure}`;
+};
+
+/** Valeur d'un champ datetime-local (heure locale du navigateur) pour une date ISO. */
+export const toLocalInputValue = (value) => {
+    if (!value) return '';
+    const date = new Date(value);
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
+/** Le salon n'est pas encore ouvert pour cet utilisateur (le créateur entre toujours). */
+export const isNotYetOpen = (salon) => !!salon && salon.est_ouvert === false && !salon.est_createur;
+
 export const formatShortDate = (value) => {
     if (!value) return '';
     return new Date(value).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });

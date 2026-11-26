@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom';
 import {
     FaBell,
+    FaClock,
     FaEdit,
     FaFileAlt,
     FaFlag,
@@ -32,12 +33,15 @@ import MessageComposer from './salons/MessageComposer';
 import ReportsPanel from './salons/ReportsPanel';
 import { AddResourcesForm, EditSalonForm } from './salons/SalonForms';
 import useSalonSocket from './salons/useSalonSocket';
+import OpeningPopup from './salons/OpeningPopup';
 import {
     MAX_RESOURCES,
     STATUT_LABELS,
     buildResourcesFormData,
     extractList,
+    formatOuverture,
     formatShortDate,
+    isNotYetOpen,
     personName
 } from './salons/salonUtils';
 import './salons/salons.css';
@@ -56,6 +60,8 @@ const SalonsPage = () => {
     const [salons, setSalons] = useState([]);
     const [filter, setFilter] = useState('');
     const [closedCount, setClosedCount] = useState(0);
+    const [openingMessage, setOpeningMessage] = useState('');
+    const closeOpeningPopup = useCallback(() => setOpeningMessage(''), []);
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(true);
     const [selectedSalon, setSelectedSalon] = useState(null);
@@ -313,7 +319,8 @@ const SalonsPage = () => {
                 await fetchSalons();
                 if (salonId) openSalon({ id: salonId });
             } catch (error) {
-                showError(error.message);
+                if (error.code === 'pas_encore_ouvert') setOpeningMessage(error.message);
+                else showError(error.message);
             }
         })();
         // Une seule fois à l'ouverture de la page.
@@ -389,7 +396,8 @@ const SalonsPage = () => {
             if (success) showSuccess(typeof success === 'function' ? success(result) : success);
             return result ?? true;
         } catch (error) {
-            showError(error.message);
+            if (error.code === 'pas_encore_ouvert') setOpeningMessage(error.message);
+            else showError(error.message);
             return false;
         } finally {
             setSubmitting(false);
@@ -420,6 +428,9 @@ const SalonsPage = () => {
                 icon: 'salon',
                 metadata: { salonId: salon.id }
             });
+            if (isNotYetOpen(detail)) {
+                setOpeningMessage(`Ce salon ouvre le ${formatOuverture(detail.date_ouverture)}. Revenez à ce moment-là.`);
+            }
             if (detail?.est_membre || detail?.est_createur) fetchMembers(salon.id);
             if (detail?.est_membre) {
                 await fetchLatestMessages(salon.id);
@@ -438,6 +449,7 @@ const SalonsPage = () => {
         formData.append('titre', form.titre.trim());
         formData.append('description', form.description.trim());
         formData.append('visibilite', form.visibilite);
+        if (form.ouverture) formData.append('date_ouverture', new Date(form.ouverture).toISOString());
         const response = await run(() => salonsAPI.createSalon(formData), 'Salon créé avec succès.');
         if (!response) return false;
         setShowCreateForm(false);
@@ -450,7 +462,8 @@ const SalonsPage = () => {
         const response = await run(() => salonsAPI.updateSalon(selectedId, {
             titre: form.titre.trim(),
             description: form.description.trim(),
-            visibilite: form.visibilite
+            visibilite: form.visibilite,
+            date_ouverture: form.ouverture ? new Date(form.ouverture).toISOString() : null
         }), 'Salon modifié avec succès.');
         if (response) {
             setEditing(false);
@@ -697,6 +710,7 @@ const SalonsPage = () => {
     return (
         <div className="salons-page">
             <ToastContainer toasts={toasts} onClose={removeToast} />
+            <OpeningPopup message={openingMessage} onClose={closeOpeningPopup} />
             <AppNavigation />
 
             <main className="salons-main with-members">
@@ -842,6 +856,18 @@ const SalonsPage = () => {
 
                             {detailLoading && <div className="salons-empty-state">Chargement du détail…</div>}
 
+                            {selectedSalon.est_ouvert === false && (
+                                <div className="salon-closed-banner salon-opening-banner" role="status">
+                                    <FaClock />
+                                    <span>
+                                        Ouverture le {formatOuverture(selectedSalon.date_ouverture)} (heure de Kinshasa).
+                                        {isCreator
+                                            ? " D'ici là, vous seul pouvez entrer pour préparer le salon."
+                                            : " Personne ne peut entrer avant cette heure, même avec un lien d'invitation."}
+                                    </span>
+                                </div>
+                            )}
+
                             {isClosed && (
                                 <div className="salon-closed-banner" role="status">
                                     <FaLock />
@@ -930,6 +956,8 @@ const SalonsPage = () => {
                                                 ? 'Le créateur vous a retiré de ce salon.'
                                                 : isClosed
                                                     ? 'Ce salon est fermé : il ne peut plus être rejoint.'
+                                                    : isNotYetOpen(selectedSalon)
+                                                        ? `Ce salon ouvre le ${formatOuverture(selectedSalon.date_ouverture)}.`
                                                     : 'Rejoignez ce salon pour consulter et envoyer des messages.'}
                                     </div>
                                 )}

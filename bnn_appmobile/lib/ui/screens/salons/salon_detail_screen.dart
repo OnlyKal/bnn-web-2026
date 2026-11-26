@@ -123,6 +123,9 @@ class _SalonDetailScreenState extends State<SalonDetailScreen> with WidgetsBindi
       final salon = await _service.get(widget.salonId);
       if (!mounted) return;
       setState(() => _salon = salon);
+      if (salon.pasEncoreOuvert && salon.dateOuverture != null) {
+        showOpeningPopup(context, 'Ce salon ouvre le ${formatOuverture(salon.dateOuverture!)}. Revenez à ce moment-là.');
+      }
       if (logHistory) {
         context.read<HistoryController>().add(
               type: HistoryType.salon,
@@ -353,7 +356,12 @@ class _SalonDetailScreenState extends State<SalonDetailScreen> with WidgetsBindi
       await action();
       if (mounted && success != null) showSuccess(context, success);
     } on ApiException catch (e) {
-      if (mounted) showError(context, e.message);
+      if (!mounted) return;
+      if (isNotYetOpenError(e)) {
+        showOpeningPopup(context, e.message);
+      } else {
+        showError(context, e.message);
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -398,11 +406,18 @@ class _SalonDetailScreenState extends State<SalonDetailScreen> with WidgetsBindi
         initialTitle: salon.titre,
         initialDescription: salon.description,
         initialPrive: salon.prive,
+        initialOuverture: salon.dateOuverture,
       ),
     );
     if (result == null) return;
     await _run(() async {
-      await _service.update(widget.salonId, titre: result.titre, description: result.description, prive: result.prive);
+      await _service.update(
+        widget.salonId,
+        titre: result.titre,
+        description: result.description,
+        prive: result.prive,
+        ouverture: result.ouverture,
+      );
       await _refreshSalon();
     }, 'Salon modifié avec succès.');
   }
@@ -1020,10 +1035,33 @@ class _SalonDetailScreenState extends State<SalonDetailScreen> with WidgetsBindi
       body: Column(
         children: [
           if (_busy) const LinearProgressIndicator(minHeight: 2),
+          if (!salon.estOuvert && salon.dateOuverture != null) _buildOpeningBanner(salon, isCreator),
           if (salon.ferme) _buildClosedBanner(salon, isCreator),
           if (salon.estMembre && salon.epingles.isNotEmpty) _buildPinnedBar(salon),
           Expanded(child: salon.estMembre ? _buildMessages() : _buildJoin(salon)),
           if (salon.estMembre && !salon.ferme) _buildComposer(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOpeningBanner(Salon salon, bool isCreator) {
+    return Container(
+      width: double.infinity,
+      color: AppColors.primarySoft,
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(CupertinoIcons.clock_fill, size: 16, color: AppColors.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Ouverture le ${formatOuverture(salon.dateOuverture!)} (heure de Kinshasa).'
+              '${isCreator ? " D'ici là, vous seul pouvez entrer pour préparer le salon." : " Personne ne peut entrer avant cette heure, même avec un lien d'invitation."}',
+              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.35),
+            ),
+          ),
         ],
       ),
     );
@@ -1085,6 +1123,10 @@ class _SalonDetailScreenState extends State<SalonDetailScreen> with WidgetsBindi
   Widget _buildJoin(Salon salon) {
     final (String message, List<Widget> actions) = switch (salon.statut) {
       _ when salon.ferme => ('Ce salon est fermé : il ne peut plus être rejoint.', <Widget>[]),
+      _ when salon.pasEncoreOuvert && salon.dateOuverture != null => (
+          'Ce salon ouvre le ${formatOuverture(salon.dateOuverture!)}. Revenez à ce moment-là.',
+          <Widget>[],
+        ),
       SalonStatut.enAttente => (
           "Votre demande d'accès a été envoyée au créateur du salon. Vous serez notifié dès qu'elle sera traitée.",
           [
