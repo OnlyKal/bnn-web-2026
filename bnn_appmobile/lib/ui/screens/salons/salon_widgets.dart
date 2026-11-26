@@ -270,6 +270,11 @@ class _SalonFormSheetState extends State<SalonFormSheet> {
                     Expanded(
                       child: Text(title, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700, letterSpacing: -0.3)),
                     ),
+                    IconButton(
+                      tooltip: 'Fermer',
+                      icon: const Icon(CupertinoIcons.xmark_circle_fill, color: AppColors.textSecondary),
+                      onPressed: () => Navigator.of(context).maybePop(),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 18),

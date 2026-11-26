@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { FaGlobeAfrica, FaLock, FaPaperclip } from 'react-icons/fa';
+import React, { useEffect, useState } from 'react';
+import { FaGlobeAfrica, FaLock, FaPaperclip, FaTimes } from 'react-icons/fa';
 import { ACCEPTED_FILES, MAX_RESOURCES, getResourceCount, toLocalInputValue, validateResources } from './salonUtils';
 
 const emptyResources = { fichiers: [], liens: '' };
@@ -69,9 +69,17 @@ export const VisibilityChoice = ({ value, onChange }) => (
     </div>
 );
 
-export const CreateSalonForm = ({ submitting, onSubmit, onError }) => {
+export const CreateSalonForm = ({ submitting, onSubmit, onError, onClose }) => {
     const emptyForm = { titre: '', description: '', visibilite: 'public', ouverture: '', ...emptyResources };
     const [form, setForm] = useState(emptyForm);
+
+    // La touche Échap ferme le formulaire, comme le bouton ×.
+    useEffect(() => {
+        if (!onClose) return undefined;
+        const onKey = (event) => { if (event.key === 'Escape' && !submitting) onClose(); };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [onClose, submitting]);
 
     const handleSubmit = async (event) => {
         event.preventDefault();
@@ -91,6 +99,14 @@ export const CreateSalonForm = ({ submitting, onSubmit, onError }) => {
 
     return (
         <form className="salons-form" onSubmit={handleSubmit}>
+            <div className="salons-form-header">
+                <strong>Nouveau salon</strong>
+                {onClose && (
+                    <button type="button" className="salons-form-close" onClick={onClose} disabled={submitting} title="Fermer (Échap)" aria-label="Fermer le formulaire">
+                        <FaTimes />
+                    </button>
+                )}
+            </div>
             <div className="salons-field-group">
                 <label htmlFor="salon-titre">Titre du salon</label>
                 <input
@@ -117,7 +133,10 @@ export const CreateSalonForm = ({ submitting, onSubmit, onError }) => {
             <ResourceFields idPrefix="salon" form={form} setForm={setForm} withLinks={false} />
             <div className="salons-form-footer">
                 <span>{getResourceCount(form)} / {MAX_RESOURCES} ressources</span>
-                <button type="submit" disabled={submitting}>{submitting ? 'Création…' : 'Créer'}</button>
+                <div className="salons-form-actions">
+                    {onClose && <button type="button" className="salons-secondary-btn" onClick={onClose} disabled={submitting}>Annuler</button>}
+                    <button type="submit" disabled={submitting}>{submitting ? 'Création…' : 'Créer'}</button>
+                </div>
             </div>
         </form>
     );

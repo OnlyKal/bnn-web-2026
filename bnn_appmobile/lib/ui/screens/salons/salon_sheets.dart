@@ -406,8 +406,9 @@ class _MembersSheetState extends State<MembersSheet> {
                       : ListView(
                           controller: scroll,
                           children: [
-                            if (_isCreator && _isPrivate) ...[
-                              _title("Lien d'invitation"),
+                            // Lien à copier ou partager, au-dessus des membres (salons publics et privés).
+                            if (_isCreator && !widget.salon.ferme) ...[
+                              _title('Lien du salon'),
                               _invitationSection(),
                             ],
                             if (_isCreator) ...[

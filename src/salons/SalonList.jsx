@@ -74,7 +74,7 @@ const SalonList = ({
             ))}
         </div>
 
-        {showCreateForm && <CreateSalonForm submitting={submitting} onSubmit={onCreate} onError={onError} />}
+        {showCreateForm && <CreateSalonForm submitting={submitting} onSubmit={onCreate} onError={onError} onClose={onToggleCreate} />}
 
         <div className="salons-list">
             {loading && <div className="salons-empty-state">Chargement des salons…</div>}

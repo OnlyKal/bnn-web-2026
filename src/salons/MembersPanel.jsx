@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FaCheck, FaCopy, FaLink, FaTimes, FaUserMinus, FaUserPlus, FaUsers } from 'react-icons/fa';
+import { FaCheck, FaCopy, FaLink, FaShareAlt, FaTimes, FaUserMinus, FaUserPlus, FaUsers } from 'react-icons/fa';
 import { salonsAPI } from '../api';
 import { extractList, initials, personName } from './salonUtils';
 import VisibilityBadge from './VisibilityBadge';
@@ -74,8 +74,9 @@ const InviteBox = ({ salonId, onDone, onError }) => {
 };
 
 /** Lien d'invitation généré par le serveur : les personnes qui le suivent entrent dans le salon. */
-const InvitationLinkBox = ({ salonId, onInfo, onError }) => {
+const InvitationLinkBox = ({ salon, onInfo, onError }) => {
     const [link, setLink] = useState('');
+    const salonId = salon.id;
 
     useEffect(() => {
         let active = true;
@@ -98,15 +99,31 @@ const InvitationLinkBox = ({ salonId, onInfo, onError }) => {
         }
     };
 
+    const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+    const share = async () => {
+        try {
+            await navigator.share({ title: salon.titre, text: `Rejoignez le salon « ${salon.titre} »`, url: link });
+        } catch (error) {
+            // Fermer la fenêtre de partage n'est pas une erreur.
+            if (error?.name !== 'AbortError') copy();
+        }
+    };
+
     return (
-        <div className="salon-invite-box">
-            <small className="salons-muted">
-                Partagez ce lien : les personnes qui le suivent rejoignent le salon. Les autres peuvent demander à rejoindre.
-            </small>
-            <input type="text" readOnly value={link || 'Création du lien…'} onFocus={(event) => event.target.select()} />
-            <button type="button" className="salons-primary-btn" onClick={copy} disabled={!link}>
-                <FaCopy /> Copier le lien
-            </button>
+        <div className="salon-link-share">
+            <div className="salon-link-share-title"><FaLink /> Lien du salon</div>
+            <input type="text" readOnly value={link || 'Création du lien…'} onFocus={(event) => event.target.select()} aria-label="Lien d'invitation" />
+            <div className="salon-link-share-actions">
+                <button type="button" className="salons-primary-btn" onClick={copy} disabled={!link}>
+                    <FaCopy /> Copier
+                </button>
+                {canShare && (
+                    <button type="button" className="salons-secondary-btn" onClick={share} disabled={!link}>
+                        <FaShareAlt /> Partager
+                    </button>
+                )}
+            </div>
+            <small className="salons-muted">Les personnes qui suivent ce lien rejoignent le salon.</small>
         </div>
     );
 };
@@ -126,6 +143,8 @@ const MembersPanel = ({ salon, members, requests, invites, isCreator, onAction, 
 
     return (
         <div className="salons-left-members">
+            {/* Lien à copier ou partager, juste au-dessus des membres. */}
+            {isCreator && !salon.ferme && <InvitationLinkBox salon={salon} onInfo={onInfo} onError={onError} />}
             <div className="salons-left-members-header">
                 <h3><FaUsers /> Membres du salon</h3>
                 <span>{salon.membres_count || members.length || 0}</span>
@@ -136,14 +155,11 @@ const MembersPanel = ({ salon, members, requests, invites, isCreator, onAction, 
                 <VisibilityBadge salon={salon} />
             </div>
 
-            {isCreator && !salon.ferme && (
+            {/* Salon public : on peut aussi inviter des personnes par leur nom. Salon privé : le lien suffit. */}
+            {isCreator && !isPrivate && !salon.ferme && (
                 <button type="button" className="salons-secondary-btn salon-invite-toggle" onClick={() => setShowInvite((v) => !v)}>
-                    {isPrivate ? <><FaLink /> Lien d'invitation</> : <><FaUserPlus /> Inviter des personnes</>}
+                    <FaUserPlus /> Inviter des personnes
                 </button>
-            )}
-            {/* Salon privé : pas de liste d'utilisateurs, on partage le lien généré par le serveur. */}
-            {isCreator && showInvite && isPrivate && !salon.ferme && (
-                <InvitationLinkBox salonId={salon.id} onInfo={onInfo} onError={onError} />
             )}
             {isCreator && showInvite && !isPrivate && !salon.ferme && (
                 <InviteBox salonId={salon.id} onDone={(message) => { onInfo(message); onAction(); }} onError={onError} />

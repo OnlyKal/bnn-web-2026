@@ -285,3 +285,38 @@
   transform-origin: left; animation-name: salon-opening-countdown; animation-timing-function: linear; animation-fill-mode: forwards;
 }
 @keyframes salon-opening-countdown { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+/* Formulaire « Nouveau salon » : titre et bouton de fermeture. */
+.salons-form-header { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.salons-form-header strong { font-size: 0.95rem; color: #152033; }
+.salons-form-close {
+  display: inline-flex; align-items: center; justify-content: center; width: 1.9rem; height: 1.9rem;
+  border: 1px solid #dce4f0; border-radius: 999px; background: #fff; color: #475569; cursor: pointer;
+}
+.salons-form-close:hover { background: #f1f5f9; color: #152033; }
+.salons-form-actions { display: flex; gap: 0.4rem; justify-content: flex-end; }
+
+/* Lien du salon à copier ou partager, au-dessus des membres. */
+.salon-link-share {
+  display: flex; flex-direction: column; gap: 0.4rem; padding: 0.6rem; margin-bottom: 0.7rem;
+  border: 1px solid #dce4f0; border-radius: 0.4rem; background: #f6f9ff;
+}
+.salon-link-share-title { display: flex; align-items: center; gap: 0.35rem; font-weight: 700; font-size: 0.85rem; color: #1e42ac; }
+.salon-link-share input { width: 100%; font-size: 0.78rem; padding: 0.35rem 0.45rem; border: 1px solid #dce4f0; border-radius: 0.3rem; background: #fff; }
+.salon-link-share-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.salon-link-share-actions button { flex: 1; justify-content: center; }
+
+/* La carte des membres descend jusqu'en bas de l'écran. */
+@media (min-width: 1101px) {
+  .salons-members-panel {
+    display: flex; flex-direction: column;
+    height: calc(100vh - 130px); max-height: none; min-height: 420px;
+  }
+  .salons-members-panel .salons-left-members { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+  .salons-members-panel .salons-left-members-list { flex: 1 1 auto; overflow-y: auto; min-height: 0; max-height: none; align-content: start; }
+}
+@media (max-width: 1100px) {
+  .salons-members-panel { min-height: 50vh; }
+  .salons-members-panel .salons-left-members { min-height: 50vh; }
+  .salons-members-panel .salons-left-members-list { max-height: none; }
+}
