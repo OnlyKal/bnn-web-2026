@@ -131,6 +131,8 @@ const InvitationLinkBox = ({ salon, onInfo, onError }) => {
 const MembersPanel = ({ salon, members, requests, invites, isCreator, onAction, onInfo, onError }) => {
     const [showInvite, setShowInvite] = useState(false);
     const isPrivate = salon?.visibilite === 'prive';
+    // Le créateur partage toujours le lien ; dans un salon public, chaque membre peut aussi le partager.
+    const canShareLink = !!salon && !salon.ferme && (isCreator || (salon.est_membre && !isPrivate));
 
     if (!salon) {
         return (
@@ -144,7 +146,7 @@ const MembersPanel = ({ salon, members, requests, invites, isCreator, onAction, 
     return (
         <div className="salons-left-members">
             {/* Lien à copier ou partager, juste au-dessus des membres. */}
-            {isCreator && !salon.ferme && <InvitationLinkBox salon={salon} onInfo={onInfo} onError={onError} />}
+            {canShareLink && <InvitationLinkBox salon={salon} onInfo={onInfo} onError={onError} />}
             <div className="salons-left-members-header">
                 <h3><FaUsers /> Membres du salon</h3>
                 <span>{salon.membres_count || members.length || 0}</span>

@@ -320,3 +320,17 @@
   .salons-members-panel .salons-left-members { min-height: 50vh; }
   .salons-members-panel .salons-left-members-list { max-height: none; }
 }
+
+/* Le module Salon reste en thème clair, même si le téléphone ou l'ordinateur est en mode sombre :
+   sinon les boutons et les champs prennent un texte blanc sur fond blanc. */
+.salons-page { color-scheme: light; }
+.salon-notifications-dropdown { color: #152033; }
+.salon-notification-item { color: #152033; width: 100%; font: inherit; }
+.salon-notification-item span { color: #152033; }
+.salon-link-share input { color: #152033; }
+
+/* Liste des salons : description sur 2 lignes au plus, le texte complet reste dans le détail. */
+.salon-list-description {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  overflow: hidden; text-overflow: ellipsis;
+}
