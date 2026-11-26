@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "bnn.app.com",
+      "sha256_cert_fingerprints": [
+        "70:A5:8D:D3:41:2E:FC:69:EA:FD:E1:CA:FF:9C:96:C9:58:67:B2:09:4C:83:68:06:18:CC:11:F5:3A:21:84:4A"
+      ]
+    }
+  }
+]
