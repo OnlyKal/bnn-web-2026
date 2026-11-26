@@ -65,7 +65,7 @@ const Attachment = ({ attachment }) => {
     );
 };
 
-const MessageItem = ({ message, previous, own, isCreator, onReply, onEdit, onDelete, onPin, onReport, highlight }) => {
+const MessageItem = ({ message, previous, own, isCreator, readOnly, onReply, onEdit, onDelete, onPin, onReport, highlight }) => {
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState(message.contenu || '');
     const date = message.date_envoi;
@@ -137,14 +137,14 @@ const MessageItem = ({ message, previous, own, isCreator, onReply, onEdit, onDel
 
                     {!message.supprime && !editing && (
                         <div className="salon-message-actions">
-                            <button type="button" title="Répondre" onClick={() => onReply(message)}><FaReply /></button>
-                            {own && <button type="button" title="Modifier" onClick={() => setEditing(true)}><FaEdit /></button>}
-                            {isCreator && (
+                            {!readOnly && <button type="button" title="Répondre" onClick={() => onReply(message)}><FaReply /></button>}
+                            {own && !readOnly && <button type="button" title="Modifier" onClick={() => setEditing(true)}><FaEdit /></button>}
+                            {isCreator && !readOnly && (
                                 <button type="button" title={message.epingle ? 'Désépingler' : 'Épingler'} onClick={() => onPin(message)}>
                                     <FaThumbtack />
                                 </button>
                             )}
-                            {(own || isCreator) && <button type="button" title="Supprimer" onClick={() => onDelete(message)}><FaTrash /></button>}
+                            {(isCreator || (own && !readOnly)) && <button type="button" title="Supprimer" onClick={() => onDelete(message)}><FaTrash /></button>}
                             {!own && <button type="button" title="Signaler" onClick={() => onReport(message)}><FaFlag /></button>}
                         </div>
                     )}
@@ -162,6 +162,7 @@ const MessageList = ({
     onLoadMore,
     currentUserId,
     isCreator,
+    readOnly = false,
     typingNames,
     highlightId,
     endRef,
@@ -182,6 +183,7 @@ const MessageList = ({
                 previous={messages[index - 1]}
                 own={message.expediteur?.id === currentUserId}
                 isCreator={isCreator}
+                readOnly={readOnly}
                 highlight={highlightId === message.id}
                 {...actions}
             />

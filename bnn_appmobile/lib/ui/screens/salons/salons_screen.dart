@@ -37,6 +37,7 @@ class _SalonsScreenState extends State<SalonsScreen> with WidgetsBindingObserver
   List<SalonNotification> _notifications = [];
   int _unreadNotifications = 0;
   int _nouveaux = 0;
+  int _fermes = 0;
   SalonFiltre _filtre = SalonFiltre.tous;
   bool _loading = true;
   String? _error;
@@ -154,6 +155,7 @@ class _SalonsScreenState extends State<SalonsScreen> with WidgetsBindingObserver
       setState(() {
         _salons = page.salons;
         _nouveaux = page.nouveaux;
+        _fermes = page.fermes;
         _error = null;
       });
       _follow(page.salons);
@@ -352,6 +354,7 @@ class _SalonsScreenState extends State<SalonsScreen> with WidgetsBindingObserver
                   SalonFiltre.mesSalons => 'Mes salons',
                   SalonFiltre.publics => 'Publics',
                   SalonFiltre.prives => 'Privés',
+                  SalonFiltre.fermes => _fermes > 0 ? 'Fermés ($_fermes)' : 'Fermés',
                 }),
                 selected: _filtre == filtre,
                 onSelected: (_) => _setFiltre(filtre),
@@ -558,6 +561,7 @@ class _StatutPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (salon.ferme) return const Pill('Fermé', color: AppColors.textMuted, icon: CupertinoIcons.lock_fill);
     if (salon.estCreateur) return const Pill('Créateur', color: AppColors.navy, icon: CupertinoIcons.star_fill);
     return switch (salon.statut) {
       SalonStatut.membre => const Pill('Membre', color: AppColors.successDark, icon: CupertinoIcons.checkmark_alt),

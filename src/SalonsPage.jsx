@@ -9,6 +9,7 @@ import {
     FaInfoCircle,
     FaLink,
     FaLock,
+    FaLockOpen,
     FaPlus,
     FaSearch,
     FaSignOutAlt,
@@ -54,6 +55,7 @@ const SalonsPage = () => {
 
     const [salons, setSalons] = useState([]);
     const [filter, setFilter] = useState('');
+    const [closedCount, setClosedCount] = useState(0);
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(true);
     const [selectedSalon, setSelectedSalon] = useState(null);
@@ -87,6 +89,7 @@ const SalonsPage = () => {
     selectedIdRef.current = selectedId;
     const isCreator = !!selectedSalon?.est_createur;
     const isMember = !!selectedSalon?.est_membre;
+    const isClosed = !!selectedSalon?.ferme;
     const lastMessageId = messages.length ? messages[messages.length - 1].id : null;
 
     // ---------------------------------------------------------------- chargements
@@ -95,6 +98,7 @@ const SalonsPage = () => {
         try {
             const response = await salonsAPI.getSalons(searchTerm.trim(), filter);
             setSalons(extractList(response));
+            setClosedCount(response?.fermes_count ?? 0);
         } catch (error) {
             showError(error.message);
         } finally {
@@ -455,6 +459,25 @@ const SalonsPage = () => {
         }
     };
 
+    const toggleClosed = async () => {
+        const closing = !selectedSalon?.ferme;
+        if (closing && !window.confirm(
+            `Fermer le salon « ${selectedSalon?.titre} » ?\n\nLes membres pourront encore relire les messages et ouvrir les fichiers, `
+            + 'mais plus personne ne pourra écrire ni rejoindre le salon. Vous pourrez le rouvrir.'
+        )) return;
+        const response = await run(
+            () => (closing ? salonsAPI.closeSalon(selectedId) : salonsAPI.reopenSalon(selectedId)),
+            (r) => r.message
+        );
+        if (response) {
+            setSelectedSalon((previous) => ({ ...previous, ...response.data }));
+            setReplyTo(null);
+            setEditing(false);
+            setShowResourceForm(false);
+            fetchSalons();
+        }
+    };
+
     const deleteSalon = async () => {
         if (!window.confirm(`Supprimer le salon « ${selectedSalon?.titre} » ?`)) return;
         if (await run(() => salonsAPI.deleteSalon(selectedId), 'Salon supprimé.')) {
@@ -659,7 +682,7 @@ const SalonsPage = () => {
                     {icon}
                     <span>{ressource.titre || ressource.url || 'Ressource'}</span>
                 </a>
-                {isCreator && (
+                {isCreator && !isClosed && (
                     <button type="button" className="salon-resource-remove" title="Retirer" onClick={() => removeResource(ressource)}>
                         <FaTimes />
                     </button>
@@ -716,6 +739,7 @@ const SalonsPage = () => {
                         onSearch={setSearchTerm}
                         filter={filter}
                         onFilter={setFilter}
+                        closedCount={closedCount}
                         showCreateForm={showCreateForm}
                         onToggleCreate={() => setShowCreateForm((v) => !v)}
                         onCreate={createSalon}
@@ -751,6 +775,7 @@ const SalonsPage = () => {
                                         <p>
                                             {selectedSalon.titre}
                                             <VisibilityBadge salon={selectedSalon} />
+                                            {isClosed && <span className="salon-badge salon-badge-closed">Fermé</span>}
                                         </p>
                                         <span>
                                             <FaUsers />
@@ -771,7 +796,7 @@ const SalonsPage = () => {
                                         <FaInfoCircle />
                                         Infos
                                     </button>
-                                    {!isMember && !isCreator && selectedSalon.statut_membre !== 'en_attente' && (
+                                    {!isMember && !isCreator && !isClosed && selectedSalon.statut_membre !== 'en_attente' && (
                                         <button className="salons-primary-btn" onClick={joinSalon} disabled={submitting}>
                                             <FaUsers />
                                             {selectedSalon.statut_membre === 'invite'
@@ -787,6 +812,12 @@ const SalonsPage = () => {
                                     )}
                                     {isCreator && (
                                         <>
+                                            <button className="salons-secondary-btn" onClick={toggleClosed} disabled={submitting}>
+                                                {isClosed ? <FaLockOpen /> : <FaLock />}
+                                                {isClosed ? 'Rouvrir' : 'Fermer'}
+                                            </button>
+                                            {!isClosed && (
+                                            <>
                                             <button className="salons-secondary-btn" onClick={() => setEditing(true)}>
                                                 <FaEdit />
                                                 Modifier
@@ -795,6 +826,8 @@ const SalonsPage = () => {
                                                 <FaPlus />
                                                 Ressources
                                             </button>
+                                            </>
+                                            )}
                                             <button className="salons-secondary-btn" onClick={openReports}>
                                                 <FaFlag />
                                                 Signalements
@@ -809,7 +842,18 @@ const SalonsPage = () => {
 
                             {detailLoading && <div className="salons-empty-state">Chargement du détail…</div>}
 
-                            {showResourceForm && isCreator && (
+                            {isClosed && (
+                                <div className="salon-closed-banner" role="status">
+                                    <FaLock />
+                                    <span>
+                                        Ce salon est fermé{selectedSalon.date_fermeture ? ` depuis le ${new Date(selectedSalon.date_fermeture).toLocaleDateString('fr-FR')}` : ''} :
+                                        {' '}les messages et les fichiers restent consultables, mais plus personne ne peut écrire.
+                                        {isCreator && ' Vous pouvez le rouvrir ou le supprimer.'}
+                                    </span>
+                                </div>
+                            )}
+
+                            {showResourceForm && isCreator && !isClosed && (
                                 <AddResourcesForm
                                     existing={ressources.length}
                                     submitting={submitting}
@@ -884,7 +928,9 @@ const SalonsPage = () => {
                                             ? 'Votre demande est en attente de validation par le créateur du salon.'
                                             : selectedSalon.statut_membre === 'retire'
                                                 ? 'Le créateur vous a retiré de ce salon.'
-                                                : 'Rejoignez ce salon pour consulter et envoyer des messages.'}
+                                                : isClosed
+                                                    ? 'Ce salon est fermé : il ne peut plus être rejoint.'
+                                                    : 'Rejoignez ce salon pour consulter et envoyer des messages.'}
                                     </div>
                                 )}
 
@@ -898,6 +944,7 @@ const SalonsPage = () => {
                                             onLoadMore={loadOlder}
                                             currentUserId={currentUserId}
                                             isCreator={isCreator}
+                                            readOnly={isClosed}
                                             typingNames={typingNames}
                                             highlightId={highlightId}
                                             endRef={messagesEndRef}
@@ -907,6 +954,7 @@ const SalonsPage = () => {
                                             onPin={pinMessage}
                                             onReport={reportMessage}
                                         />
+                                        {!isClosed && (
                                         <MessageComposer
                                             members={members}
                                             replyTo={replyTo}
@@ -916,6 +964,7 @@ const SalonsPage = () => {
                                             onError={showError}
                                             sending={sending}
                                         />
+                                        )}
                                     </>
                                 )}
                             </div>

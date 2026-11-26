@@ -436,6 +436,33 @@ class _SalonDetailScreenState extends State<SalonDetailScreen> with WidgetsBindi
     }, 'Ressource retirée.');
   }
 
+  Future<void> _toggleClosed() async {
+    final closing = !_salon!.ferme;
+    if (closing) {
+      final ok = await confirmAction(
+        context,
+        title: 'Fermer ce salon ?',
+        message: 'Les membres pourront encore relire les messages et ouvrir les fichiers, '
+            'mais plus personne ne pourra écrire ni rejoindre le salon. Vous pourrez le rouvrir.',
+        confirmLabel: 'Fermer',
+        icon: CupertinoIcons.lock,
+      );
+      if (!ok) return;
+    }
+    await _run(() async {
+      final message = await _service.setClosed(widget.salonId, closed: closing);
+      if (mounted) {
+        setState(() {
+          _replyTo = null;
+          _shared = null;
+          _files = [];
+        });
+        showSuccess(context, message);
+      }
+      await _refreshSalon();
+    }, null);
+  }
+
   Future<void> _delete() async {
     final ok = await confirmAction(
       context,
@@ -612,6 +639,7 @@ class _SalonDetailScreenState extends State<SalonDetailScreen> with WidgetsBindi
     if (message.supprime) return;
     final own = _isOwn(message);
     final creator = _isCreator;
+    final closed = _salon?.ferme ?? false;
     showModalBottomSheet<void>(
       context: context,
       builder: (sheetContext) {
@@ -620,15 +648,16 @@ class _SalonDetailScreenState extends State<SalonDetailScreen> with WidgetsBindi
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ListTile(
-                leading: const Icon(CupertinoIcons.reply),
-                title: const Text('Répondre'),
-                onTap: () {
-                  close();
-                  setState(() => _replyTo = message);
-                  _focus.requestFocus();
-                },
-              ),
+              if (!closed)
+                ListTile(
+                  leading: const Icon(CupertinoIcons.reply),
+                  title: const Text('Répondre'),
+                  onTap: () {
+                    close();
+                    setState(() => _replyTo = message);
+                    _focus.requestFocus();
+                  },
+                ),
               if (message.contenu.isNotEmpty)
                 ListTile(
                   leading: const Icon(CupertinoIcons.doc_on_doc),
@@ -639,7 +668,7 @@ class _SalonDetailScreenState extends State<SalonDetailScreen> with WidgetsBindi
                     showInfo(context, 'Texte copié.');
                   },
                 ),
-              if (own && message.contenu.isNotEmpty)
+              if (own && message.contenu.isNotEmpty && !closed)
                 ListTile(
                   leading: const Icon(CupertinoIcons.pencil),
                   title: const Text('Modifier'),
@@ -648,7 +677,7 @@ class _SalonDetailScreenState extends State<SalonDetailScreen> with WidgetsBindi
                     _editMessage(message);
                   },
                 ),
-              if (creator)
+              if (creator && !closed)
                 ListTile(
                   leading: Icon(message.epingle ? CupertinoIcons.pin_slash : CupertinoIcons.pin),
                   title: Text(message.epingle ? 'Désépingler' : 'Épingler'),
@@ -666,7 +695,7 @@ class _SalonDetailScreenState extends State<SalonDetailScreen> with WidgetsBindi
                     _report(message);
                   },
                 ),
-              if (own || creator)
+              if (creator || (own && !closed))
                 ListTile(
                   leading: const Icon(CupertinoIcons.trash, color: AppColors.danger),
                   title: const Text('Supprimer', style: TextStyle(color: AppColors.danger)),
@@ -940,6 +969,7 @@ class _SalonDetailScreenState extends State<SalonDetailScreen> with WidgetsBindi
               'quit' => _quit(),
               'edit' => _edit(),
               'resources' => _addResources(),
+              'close' => _toggleClosed(),
               'reports' => _showReports(),
               'delete' => _delete(),
               _ => null,
@@ -960,10 +990,19 @@ class _SalonDetailScreenState extends State<SalonDetailScreen> with WidgetsBindi
               if (salon.estMembre && !isCreator)
                 const PopupMenuItem(value: 'quit', child: ListTile(leading: Icon(CupertinoIcons.square_arrow_left), title: Text('Quitter'))),
               if (isCreator) ...[
-                const PopupMenuItem(value: 'edit', child: ListTile(leading: Icon(CupertinoIcons.pencil), title: Text('Modifier'))),
-                const PopupMenuItem(
-                  value: 'resources',
-                  child: ListTile(leading: Icon(CupertinoIcons.paperclip), title: Text('Ajouter des ressources')),
+                if (!salon.ferme) ...[
+                  const PopupMenuItem(value: 'edit', child: ListTile(leading: Icon(CupertinoIcons.pencil), title: Text('Modifier'))),
+                  const PopupMenuItem(
+                    value: 'resources',
+                    child: ListTile(leading: Icon(CupertinoIcons.paperclip), title: Text('Ajouter des ressources')),
+                  ),
+                ],
+                PopupMenuItem(
+                  value: 'close',
+                  child: ListTile(
+                    leading: Icon(salon.ferme ? CupertinoIcons.lock_open : CupertinoIcons.lock),
+                    title: Text(salon.ferme ? 'Rouvrir le salon' : 'Fermer le salon'),
+                  ),
                 ),
                 const PopupMenuItem(value: 'reports', child: ListTile(leading: Icon(CupertinoIcons.flag), title: Text('Signalements'))),
                 const PopupMenuItem(
@@ -981,9 +1020,33 @@ class _SalonDetailScreenState extends State<SalonDetailScreen> with WidgetsBindi
       body: Column(
         children: [
           if (_busy) const LinearProgressIndicator(minHeight: 2),
+          if (salon.ferme) _buildClosedBanner(salon, isCreator),
           if (salon.estMembre && salon.epingles.isNotEmpty) _buildPinnedBar(salon),
           Expanded(child: salon.estMembre ? _buildMessages() : _buildJoin(salon)),
-          if (salon.estMembre) _buildComposer(),
+          if (salon.estMembre && !salon.ferme) _buildComposer(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildClosedBanner(Salon salon, bool isCreator) {
+    final since = salon.dateFermeture == null ? '' : ' depuis le ${formatDayLabel(salon.dateFermeture!).toLowerCase()}';
+    return Container(
+      width: double.infinity,
+      color: AppColors.fill,
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(CupertinoIcons.lock_fill, size: 16, color: AppColors.textMuted),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Salon fermé$since : les messages et fichiers restent consultables, mais plus personne ne peut écrire.'
+              '${isCreator ? ' Vous pouvez le rouvrir ou le supprimer.' : ''}',
+              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.35),
+            ),
+          ),
         ],
       ),
     );
@@ -1021,6 +1084,7 @@ class _SalonDetailScreenState extends State<SalonDetailScreen> with WidgetsBindi
 
   Widget _buildJoin(Salon salon) {
     final (String message, List<Widget> actions) = switch (salon.statut) {
+      _ when salon.ferme => ('Ce salon est fermé : il ne peut plus être rejoint.', <Widget>[]),
       SalonStatut.enAttente => (
           "Votre demande d'accès a été envoyée au créateur du salon. Vous serez notifié dès qu'elle sera traitée.",
           [
@@ -1168,6 +1232,7 @@ class _SalonDetailScreenState extends State<SalonDetailScreen> with WidgetsBindi
                 mentionsMe: mentionsMe,
                 onLongPress: () => _showMessageActions(message),
                 onReply: () {
+                  if (_salon?.ferme ?? false) return;
                   setState(() => _replyTo = message);
                   _focus.requestFocus();
                 },

@@ -620,6 +620,8 @@ export const salonsAPI = {
     getSalon: (salonId) => salonRequest(() => api.get(`/salons/${salonId}/`), 'Erreur lors du chargement du salon'),
     createSalon: (formData) => salonRequest(() => api.post('/salons/', formData, multipart), 'Erreur lors de la création du salon'),
     updateSalon: (salonId, salonData) => salonRequest(() => api.patch(`/salons/${salonId}/`, salonData), 'Erreur lors de la modification du salon'),
+    closeSalon: (salonId) => salonRequest(() => api.post(`/salons/${salonId}/fermer/`), 'Erreur lors de la fermeture du salon'),
+    reopenSalon: (salonId) => salonRequest(() => api.post(`/salons/${salonId}/rouvrir/`), 'Erreur lors de la réouverture du salon'),
     deleteSalon: (salonId) => salonRequest(() => api.delete(`/salons/${salonId}/`), 'Erreur lors de la suppression du salon'),
     addRessources: (salonId, formData) => salonRequest(() => api.post(`/salons/${salonId}/ressources/`, formData, multipart), "Erreur lors de l'ajout des ressources"),
     deleteRessource: (salonId, ressourceId) => salonRequest(() => api.delete(`/salons/${salonId}/ressources/${ressourceId}/`), 'Erreur lors du retrait de la ressource'),

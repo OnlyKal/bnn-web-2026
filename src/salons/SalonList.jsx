@@ -7,7 +7,8 @@ const FILTERS = [
     { id: '', label: 'Tous' },
     { id: 'mes_salons', label: 'Mes salons' },
     { id: 'publics', label: 'Publics' },
-    { id: 'prives', label: 'Privés' }
+    { id: 'prives', label: 'Privés' },
+    { id: 'fermes', label: 'Fermés' }
 ];
 
 const membershipLabel = (salon) => {
@@ -32,6 +33,7 @@ const SalonList = ({
     onSearch,
     filter,
     onFilter,
+    closedCount = 0,
     showCreateForm,
     onToggleCreate,
     onCreate,
@@ -66,6 +68,7 @@ const SalonList = ({
                     onClick={() => onFilter(item.id)}
                 >
                     {item.label}
+                    {item.id === 'fermes' && closedCount > 0 && <span className="salon-filter-count">{closedCount}</span>}
                 </button>
             ))}
         </div>
@@ -94,6 +97,7 @@ const SalonList = ({
                                         <span className={`salon-conversation-dot ${status}`} aria-hidden="true"></span>
                                         <span className="salon-list-title">{salon.titre}</span>
                                         {selectedId === salon.id && <span className="salon-badge salon-badge-current">En cours</span>}
+                                        {salon.ferme && <span className="salon-badge salon-badge-closed">Fermé</span>}
                                         {salon.est_nouveau && <span className="salon-badge salon-badge-new">Nouveau</span>}
                                         {unread > 0 && (
                                             <span className="salon-badge salon-badge-unread" aria-label={`${unread} message(s) non lu(s)`}>

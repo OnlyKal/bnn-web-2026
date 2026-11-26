@@ -136,16 +136,16 @@ const MembersPanel = ({ salon, members, requests, invites, isCreator, onAction, 
                 <VisibilityBadge salon={salon} />
             </div>
 
-            {isCreator && (
+            {isCreator && !salon.ferme && (
                 <button type="button" className="salons-secondary-btn salon-invite-toggle" onClick={() => setShowInvite((v) => !v)}>
                     {isPrivate ? <><FaLink /> Lien d'invitation</> : <><FaUserPlus /> Inviter des personnes</>}
                 </button>
             )}
             {/* Salon privé : pas de liste d'utilisateurs, on partage le lien généré par le serveur. */}
-            {isCreator && showInvite && isPrivate && (
+            {isCreator && showInvite && isPrivate && !salon.ferme && (
                 <InvitationLinkBox salonId={salon.id} onInfo={onInfo} onError={onError} />
             )}
-            {isCreator && showInvite && !isPrivate && (
+            {isCreator && showInvite && !isPrivate && !salon.ferme && (
                 <InviteBox salonId={salon.id} onDone={(message) => { onInfo(message); onAction(); }} onError={onError} />
             )}
 
@@ -156,7 +156,7 @@ const MembersPanel = ({ salon, members, requests, invites, isCreator, onAction, 
                         <div className="salons-left-member" key={request.id}>
                             <span>{initials(request.utilisateur)}</span>
                             <strong>{personName(request.utilisateur)}</strong>
-                            <button type="button" title="Accepter" onClick={() => onAction(request.utilisateur.id, 'accepter')}><FaCheck /></button>
+                            {!salon.ferme && <button type="button" title="Accepter" onClick={() => onAction(request.utilisateur.id, 'accepter')}><FaCheck /></button>}
                             <button type="button" title="Refuser" onClick={() => onAction(request.utilisateur.id, 'refuser')}><FaTimes /></button>
                         </div>
                     ))}

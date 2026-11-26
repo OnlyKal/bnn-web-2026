@@ -59,9 +59,10 @@ class SalonResourcesInput {
 
 /// Liste des salons avec les compteurs globaux.
 class SalonListPage {
-  const SalonListPage({required this.salons, this.nouveaux = 0, this.nonLus = 0});
+  const SalonListPage({required this.salons, this.nouveaux = 0, this.nonLus = 0, this.fermes = 0});
 
   final List<Salon> salons;
+  final int fermes;
   final int nouveaux;
   final int nonLus;
 }
@@ -81,7 +82,7 @@ class SalonNotificationPage {
   final int nonLues;
 }
 
-enum SalonFiltre { tous, mesSalons, publics, prives }
+enum SalonFiltre { tous, mesSalons, publics, prives, fermes }
 
 class SalonsService {
   SalonsService(this._client);
@@ -121,6 +122,7 @@ class SalonsService {
             'filtre': switch (filtre) {
               SalonFiltre.mesSalons => 'mes_salons',
               SalonFiltre.publics => 'publics',
+              SalonFiltre.fermes => 'fermes',
               _ => 'prives',
             },
         });
@@ -129,6 +131,7 @@ class SalonsService {
           salons: extractList(response.data).map(Salon.fromJson).toList(),
           nouveaux: asInt(body?['nouveaux_count']) ?? 0,
           nonLus: asInt(body?['non_lus_total']) ?? 0,
+          fermes: asInt(body?['fermes_count']) ?? 0,
         );
       }, 'Erreur lors du chargement des salons');
 
@@ -166,6 +169,12 @@ class SalonsService {
         }),
         'Erreur lors de la modification du salon',
       );
+
+  /// Ferme (lecture seule) ou rouvre un salon. Retourne le message du serveur.
+  Future<String> setClosed(String id, {required bool closed}) => _guard(() async {
+        final response = await _dio.post<dynamic>('/salons/$id/${closed ? 'fermer' : 'rouvrir'}/');
+        return pickString(asJson(response.data), ['message']) ?? (closed ? 'Salon fermé' : 'Salon rouvert');
+      }, closed ? 'Erreur lors de la fermeture du salon' : 'Erreur lors de la réouverture du salon');
 
   Future<void> delete(String id) =>
       _guard(() => _dio.delete<dynamic>('/salons/$id/'), 'Erreur lors de la suppression du salon');

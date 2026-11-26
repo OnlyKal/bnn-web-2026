@@ -136,6 +136,8 @@ class Salon {
     this.nonLus = 0,
     this.estNouveau = false,
     this.demandes = 0,
+    this.ferme = false,
+    this.dateFermeture,
     this.createur,
     this.ressources = const [],
     this.epingles = const [],
@@ -156,6 +158,8 @@ class Salon {
       nonLus: asInt(json['non_lus_count']) ?? 0,
       estNouveau: asBool(json['est_nouveau']),
       demandes: asInt(json['demandes_count']) ?? 0,
+      ferme: asBool(json['ferme']),
+      dateFermeture: DateTime.tryParse(pickString(json, ['date_fermeture']) ?? '')?.toLocal(),
       createur: personJson(json['createur']),
       ressources: extractList(json['ressources']).map(SalonResource.fromJson).toList(),
       epingles: extractList(json['messages_epingles']).map(SalonMessage.fromJson).toList(),
@@ -174,6 +178,10 @@ class Salon {
   final int nonLus;
   final bool estNouveau;
   final int demandes;
+
+  /// Salon fermé : lecture seule pour tout le monde.
+  final bool ferme;
+  final DateTime? dateFermeture;
   final Json? createur;
   final List<SalonResource> ressources;
   final List<SalonMessage> epingles;
@@ -193,6 +201,8 @@ class Salon {
         nonLus: nonLus ?? this.nonLus,
         estNouveau: estNouveau,
         demandes: demandes,
+        ferme: ferme,
+        dateFermeture: dateFermeture,
         createur: createur,
         ressources: ressources,
         epingles: epingles,
