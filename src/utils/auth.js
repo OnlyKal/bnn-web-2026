@@ -105,7 +105,7 @@ export const getAuthHeader = () => {
  * @param {number} expirationHours - Number of hours after which session expires
  * @returns {boolean} - True if session has expired
  */
-export const isSessionExpired = (expirationHours = 24) => {
+export const isSessionExpired = (expirationHours = 24 * 30) => {
     const { loginTime } = getSession();
     if (!loginTime) return true;
     

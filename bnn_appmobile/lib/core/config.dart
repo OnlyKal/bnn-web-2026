@@ -33,8 +33,8 @@ class AppConfig {
   static const Duration halTimeout = Duration(seconds: 15);
   static const Duration openAlexTimeout = Duration(seconds: 25);
 
-  /// Durée de validité d'une session côté client (identique au Web : 24 h).
-  static const Duration sessionLifetime = Duration(hours: 24);
+  /// Durée de validité d'une session côté client (identique au Web : 30 jours).
+  static const Duration sessionLifetime = Duration(days: 30);
 
   /// Construit l'URL complète d'un média (couverture, avatar, fichier).
   static String? mediaUrl(String? path) {

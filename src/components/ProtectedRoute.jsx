@@ -41,7 +41,7 @@ function ProtectedRoute({ children, redirectTo = '/login', allowedRoles = null }
         }
 
         // Check if session has expired
-        if (isSessionExpired(24)) { // 24 hours expiration
+        if (isSessionExpired(24 * 30)) { // 30 jours, comme le jeton du serveur
             // console.log('Session expired, logging out');
             logout();
             window.location.href = redirectTo;
