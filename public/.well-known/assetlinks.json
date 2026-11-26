@@ -1,11 +1,14 @@
 [
   {
-    "relation": ["delegate_permission/common.handle_all_urls"],
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
     "target": {
       "namespace": "android_app",
       "package_name": "bnn.app.com",
       "sha256_cert_fingerprints": [
-        "70:A5:8D:D3:41:2E:FC:69:EA:FD:E1:CA:FF:9C:96:C9:58:67:B2:09:4C:83:68:06:18:CC:11:F5:3A:21:84:4A"
+        "70:A5:8D:D3:41:2E:FC:69:EA:FD:E1:CA:FF:9C:96:C9:58:67:B2:09:4C:83:68:06:18:CC:11:F5:3A:21:84:4A",
+        "05:B8:AE:9B:6E:84:EA:FB:2D:A8:79:4D:9E:E2:3C:93:3F:4C:C9:53:CE:50:F6:A0:48:1E:CC:8E:93:E8:DE:F9"
       ]
     }
   }
