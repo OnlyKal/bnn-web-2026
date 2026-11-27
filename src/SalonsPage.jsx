@@ -38,6 +38,7 @@ import { AddResourcesForm, EditSalonForm } from './salons/SalonForms';
 import useSalonSocket from './salons/useSalonSocket';
 import OpeningPopup from './salons/OpeningPopup';
 import { ActionsMenu, ConfirmDialog, SalonsWelcome } from './salons/SalonUi';
+import useDialogs from './salons/useDialogs';
 import {
     MAX_RESOURCES,
     STATUT_LABELS,
@@ -60,6 +61,7 @@ const SalonsPage = () => {
     const currentUser = getCurrentUser();
     const currentUserId = currentUser?.id ?? currentUser?.user?.id ?? null;
     const { toasts, removeToast, showError, showSuccess, showInfo } = useToast();
+    const { confirm, prompt, dialog } = useDialogs();
 
     const [salons, setSalons] = useState([]);
     const [filter, setFilter] = useState('');
@@ -515,10 +517,12 @@ const SalonsPage = () => {
 
     const toggleClosed = async () => {
         const closing = !selectedSalon?.ferme;
-        if (closing && !window.confirm(
-            `Fermer le salon « ${selectedSalon?.titre} » ?\n\nLes membres pourront encore relire les messages et ouvrir les fichiers, `
-            + 'mais plus personne ne pourra écrire ni rejoindre le salon. Vous pourrez le rouvrir.'
-        )) return;
+        if (closing && !await confirm({
+            title: 'Fermer le salon ?',
+            message: `Les membres de « ${selectedSalon?.titre} » pourront encore relire les messages et ouvrir les fichiers, `
+                + 'mais plus personne ne pourra écrire ni rejoindre le salon. Vous pourrez le rouvrir.',
+            confirmLabel: 'Fermer le salon'
+        })) return;
         const response = await run(
             () => (closing ? salonsAPI.closeSalon(selectedId) : salonsAPI.reopenSalon(selectedId)),
             (r) => r.message
@@ -544,7 +548,13 @@ const SalonsPage = () => {
 
     // Rejoindre un salon en collant un lien d'invitation reçu.
     const joinWithLink = async () => {
-        const input = window.prompt("Collez le lien d'invitation du salon :", '');
+        const input = await prompt({
+            title: 'Rejoindre avec un lien',
+            label: "Collez le lien d'invitation reçu :",
+            placeholder: 'https://bnn.minesursi.gouv.cd/salons?invitation=…',
+            confirmLabel: 'Rejoindre',
+            required: true
+        });
         if (!input) return;
         const match = input.match(/[?&]invitation=([^\s&#]+)/);
         const token = match ? decodeURIComponent(match[1]) : (/^\S+$/.test(input.trim()) && !input.includes('://') ? input.trim() : null);
@@ -568,7 +578,15 @@ const SalonsPage = () => {
     };
 
     const quitSalon = async () => {
-        if (!window.confirm('Quitter ce salon ?')) return;
+        const pending = selectedSalon?.statut_membre === 'en_attente';
+        if (!await confirm({
+            title: pending ? 'Annuler la demande ?' : 'Quitter le salon ?',
+            message: pending
+                ? `Votre demande pour rejoindre « ${selectedSalon?.titre} » sera annulée.`
+                : `Vous ne recevrez plus les messages de « ${selectedSalon?.titre} ». Vous pourrez le rejoindre à nouveau plus tard.`,
+            confirmLabel: pending ? 'Annuler la demande' : 'Quitter',
+            danger: !pending
+        })) return;
         if (await run(() => salonsAPI.quitSalon(selectedId))) {
             showInfo(selectedSalon.statut_membre === 'en_attente' ? 'Demande annulée.' : 'Vous avez quitté le salon.');
             setMessages([]);
@@ -586,7 +604,12 @@ const SalonsPage = () => {
     };
 
     const removeResource = async (ressource) => {
-        if (!window.confirm(`Retirer la ressource « ${ressource.titre || 'sans titre'} » ?`)) return;
+        if (!await confirm({
+            title: 'Retirer la ressource ?',
+            message: `« ${ressource.titre || 'sans titre'} » ne sera plus visible dans le salon.`,
+            confirmLabel: 'Retirer',
+            danger: true
+        })) return;
         if (await run(() => salonsAPI.deleteRessource(selectedId, ressource.id), 'Ressource retirée.')) fetchDetail(selectedId);
     };
 
@@ -640,7 +663,12 @@ const SalonsPage = () => {
     };
 
     const deleteMessage = async (message) => {
-        if (!window.confirm('Supprimer ce message ?')) return;
+        if (!await confirm({
+            title: 'Supprimer le message ?',
+            message: 'Le message sera remplacé par « Message supprimé » pour tous les membres.',
+            confirmLabel: 'Supprimer',
+            danger: true
+        })) return;
         try {
             await salonsAPI.deleteMessage(selectedId, message.id);
             setMessages((list) => list.map((m) => (
@@ -672,7 +700,14 @@ const SalonsPage = () => {
     };
 
     const reportMessage = async (message) => {
-        const motif = window.prompt('Pourquoi signalez-vous ce message ? (facultatif)', '');
+        const motif = await prompt({
+            title: 'Signaler le message',
+            message: 'Le créateur du salon recevra votre signalement.',
+            label: 'Pourquoi signalez-vous ce message ? (facultatif)',
+            multiline: true,
+            confirmLabel: 'Signaler',
+            danger: true
+        });
         if (motif === null) return;
         await run(() => salonsAPI.reportMessage(selectedId, message.id, motif), (r) => r.message);
     };
@@ -689,7 +724,12 @@ const SalonsPage = () => {
     };
 
     const deleteReportedMessage = async (report) => {
-        if (!window.confirm('Supprimer ce message signalé ?')) return;
+        if (!await confirm({
+            title: 'Supprimer le message signalé ?',
+            message: 'Le message sera supprimé pour tous les membres et le signalement sera traité.',
+            confirmLabel: 'Supprimer',
+            danger: true
+        })) return;
         if (await run(() => salonsAPI.deleteMessage(selectedId, report.message.id), 'Message supprimé.')) {
             await salonsAPI.resolveReport(selectedId, report.id).catch(() => {});
             setReports((list) => list.filter((r) => r.id !== report.id));
@@ -799,6 +839,7 @@ const SalonsPage = () => {
     return (
         <div className="salons-page">
             <ToastContainer toasts={toasts} onClose={removeToast} />
+            {dialog}
             <OpeningPopup message={openingMessage} onClose={closeOpeningPopup} />
             <ConfirmDialog
                 open={confirmDelete}
@@ -1125,6 +1166,7 @@ const SalonsPage = () => {
                         invites={invites}
                         isCreator={isCreator}
                         onAction={memberAction}
+                        confirm={confirm}
                         onInfo={showSuccess}
                         onError={showError}
                     />

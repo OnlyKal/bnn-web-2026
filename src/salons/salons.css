@@ -511,3 +511,62 @@
   .salons-main.mobile-salon .salon-messages-section { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
   .salons-main.mobile-members .salons-members-panel { min-height: calc(100dvh - 140px); }
 }
+
+/* Fenêtres modales (confirmations, saisies, invitations). */
+.salon-dialog { max-height: calc(100dvh - 2rem); display: flex; flex-direction: column; animation: salon-modal-in 0.16s ease-out; }
+.salon-modal-lg { width: min(560px, 100%); }
+.salon-modal-header { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin-bottom: 0.5rem; }
+.salon-modal-header h3 { margin: 0; font-size: 1.1rem; color: #152033; }
+.salon-modal-close {
+  display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%;
+  border: none; background: #f1f4fb; color: #52657c; cursor: pointer;
+}
+.salon-modal-close:hover { background: #e3ebfb; color: #1e42ac; }
+.salon-dialog .salon-dialog-body { overflow-y: auto; min-height: 0; }
+.salon-dialog-label { display: block; margin: 0.2rem 0 0.35rem; font-size: 0.85rem; font-weight: 600; color: #152033; }
+.salon-dialog-input {
+  width: 100%; box-sizing: border-box; padding: 0.55rem 0.65rem; border: 1px solid #cdd9ea; border-radius: 8px;
+  font: inherit; font-size: 0.9rem; color: #152033; background: #ffffff; resize: vertical;
+}
+.salon-dialog-input:focus { outline: none; border-color: #1e42ac; box-shadow: 0 0 0 3px rgba(30, 66, 172, 0.15); }
+.salon-dialog-actions { padding-top: 0.6rem; }
+@keyframes salon-modal-in { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
+
+.salon-invite-intro { margin: 0 0 0.6rem; color: #52657c; font-size: 0.85rem; }
+.salon-invite-search {
+  display: flex; align-items: center; gap: 0.5rem; padding: 0 0.65rem; border: 1px solid #cdd9ea; border-radius: 10px; background: #ffffff;
+  color: #7a8194;
+}
+.salon-invite-search:focus-within { border-color: #1e42ac; box-shadow: 0 0 0 3px rgba(30, 66, 172, 0.15); }
+.salon-invite-search input { flex: 1; border: none; outline: none; padding: 0.6rem 0; font: inherit; color: #152033; background: none; }
+.salon-invite-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.6rem; }
+.salon-invite-chip {
+  display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.2rem 0.3rem 0.2rem 0.6rem; border-radius: 999px;
+  background: #e8eefc; color: #1e42ac; font-size: 0.8rem; font-weight: 700;
+}
+.salon-invite-chip button { display: inline-flex; border: none; background: none; color: inherit; cursor: pointer; padding: 0.15rem; border-radius: 50%; }
+.salon-invite-chip button:hover { background: rgba(30, 66, 172, 0.15); }
+.salon-invite-results-modal { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.7rem; min-height: 120px; max-height: 320px; overflow-y: auto; }
+.salon-invite-results-modal .salons-muted { padding: 0.8rem 0.2rem; text-align: center; }
+.salon-invite-row {
+  display: flex; align-items: center; gap: 0.6rem; padding: 0.45rem 0.6rem; border: 1px solid #e5ecf5; border-radius: 10px;
+  cursor: pointer; color: #152033;
+}
+.salon-invite-row:hover { border-color: #b9c8ea; background: #f8faff; }
+.salon-invite-row.selected { border-color: #1e42ac; background: #eef3fd; }
+.salon-invite-row.disabled { opacity: 0.55; cursor: not-allowed; }
+.salon-invite-row input { width: 18px; height: 18px; accent-color: #1e42ac; }
+.salon-invite-row .salon-member-avatar {
+  display: inline-flex; align-items: center; justify-content: center; flex: none; width: 34px; height: 34px; border-radius: 50%;
+  background: #1e42ac; color: #ffffff; font-weight: 800; font-size: 0.75rem;
+}
+.salon-invite-name { display: flex; flex-direction: column; min-width: 0; }
+.salon-invite-name strong { font-size: 0.88rem; }
+.salon-invite-name small { color: #7a8194; font-size: 0.75rem; }
+@media (max-width: 600px) {
+  .salon-dialog-backdrop { align-items: flex-end; padding: 0; }
+  .salon-dialog { width: 100%; border-radius: 16px 16px 0 0; max-height: 92dvh; }
+}
+/* Les fenêtres sont rendues hors de la page (portail) : on y remet le thème clair. */
+.salon-dialog-backdrop { color-scheme: light; z-index: 10000; }
+.salon-dialog .salons-primary-btn, .salon-dialog .salons-secondary-btn, .salon-dialog .salons-danger-btn { display: inline-flex; align-items: center; gap: 0.4rem; }

@@ -1,32 +1,47 @@
 import React, { useEffect, useState } from 'react';
-import { FaCheck, FaCopy, FaLink, FaShareAlt, FaTimes, FaUserMinus, FaUserPlus, FaUsers } from 'react-icons/fa';
+import { FaCheck, FaCopy, FaLink, FaSearch, FaShareAlt, FaTimes, FaUserMinus, FaUserPlus, FaUsers } from 'react-icons/fa';
 import { salonsAPI } from '../api';
 import { extractList, initials, personName } from './salonUtils';
 import VisibilityBadge from './VisibilityBadge';
+import { Modal } from './SalonUi';
 
-const InviteBox = ({ salonId, onDone, onError }) => {
+/** Fenêtre « Inviter des personnes » : recherche, sélection, puis envoi des invitations. */
+const InviteModal = ({ open, salonId, salonTitle, memberIds, onClose, onDone, onError }) => {
     const [query, setQuery] = useState('');
     const [results, setResults] = useState([]);
+    const [searching, setSearching] = useState(false);
     const [selected, setSelected] = useState([]);
     const [sending, setSending] = useState(false);
 
     useEffect(() => {
-        if (query.trim().length < 2) {
+        if (!open) {
+            setQuery('');
+            setResults([]);
+            setSelected([]);
+        }
+    }, [open]);
+
+    useEffect(() => {
+        if (!open || query.trim().length < 2) {
             setResults([]);
             return undefined;
         }
         const timer = setTimeout(async () => {
             try {
+                setSearching(true);
                 setResults(extractList(await salonsAPI.searchUsers(query.trim())));
             } catch (error) {
                 onError(error.message);
+            } finally {
+                setSearching(false);
             }
         }, 300);
         return () => clearTimeout(timer);
-    }, [query, onError]);
+    }, [open, query, onError]);
 
+    const isSelected = (user) => selected.some((u) => u.id === user.id);
     const toggle = (user) => setSelected((current) => (
-        current.some((u) => u.id === user.id) ? current.filter((u) => u.id !== user.id) : [...current, user]
+        isSelected(user) ? current.filter((u) => u.id !== user.id) : [...current, user]
     ));
 
     const send = async () => {
@@ -35,8 +50,7 @@ const InviteBox = ({ salonId, onDone, onError }) => {
             setSending(true);
             const response = await salonsAPI.invite(salonId, selected.map((u) => u.id));
             onDone(response.message);
-            setSelected([]);
-            setQuery('');
+            onClose();
         } catch (error) {
             onError(error.message);
         } finally {
@@ -45,31 +59,63 @@ const InviteBox = ({ salonId, onDone, onError }) => {
     };
 
     return (
-        <div className="salon-invite-box">
-            <input
-                type="search"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Nom ou identifiant (2 lettres min.)"
-            />
-            {results.length > 0 && (
-                <div className="salon-invite-results">
-                    {results.map((user) => (
-                        <label key={user.id}>
-                            <input
-                                type="checkbox"
-                                checked={selected.some((u) => u.id === user.id)}
-                                onChange={() => toggle(user)}
-                            />
-                            {personName(user)} <small>@{user.username}</small>
-                        </label>
+        <Modal
+            open={open}
+            title="Inviter des personnes"
+            onClose={onClose}
+            size="lg"
+            labelledBy="salon-invite-title"
+            footer={(
+                <>
+                    <button type="button" className="salons-secondary-btn" onClick={onClose}>Annuler</button>
+                    <button type="button" className="salons-primary-btn salon-dialog-confirm" onClick={send} disabled={!selected.length || sending}>
+                        <FaUserPlus /> {sending ? 'Envoi…' : `Inviter${selected.length ? ` (${selected.length})` : ''}`}
+                    </button>
+                </>
+            )}
+        >
+            <p className="salon-invite-intro">Les personnes invitées recevront une notification pour rejoindre « {salonTitle} ».</p>
+            <div className="salon-invite-search">
+                <FaSearch />
+                <input
+                    type="search"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="Nom, prénom ou identifiant (2 lettres min.)"
+                    autoFocus
+                />
+            </div>
+            {selected.length > 0 && (
+                <div className="salon-invite-chips">
+                    {selected.map((user) => (
+                        <span key={user.id} className="salon-invite-chip">
+                            {personName(user)}
+                            <button type="button" aria-label={`Retirer ${personName(user)}`} onClick={() => toggle(user)}><FaTimes /></button>
+                        </span>
                     ))}
                 </div>
             )}
-            <button type="button" className="salons-primary-btn" onClick={send} disabled={!selected.length || sending}>
-                <FaUserPlus /> Inviter {selected.length > 0 ? `(${selected.length})` : ''}
-            </button>
-        </div>
+            <div className="salon-invite-results-modal">
+                {searching && <div className="salons-muted">Recherche…</div>}
+                {!searching && query.trim().length >= 2 && results.length === 0 && (
+                    <div className="salons-muted">Aucune personne trouvée</div>
+                )}
+                {query.trim().length < 2 && <div className="salons-muted">Tapez au moins 2 lettres pour chercher.</div>}
+                {results.map((user) => {
+                    const already = memberIds.includes(user.id);
+                    return (
+                        <label key={user.id} className={`salon-invite-row ${isSelected(user) ? 'selected' : ''} ${already ? 'disabled' : ''}`}>
+                            <input type="checkbox" checked={isSelected(user)} disabled={already} onChange={() => toggle(user)} />
+                            <span className="salon-member-avatar">{initials(user)}</span>
+                            <span className="salon-invite-name">
+                                <strong>{personName(user)}</strong>
+                                <small>@{user.username}{already ? ' · déjà membre' : ''}</small>
+                            </span>
+                        </label>
+                    );
+                })}
+            </div>
+        </Modal>
     );
 };
 
@@ -127,7 +173,7 @@ const InvitationLinkBox = ({ salon, onInfo, onError }) => {
     );
 };
 
-const MembersPanel = ({ salon, members, requests, invites, isCreator, onAction, onInfo, onError }) => {
+const MembersPanel = ({ salon, members, requests, invites, isCreator, onAction, onInfo, onError, confirm = async () => true }) => {
     const [showInvite, setShowInvite] = useState(false);
     const isPrivate = salon?.visibilite === 'prive';
     // Le créateur partage toujours le lien ; dans un salon public, chaque membre peut aussi le partager.
@@ -164,13 +210,19 @@ const MembersPanel = ({ salon, members, requests, invites, isCreator, onAction, 
 
             {/* Salon public : on peut aussi inviter des personnes par leur nom. Salon privé : le lien suffit. */}
             {isCreator && !isPrivate && !salon.ferme && (
-                <button type="button" className="salons-secondary-btn salon-invite-toggle" onClick={() => setShowInvite((v) => !v)}>
+                <button type="button" className="salons-secondary-btn salon-invite-toggle" onClick={() => setShowInvite(true)}>
                     <FaUserPlus /> Inviter des personnes
                 </button>
             )}
-            {isCreator && showInvite && !isPrivate && !salon.ferme && (
-                <InviteBox salonId={salon.id} onDone={(message) => { onInfo(message); onAction(); }} onError={onError} />
-            )}
+            <InviteModal
+                open={isCreator && showInvite && !isPrivate && !salon.ferme}
+                salonId={salon.id}
+                salonTitle={salon.titre}
+                memberIds={members.map((m) => m.utilisateur?.id)}
+                onClose={() => setShowInvite(false)}
+                onDone={(message) => { onInfo(message); onAction(); }}
+                onError={onError}
+            />
 
             {isCreator && requests.length > 0 && (
                 <div className="salon-requests">
@@ -209,10 +261,14 @@ const MembersPanel = ({ salon, members, requests, invites, isCreator, onAction, 
                                 <button
                                     type="button"
                                     title="Retirer du salon"
-                                    onClick={() => {
-                                        if (window.confirm(`Retirer ${personName(member.utilisateur)} du salon ?`)) {
-                                            onAction(member.utilisateur.id, 'retirer');
-                                        }
+                                    onClick={async () => {
+                                        const ok = await confirm({
+                                            title: 'Retirer ce membre ?',
+                                            message: `${personName(member.utilisateur)} ne pourra plus lire ni écrire dans le salon, ni le rejoindre à nouveau.`,
+                                            confirmLabel: 'Retirer du salon',
+                                            danger: true
+                                        });
+                                        if (ok) onAction(member.utilisateur.id, 'retirer');
                                     }}
                                 >
                                     <FaUserMinus />

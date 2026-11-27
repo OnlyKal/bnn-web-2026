@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { FaComments, FaEllipsisH, FaGlobeAfrica, FaLink, FaPlus } from 'react-icons/fa';
+import { createPortal } from 'react-dom';
+import { FaComments, FaEllipsisH, FaGlobeAfrica, FaLink, FaPlus, FaTimes } from 'react-icons/fa';
 import VisibilityBadge from './VisibilityBadge';
 
 /** Menu « ⋯ » : les actions secondaires du salon, pour garder l'en-tête lisible. */
@@ -64,7 +65,8 @@ export const ConfirmDialog = ({ open, title, children, confirmLabel, onConfirm, 
     }, [open, onCancel]);
 
     if (!open) return null;
-    return (
+    // Affichée au-dessus de toute la page (et pas dans une colonne), grâce au portail.
+    return createPortal(
         <div className="salon-dialog-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onCancel()}>
             <div className="salon-dialog" role="alertdialog" aria-modal="true" aria-labelledby="salon-dialog-title">
                 <h3 id="salon-dialog-title">{title}</h3>
@@ -76,7 +78,8 @@ export const ConfirmDialog = ({ open, title, children, confirmLabel, onConfirm, 
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 
@@ -108,5 +111,35 @@ export const SalonsWelcome = ({ salons, onCreate, onJoinWithLink, onOpen }) => {
                 </div>
             )}
         </div>
+    );
+};
+
+/** Fenêtre modale générique (fond grisé, fermeture par Échap, clic à côté ou ×). */
+export const Modal = ({ open, title, onClose, children, footer, size = 'md', labelledBy = 'salon-modal-title' }) => {
+    useEffect(() => {
+        if (!open) return undefined;
+        const onKey = (event) => { if (event.key === 'Escape') onClose(); };
+        document.addEventListener('keydown', onKey);
+        const previous = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.removeEventListener('keydown', onKey);
+            document.body.style.overflow = previous;
+        };
+    }, [open, onClose]);
+
+    if (!open) return null;
+    return createPortal(
+        <div className="salon-dialog-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+            <div className={`salon-dialog salon-modal-${size}`} role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
+                <div className="salon-modal-header">
+                    <h3 id={labelledBy}>{title}</h3>
+                    <button type="button" className="salon-modal-close" onClick={onClose} aria-label="Fermer"><FaTimes /></button>
+                </div>
+                <div className="salon-dialog-body">{children}</div>
+                {footer && <div className="salon-dialog-actions">{footer}</div>}
+            </div>
+        </div>,
+        document.body
     );
 };
