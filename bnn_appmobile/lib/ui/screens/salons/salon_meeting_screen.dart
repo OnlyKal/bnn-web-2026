@@ -8,6 +8,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_background/flutter_background.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' show Helper;
 import 'package:livekit_client/livekit_client.dart';
+// Non exporté par livekit_client 2.6 : sert à arrêter la diffusion iOS.
+// ignore: implementation_imports
+import 'package:livekit_client/src/managers/broadcast_manager.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/salon.dart';
@@ -17,9 +20,10 @@ import '../../widgets/feedback.dart';
 const _chatTopic = 'bnn.chat';
 const _handKey = 'main';
 
-/// Partage d'écran depuis le téléphone : Android (service au premier plan).
-/// Sur iPhone il faudrait une extension « Broadcast Upload » dans Xcode.
-final bool _canShareScreen = !kIsWeb && Platform.isAndroid;
+/// Partage d'écran depuis le téléphone : Android (service au premier plan) et
+/// iPhone (extension « BroadcastExtension » du projet Xcode, App Group partagé).
+final bool _canShareScreen = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+final bool _isIOS = !kIsWeb && Platform.isIOS;
 
 bool _handRaised(Participant p) => p.attributes[_handKey] == 'levee';
 String _name(Participant p) => p.name.isNotEmpty ? p.name : p.identity;
@@ -96,7 +100,14 @@ class SalonMeetingScreen extends StatefulWidget {
 }
 
 class _SalonMeetingScreenState extends State<SalonMeetingScreen> {
-  late final Room _room = Room(roomOptions: const RoomOptions(adaptiveStream: true, dynacast: true));
+  late final Room _room = Room(
+    roomOptions: const RoomOptions(
+      adaptiveStream: true,
+      dynacast: true,
+      // iPhone : la capture passe par l'extension de diffusion (tout l'écran, pas seulement l'app).
+      defaultScreenShareCaptureOptions: ScreenShareCaptureOptions(useiOSBroadcastExtension: true),
+    ),
+  );
   EventsListener<RoomEvent>? _listener;
   bool _connecting = true;
   bool _leaving = false;
@@ -197,8 +208,19 @@ class _SalonMeetingScreenState extends State<SalonMeetingScreen> {
   Future<void> _toggleScreenShare() async {
     final local = _room.localParticipant;
     if (local == null) return;
-    if (_sharing) {
+    if (_sharing || local.isScreenShareEnabled()) {
       await _stopScreenShare();
+      return;
+    }
+    if (_isIOS) {
+      // Ouvre le sélecteur « Diffuser l'écran » d'iOS ; la piste est publiée
+      // automatiquement quand la diffusion démarre (BroadcastManager).
+      try {
+        await local.setScreenShareEnabled(true);
+        if (mounted) showInfo(context, 'Choisissez « BNN » puis « Commencer la diffusion ».');
+      } catch (_) {
+        if (mounted) showError(context, "Partage d'écran impossible sur cet appareil.");
+      }
       return;
     }
     try {
@@ -231,6 +253,7 @@ class _SalonMeetingScreenState extends State<SalonMeetingScreen> {
   Future<void> _stopScreenShare() async {
     try {
       await _room.localParticipant?.setScreenShareEnabled(false);
+      if (_isIOS && BroadcastManager().isBroadcasting) await BroadcastManager().requestStop();
     } catch (_) {}
     if (_backgroundOn) {
       _backgroundOn = false;
@@ -278,6 +301,7 @@ class _SalonMeetingScreenState extends State<SalonMeetingScreen> {
     final micOn = local?.isMicrophoneEnabled() ?? false;
     final camOn = local?.isCameraEnabled() ?? false;
     final handUp = local != null && _handRaised(local);
+    final sharing = _sharing || (local?.isScreenShareEnabled() ?? false);
     return PopScope(
       canPop: true,
       child: Scaffold(
@@ -329,10 +353,10 @@ class _SalonMeetingScreenState extends State<SalonMeetingScreen> {
                 ),
                 if (_canShareScreen)
                   _ControlButton(
-                    icon: _sharing ? CupertinoIcons.stop_fill : CupertinoIcons.rectangle_on_rectangle,
-                    label: _sharing ? 'Arrêter' : 'Écran',
+                    icon: sharing ? CupertinoIcons.stop_fill : CupertinoIcons.rectangle_on_rectangle,
+                    label: sharing ? 'Arrêter' : 'Écran',
                     active: true,
-                    highlight: _sharing,
+                    highlight: sharing,
                     onTap: local == null ? null : _toggleScreenShare,
                   ),
                 _ControlButton(
