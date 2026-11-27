@@ -550,6 +550,12 @@ const SalonsPage = () => {
         return () => { cancelled = true; };
     }, [selectedId, isMember, selectedSalon?.reunion_en_cours]);
 
+    // Changer de salon (ou salon supprimé) ferme la fenêtre de réunion de l'ancien salon.
+    useEffect(() => {
+        setMeetingOpen(false);
+        setMeetingSession(null);
+    }, [selectedId]);
+
     const openMeeting = () => {
         setMeetingSession(null);
         setMeetingOpen(true);

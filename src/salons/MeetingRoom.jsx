@@ -24,7 +24,7 @@ import {
     useTrackRefContext,
     useTracks
 } from '@livekit/components-react';
-import { RoomEvent, Track } from 'livekit-client';
+import { DisconnectReason, RoomEvent, Track } from 'livekit-client';
 import { FaComments, FaHandPaper, FaPhoneSlash, FaStop, FaTimes, FaUsers } from 'react-icons/fa';
 import '@livekit/components-styles';
 import './meeting.css';
@@ -326,7 +326,12 @@ export default function MeetingRoom({ salon, session, starting, onRequestJoin, o
                 audio={choices.audio}
                 video={choices.video}
                 options={options}
-                onDisconnected={onClose}
+                onDisconnected={(reason) => {
+                    if (reason === DisconnectReason.ROOM_DELETED) notify?.('La réunion a été terminée par le créateur du salon.');
+                    else if (reason === DisconnectReason.PARTICIPANT_REMOVED) notify?.('Vous ne participez plus à cette réunion.');
+                    else if (reason === DisconnectReason.DUPLICATE_IDENTITY) notify?.('Vous avez rejoint la réunion depuis un autre appareil.');
+                    onClose();
+                }}
                 onError={(error) => onError?.(error?.message || 'Erreur de connexion à la réunion')}
                 onMediaDeviceFailure={() => notify?.("Micro ou caméra indisponible : vérifiez l'autorisation du navigateur.")}
                 className="bnn-meet-room"

@@ -53,6 +53,8 @@ class _SalonDetailScreenState extends State<SalonDetailScreen> with WidgetsBindi
   // Réunion vidéo en cours dans ce salon (null s'il n'y en a pas).
   SalonReunion? _reunion;
   bool _reunionCanEnd = false;
+  bool _inMeeting = false;
+  bool _closeAfterMeeting = false;
   List<SalonMessage> _messages = [];
   List<SalonUser> _memberUsers = [];
   List<PickedUpload> _files = [];
@@ -296,7 +298,12 @@ class _SalonDetailScreenState extends State<SalonDetailScreen> with WidgetsBindi
         if (event.event == 'members.updated') _loadMemberUsers();
       case 'salon.deleted':
         showInfo(context, 'Ce salon a été supprimé par son créateur.');
-        Navigator.of(context).maybePop();
+        // En réunion, l'écran de réunion se ferme d'abord tout seul (salle supprimée).
+        if (_inMeeting) {
+          _closeAfterMeeting = true;
+        } else {
+          Navigator.of(context).maybePop();
+        }
       case 'reunion.updated':
         setState(() => _reunion = SalonReunion.fromJson(event.payload['reunion']));
         if (_reunion == null) _reunionCanEnd = false;
@@ -500,6 +507,7 @@ class _SalonDetailScreenState extends State<SalonDetailScreen> with WidgetsBindi
       _reunion = acces.reunion ?? _reunion;
       _reunionCanEnd = acces.peutTerminer;
     });
+    _inMeeting = true;
     await Navigator.of(context).push(MaterialPageRoute<void>(
       fullscreenDialog: true,
       builder: (_) => SalonMeetingScreen(
@@ -510,7 +518,13 @@ class _SalonDetailScreenState extends State<SalonDetailScreen> with WidgetsBindi
         onEndForAll: _endMeeting,
       ),
     ));
-    if (mounted) _loadReunion();
+    _inMeeting = false;
+    if (!mounted) return;
+    if (_closeAfterMeeting) {
+      Navigator.of(context).maybePop();
+      return;
+    }
+    _loadReunion();
   }
 
   Future<bool> _endMeeting() async {

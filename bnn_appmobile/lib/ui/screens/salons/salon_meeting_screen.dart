@@ -106,7 +106,16 @@ class _SalonMeetingScreenState extends State<SalonMeetingScreen> {
     _listener = _room.createListener()
       // Arrivées, départs, micros, caméras, partages : on redessine.
       ..listen((_) => _onRoomChanged())
-      ..on<RoomDisconnectedEvent>((_) => _close())
+      ..on<RoomDisconnectedEvent>((event) {
+        final message = switch (event.reason) {
+          DisconnectReason.roomDeleted => 'La réunion a été terminée par le créateur du salon.',
+          DisconnectReason.participantRemoved => 'Vous ne participez plus à cette réunion.',
+          DisconnectReason.duplicateIdentity => 'Vous avez rejoint la réunion depuis un autre appareil.',
+          _ => null,
+        };
+        if (message != null && mounted && !_leaving) showInfo(context, message);
+        _close();
+      })
       ..on<DataReceivedEvent>(_onData)
       ..on<ParticipantAttributesChanged>((event) {
         if (event.participant is! LocalParticipant && event.attributes[_handKey] == 'levee' && mounted) {
