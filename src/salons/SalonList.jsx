@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaPaperPlane, FaPlus, FaSearch, FaUsers } from 'react-icons/fa';
+import { FaPaperPlane, FaPlus, FaSearch, FaUsers, FaVideo } from 'react-icons/fa';
 import { CreateSalonForm } from './SalonForms';
 import VisibilityBadge from './VisibilityBadge';
 import { formatListTime, formatOuverture } from './salonUtils';
@@ -111,6 +111,9 @@ const SalonList = ({
                                             </time>
                                         )}
                                         {selectedId === salon.id && <span className="salon-badge salon-badge-current">En cours</span>}
+                                        {salon.reunion_en_cours && (
+                                            <FaVideo className="salon-list-meeting" title="Réunion vidéo en cours" aria-label="Réunion vidéo en cours" />
+                                        )}
                                         {salon.ferme && <span className="salon-badge salon-badge-closed">Fermé</span>}
                                         {salon.est_ouvert === false && (
                                             <span className="salon-badge salon-badge-opening" title="Heure d'ouverture (heure de Kinshasa)">

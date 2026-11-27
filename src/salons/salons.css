@@ -571,3 +571,23 @@
 .salon-dialog-backdrop { color-scheme: light; z-index: 10000; }
 .salon-dialog .salons-primary-btn, .salon-dialog .salons-secondary-btn, .salon-dialog .salons-danger-btn { display: inline-flex; align-items: center; gap: 0.4rem; }
 .salon-link-button { border: none; background: none; padding: 0; color: #1e42ac; font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
+
+/* Bannière « réunion en cours » dans le salon */
+.salon-meeting-banner {
+  display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+  margin: 0.5rem 0; padding: 0.6rem 0.8rem; border-radius: 10px;
+  background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; font-size: 0.85rem;
+}
+.salon-meeting-banner .salon-meeting-dot {
+  width: 9px; height: 9px; border-radius: 50%; background: #10b981;
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); animation: bnn-meet-pulse 1.6s infinite;
+}
+.salon-meeting-banner span { flex: 1 1 auto; }
+@keyframes bnn-meet-pulse { 70% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); } 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } }
+.salon-list-meeting { color: #10b981; margin-left: 0.3rem; vertical-align: -2px; }
+
+.salon-meeting-btn { color: #047857; border-color: #a7f3d0; }
+.salon-meeting-loading {
+  position: fixed; inset: 0; z-index: 3000; display: flex; align-items: center; justify-content: center;
+  background: rgba(10, 12, 18, 0.65); color: #fff; font-weight: 600;
+}

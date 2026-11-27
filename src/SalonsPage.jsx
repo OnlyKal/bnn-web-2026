@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     FaArrowLeft,
@@ -20,7 +20,8 @@ import {
     FaThumbtack,
     FaTimes,
     FaTrash,
-    FaUsers
+    FaUsers,
+    FaVideo
 } from 'react-icons/fa';
 import { salonsAPI } from './api';
 import { getCurrentUser, isAuthenticated } from './utils/auth';
@@ -50,6 +51,9 @@ import {
     personName
 } from './salons/salonUtils';
 import './salons/salons.css';
+
+// LiveKit n'est téléchargé qu'à l'entrée dans une réunion.
+const MeetingRoom = lazy(() => import('./salons/MeetingRoom'));
 
 const POLL_MESSAGES_MS = 7000;
 const POLL_LIST_MS = 30000;
@@ -100,6 +104,11 @@ const SalonsPage = () => {
     const [showPinned, setShowPinned] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [firstUnreadId, setFirstUnreadId] = useState(null);
+    // Réunion vidéo du salon affiché : état serveur, fenêtre ouverte, jeton d'entrée.
+    const [reunion, setReunion] = useState(null);
+    const [reunionCanEnd, setReunionCanEnd] = useState(false);
+    const [meetingOpen, setMeetingOpen] = useState(false);
+    const [meetingSession, setMeetingSession] = useState(null);
     const messagesContainerRef = useRef(null);
     const messagesEndRef = useRef(null);
     const selectedIdRef = useRef(null);
@@ -293,6 +302,15 @@ const SalonsPage = () => {
                         if (salon?.est_membre) fetchLatestMessages(current);
                         else setMessages([]);
                     }).catch(() => {});
+                }
+                break;
+            case 'reunion.updated':
+                setSalons((list) => list.map((s) => (
+                    s.id === payload.salon_id ? { ...s, reunion_en_cours: !!payload.reunion } : s
+                )));
+                if (payload.salon_id === current) {
+                    setReunion(payload.reunion || null);
+                    setSelectedSalon((previous) => (previous ? { ...previous, reunion_en_cours: !!payload.reunion } : previous));
                 }
                 break;
             case 'notification.new':
@@ -512,6 +530,63 @@ const SalonsPage = () => {
             setEditing(false);
             setSelectedSalon(response.data);
             fetchSalons();
+        }
+    };
+
+    // ---------------------------------------------------------------- réunion vidéo
+
+    const canMeet = isMember && !isClosed && selectedSalon?.est_ouvert !== false;
+
+    useEffect(() => {
+        setReunion(null);
+        setReunionCanEnd(false);
+        if (!selectedId || !isMember) return undefined;
+        let cancelled = false;
+        salonsAPI.getReunion(selectedId).then((response) => {
+            if (cancelled) return;
+            setReunion(response?.data?.reunion || null);
+            setReunionCanEnd(!!response?.data?.peut_terminer);
+        }).catch(() => {});
+        return () => { cancelled = true; };
+    }, [selectedId, isMember, selectedSalon?.reunion_en_cours]);
+
+    const openMeeting = () => {
+        setMeetingSession(null);
+        setMeetingOpen(true);
+    };
+
+    const requestMeetingToken = async () => {
+        try {
+            const response = await salonsAPI.joinReunion(selectedId);
+            setMeetingSession(response.data);
+            setReunion(response.data?.reunion || null);
+            setReunionCanEnd(!!response.data?.peut_terminer);
+            return response.data;
+        } catch (error) {
+            showError(error.message);
+            throw error;
+        }
+    };
+
+    const closeMeeting = useCallback(() => {
+        setMeetingOpen(false);
+        setMeetingSession(null);
+    }, []);
+
+    const endMeetingForAll = async () => {
+        if (!await confirm({
+            title: 'Terminer la réunion pour tous ?',
+            message: 'Tous les participants seront déconnectés de la réunion.',
+            confirmLabel: 'Terminer la réunion',
+            danger: true
+        })) return;
+        try {
+            await salonsAPI.endReunion(selectedId);
+            setReunion(null);
+            closeMeeting();
+            showSuccess('Réunion terminée');
+        } catch (error) {
+            showError(error.message);
         }
     };
 
@@ -840,6 +915,20 @@ const SalonsPage = () => {
         <div className="salons-page">
             <ToastContainer toasts={toasts} onClose={removeToast} />
             {dialog}
+            {meetingOpen && selectedSalon && (
+                <Suspense fallback={<div className="salon-meeting-loading" role="status">Préparation de la réunion…</div>}>
+                    <MeetingRoom
+                        salon={selectedSalon}
+                        session={meetingSession}
+                        starting={!reunion}
+                        onRequestJoin={requestMeetingToken}
+                        onClose={closeMeeting}
+                        onEndForAll={endMeetingForAll}
+                        notify={showInfo}
+                        onError={showError}
+                    />
+                </Suspense>
+            )}
             <OpeningPopup message={openingMessage} onClose={closeOpeningPopup} />
             <ConfirmDialog
                 open={confirmDelete}
@@ -955,6 +1044,16 @@ const SalonsPage = () => {
                                                 : selectedSalon.visibilite === 'prive' ? 'Demander à rejoindre' : 'Rejoindre'}
                                         </button>
                                     )}
+                                    {canMeet && (
+                                        <button
+                                            className="salons-secondary-btn salon-meeting-btn"
+                                            onClick={openMeeting}
+                                            title={reunion ? 'Rejoindre la réunion vidéo en cours' : 'Démarrer une réunion vidéo avec les membres'}
+                                        >
+                                            <FaVideo />
+                                            <span className="salon-btn-label">{reunion ? 'Rejoindre la réunion' : 'Démarrer une réunion'}</span>
+                                        </button>
+                                    )}
                                     {isMember && (
                                         <button
                                             className={`salons-secondary-btn ${messageSearch !== null ? 'active' : ''}`}
@@ -1003,6 +1102,27 @@ const SalonsPage = () => {
                                             ? " D'ici là, vous seul pouvez entrer pour préparer le salon."
                                             : " Personne ne peut entrer avant cette heure, même avec un lien d'invitation."}
                                     </span>
+                                </div>
+                            )}
+
+                            {isMember && reunion && !meetingOpen && (
+                                <div className="salon-meeting-banner" role="status">
+                                    <i className="salon-meeting-dot" aria-hidden="true" />
+                                    <span>
+                                        Réunion en cours
+                                        {reunion.lance_par?.nom && ` · lancée par ${reunion.lance_par.nom}`}
+                                        {typeof reunion.participants_count === 'number' && ` · ${reunion.participants_count} participant(s)`}
+                                    </span>
+                                    {canMeet && (
+                                        <button type="button" className="salons-primary-btn" onClick={openMeeting}>
+                                            <FaVideo /> Rejoindre
+                                        </button>
+                                    )}
+                                    {reunionCanEnd && (
+                                        <button type="button" className="salons-secondary-btn" onClick={endMeetingForAll}>
+                                            Terminer
+                                        </button>
+                                    )}
                                 </div>
                             )}
 

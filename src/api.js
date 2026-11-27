@@ -643,6 +643,11 @@ export const salonsAPI = {
     invite: (salonId, userIds) => salonRequest(() => api.post(`/salons/${salonId}/inviter/`, { utilisateurs: userIds }), "Erreur lors de l'invitation"),
     searchUsers: (search) => salonRequest(() => api.get('/salons/utilisateurs/', { params: { search } }), 'Erreur lors de la recherche'),
 
+    // Réunion vidéo (LiveKit) : état, entrée (démarre la réunion si besoin), fin pour tous.
+    getReunion: (salonId) => salonRequest(() => api.get(`/salons/${salonId}/reunion/`), 'Erreur lors du chargement de la réunion'),
+    joinReunion: (salonId) => salonRequest(() => api.post(`/salons/${salonId}/reunion/`), "Impossible d'entrer dans la réunion"),
+    endReunion: (salonId) => salonRequest(() => api.post(`/salons/${salonId}/reunion/terminer/`), 'Impossible de terminer la réunion'),
+
     getMessages: (salonId, { afterId = null, beforeId = null, search = '', limit = null } = {}) => salonRequest(
         () => api.get(`/salons/${salonId}/messages/`, {
             params: {
