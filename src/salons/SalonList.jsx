@@ -4,9 +4,10 @@ import { CreateSalonForm } from './SalonForms';
 import VisibilityBadge from './VisibilityBadge';
 import { formatListTime, formatOuverture } from './salonUtils';
 
+// « Mes salons » en premier : c'est le filtre affiché par défaut.
 const FILTERS = [
-    { id: '', label: 'Tous' },
     { id: 'mes_salons', label: 'Mes salons' },
+    { id: '', label: 'Tous' },
     { id: 'publics', label: 'Publics' },
     { id: 'prives', label: 'Privés' },
     { id: 'fermes', label: 'Fermés' }
@@ -79,7 +80,13 @@ const SalonList = ({
 
         <div className="salons-list">
             {loading && <div className="salons-empty-state">Chargement des salons…</div>}
-            {!loading && salons.length === 0 && <div className="salons-empty-state">Aucun salon trouvé</div>}
+            {!loading && salons.length === 0 && (
+                <div className="salons-empty-state">
+                    {filter === 'mes_salons' && !searchTerm
+                        ? <>Vous ne participez encore à aucun salon. <button type="button" className="salon-link-button" onClick={() => onFilter('')}>Voir tous les salons</button></>
+                        : 'Aucun salon trouvé'}
+                </div>
+            )}
             {!loading && SECTIONS.map((section) => {
                 const items = salons.filter((salon) => section.match(salon));
                 if (items.length === 0) return null;

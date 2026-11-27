@@ -64,7 +64,7 @@ const SalonsPage = () => {
     const { confirm, prompt, dialog } = useDialogs();
 
     const [salons, setSalons] = useState([]);
-    const [filter, setFilter] = useState('');
+    const [filter, setFilter] = useState('mes_salons');
     const [closedCount, setClosedCount] = useState(0);
     const [openingMessage, setOpeningMessage] = useState('');
     const closeOpeningPopup = useCallback(() => setOpeningMessage(''), []);

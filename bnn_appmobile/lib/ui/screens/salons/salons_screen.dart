@@ -38,7 +38,7 @@ class _SalonsScreenState extends State<SalonsScreen> with WidgetsBindingObserver
   int _unreadNotifications = 0;
   int _nouveaux = 0;
   int _fermes = 0;
-  SalonFiltre _filtre = SalonFiltre.tous;
+  SalonFiltre _filtre = SalonFiltre.mesSalons;
   bool _loading = true;
   String? _error;
   bool _creating = false;
@@ -393,9 +393,11 @@ class _SalonsScreenState extends State<SalonsScreen> with WidgetsBindingObserver
                       child: StatusView(
                         icon: CupertinoIcons.chat_bubble_2,
                         title: 'Aucun salon trouvé',
-                        message: _search.text.isEmpty && _filtre == SalonFiltre.tous
-                            ? 'Créez le premier salon de discussion.'
-                            : 'Aucun salon ne correspond à votre recherche ou à ce filtre.',
+                        message: _search.text.isEmpty && _filtre == SalonFiltre.mesSalons
+                            ? "Vous ne participez encore à aucun salon. Ouvrez « Tous » pour en découvrir."
+                            : _search.text.isEmpty && _filtre == SalonFiltre.tous
+                                ? 'Créez le premier salon de discussion.'
+                                : 'Aucun salon ne correspond à votre recherche ou à ce filtre.',
                       ),
                     )
                   else ...[

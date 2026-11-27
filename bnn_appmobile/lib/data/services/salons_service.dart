@@ -82,7 +82,8 @@ class SalonNotificationPage {
   final int nonLues;
 }
 
-enum SalonFiltre { tous, mesSalons, publics, prives, fermes }
+/// « Mes salons » en premier : c'est le filtre affiché par défaut.
+enum SalonFiltre { mesSalons, tous, publics, prives, fermes }
 
 class SalonsService {
   SalonsService(this._client);

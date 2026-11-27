@@ -570,3 +570,4 @@
 /* Les fenêtres sont rendues hors de la page (portail) : on y remet le thème clair. */
 .salon-dialog-backdrop { color-scheme: light; z-index: 10000; }
 .salon-dialog .salons-primary-btn, .salon-dialog .salons-secondary-btn, .salon-dialog .salons-danger-btn { display: inline-flex; align-items: center; gap: 0.4rem; }
+.salon-link-button { border: none; background: none; padding: 0; color: #1e42ac; font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
