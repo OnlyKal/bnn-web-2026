@@ -130,6 +130,11 @@ class _SalonsScreenState extends State<SalonsScreen> with WidgetsBindingObserver
           _notifications = [notification, ..._notifications.where((n) => n.id != notification.id)];
           _unreadNotifications++;
         });
+      case 'reunion.updated':
+        final enCours = event.payload['reunion'] is Map;
+        setState(() {
+          _salons = [for (final s in _salons) s.id == event.salonId ? s.copyWith(reunionEnCours: enCours) : s];
+        });
       case 'salon.created' || 'salon.updated' || 'salon.deleted' || 'membership.changed' || 'members.updated':
         _reloadSoon();
       default:
@@ -570,6 +575,7 @@ class _StatutPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (salon.ferme) return const Pill('Fermé', color: AppColors.textMuted, icon: CupertinoIcons.lock_fill);
+    if (salon.reunionEnCours) return const Pill('Réunion en cours', color: AppColors.successDark, icon: CupertinoIcons.videocam_fill);
     if (!salon.estOuvert && salon.dateOuverture != null) {
       return Pill('Ouvre le ${formatOuverture(salon.dateOuverture!)}', color: AppColors.primary, icon: CupertinoIcons.clock);
     }

@@ -20,6 +20,7 @@ import '../../../state/session_controller.dart';
 import '../../widgets/common.dart';
 import '../../widgets/feedback.dart';
 import '../../widgets/states.dart';
+import 'salon_meeting_screen.dart';
 import 'salon_sheets.dart';
 import 'salon_widgets.dart';
 
@@ -49,6 +50,9 @@ class _SalonDetailScreenState extends State<SalonDetailScreen> with WidgetsBindi
   final _focus = FocusNode();
   StreamSubscription<SalonSocketEvent>? _socketEvents;
   Salon? _salon;
+  // Réunion vidéo en cours dans ce salon (null s'il n'y en a pas).
+  SalonReunion? _reunion;
+  bool _reunionCanEnd = false;
   List<SalonMessage> _messages = [];
   List<SalonUser> _memberUsers = [];
   List<PickedUpload> _files = [];
@@ -123,6 +127,7 @@ class _SalonDetailScreenState extends State<SalonDetailScreen> with WidgetsBindi
       final salon = await _service.get(widget.salonId);
       if (!mounted) return;
       setState(() => _salon = salon);
+      if (salon.estMembre) _loadReunion();
       if (salon.pasEncoreOuvert && salon.dateOuverture != null) {
         showOpeningPopup(context, 'Ce salon ouvre le ${formatOuverture(salon.dateOuverture!)}. Revenez à ce moment-là.');
       }
@@ -157,6 +162,7 @@ class _SalonDetailScreenState extends State<SalonDetailScreen> with WidgetsBindi
       if (!mounted) return;
       final becameMember = salon.estMembre && !(_salon?.estMembre ?? false);
       setState(() => _salon = salon);
+      if (salon.estMembre) _loadReunion();
       if (becameMember) {
         _follow();
         _loadMemberUsers();
@@ -291,6 +297,9 @@ class _SalonDetailScreenState extends State<SalonDetailScreen> with WidgetsBindi
       case 'salon.deleted':
         showInfo(context, 'Ce salon a été supprimé par son créateur.');
         Navigator.of(context).maybePop();
+      case 'reunion.updated':
+        setState(() => _reunion = SalonReunion.fromJson(event.payload['reunion']));
+        if (_reunion == null) _reunionCanEnd = false;
       case 'notification.new':
         _service.markAllRead(salonId: widget.salonId).catchError((_) {});
       default:
@@ -449,6 +458,110 @@ class _SalonDetailScreenState extends State<SalonDetailScreen> with WidgetsBindi
       await _service.deleteResource(widget.salonId, resource.id);
       await _refreshSalon();
     }, 'Ressource retirée.');
+  }
+
+  // ------------------------------------------------------------------ Réunion vidéo
+
+  bool get _canMeet {
+    final salon = _salon;
+    return salon != null && salon.estMembre && !salon.ferme && !salon.pasEncoreOuvert;
+  }
+
+  Future<void> _loadReunion() async {
+    try {
+      final (reunion, canEnd) = await _service.reunion(widget.salonId);
+      if (!mounted) return;
+      setState(() {
+        _reunion = reunion;
+        _reunionCanEnd = canEnd;
+      });
+    } on ApiException {
+      // Silencieux : le bouton reste « Démarrer une réunion ».
+    }
+  }
+
+  Future<void> _openMeeting() async {
+    final choice = await showMeetingPreJoin(context, starting: _reunion == null);
+    if (choice == null || !mounted) return;
+    setState(() => _busy = true);
+    SalonReunionAcces acces;
+    try {
+      acces = await _service.joinReunion(widget.salonId);
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() => _busy = false);
+        showError(context, e.message);
+      }
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _reunion = acces.reunion ?? _reunion;
+      _reunionCanEnd = acces.peutTerminer;
+    });
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      fullscreenDialog: true,
+      builder: (_) => SalonMeetingScreen(
+        titre: _salon?.titre ?? 'Réunion',
+        acces: acces,
+        audio: choice.audio,
+        video: choice.video,
+        onEndForAll: _endMeeting,
+      ),
+    ));
+    if (mounted) _loadReunion();
+  }
+
+  Future<bool> _endMeeting() async {
+    final ok = await confirmAction(
+      context,
+      title: 'Terminer la réunion pour tous ?',
+      message: 'Tous les participants seront déconnectés de la réunion.',
+      confirmLabel: 'Terminer',
+      destructive: true,
+      icon: CupertinoIcons.stop_circle,
+    );
+    if (!ok) return false;
+    try {
+      await _service.endReunion(widget.salonId);
+      if (mounted) setState(() => _reunion = null);
+      return true;
+    } on ApiException catch (e) {
+      if (mounted) showError(context, e.message);
+      return false;
+    }
+  }
+
+  Widget _buildMeetingBanner() {
+    final reunion = _reunion!;
+    final details = [
+      'Réunion en cours',
+      if (reunion.lanceePar != null) 'lancée par ${reunion.lanceePar}',
+      if (reunion.participantsCount != null) '${reunion.participantsCount} participant(s)',
+    ].join(' · ');
+    return Container(
+      width: double.infinity,
+      color: const Color(0xFFECFDF5),
+      padding: const EdgeInsets.fromLTRB(16, 6, 8, 6),
+      child: Row(
+        children: [
+          const Icon(CupertinoIcons.videocam_fill, size: 18, color: AppColors.successDark),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(details, style: const TextStyle(color: Color(0xFF065F46), fontSize: 13)),
+          ),
+          if (_canMeet)
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: AppColors.successDark, visualDensity: VisualDensity.compact),
+              onPressed: _busy ? null : _openMeeting,
+              child: const Text('Rejoindre'),
+            ),
+          if (_reunionCanEnd)
+            TextButton(onPressed: _busy ? null : _endMeeting, child: const Text('Terminer')),
+        ],
+      ),
+    );
   }
 
   Future<void> _toggleClosed() async {
@@ -958,6 +1071,15 @@ class _SalonDetailScreenState extends State<SalonDetailScreen> with WidgetsBindi
           ),
         ),
         actions: [
+          if (_canMeet)
+            IconButton(
+              tooltip: _reunion != null ? 'Rejoindre la réunion' : 'Démarrer une réunion',
+              onPressed: _busy ? null : _openMeeting,
+              icon: Icon(
+                _reunion != null ? CupertinoIcons.videocam_fill : CupertinoIcons.videocam,
+                color: _reunion != null ? AppColors.success : null,
+              ),
+            ),
           if (salon.estMembre)
             IconButton(tooltip: 'Rechercher', onPressed: _busy ? null : _search, icon: const Icon(CupertinoIcons.search)),
           // Membres à portée d'un geste (équivalent de la colonne de droite sur le web).
@@ -1037,6 +1159,7 @@ class _SalonDetailScreenState extends State<SalonDetailScreen> with WidgetsBindi
           if (_busy) const LinearProgressIndicator(minHeight: 2),
           if (!salon.estOuvert && salon.dateOuverture != null) _buildOpeningBanner(salon, isCreator),
           if (salon.ferme) _buildClosedBanner(salon, isCreator),
+          if (salon.estMembre && _reunion != null) _buildMeetingBanner(),
           if (salon.estMembre && salon.epingles.isNotEmpty) _buildPinnedBar(salon),
           Expanded(child: salon.estMembre ? _buildMessages() : _buildJoin(salon)),
           if (salon.estMembre && !salon.ferme) _buildComposer(),

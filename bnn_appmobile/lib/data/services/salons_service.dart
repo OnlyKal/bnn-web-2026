@@ -265,6 +265,33 @@ class SalonsService {
         'Action impossible sur ce membre',
       );
 
+  // ---------------------------------------------------------------- Réunion vidéo
+
+  /// Réunion en cours du salon (null s'il n'y en a pas) et droit de la terminer.
+  Future<(SalonReunion?, bool)> reunion(String id) => _guard(() async {
+        final response = await _dio.get<dynamic>('/salons/$id/reunion/');
+        final data = asJson(asJson(response.data)?['data']);
+        return (SalonReunion.fromJson(data?['reunion']), asBool(data?['peut_terminer']));
+      }, 'Erreur lors du chargement de la réunion');
+
+  /// Démarre la réunion si besoin et renvoie le jeton pour y entrer.
+  Future<SalonReunionAcces> joinReunion(String id) => _guard(() async {
+        final response = await _dio.post<dynamic>('/salons/$id/reunion/');
+        final data = asJson(asJson(response.data)?['data']);
+        final url = pickString(data, ['url']);
+        final token = pickString(data, ['token']);
+        if (url == null || token == null) throw ApiException('Réunion indisponible');
+        return SalonReunionAcces(
+          url: url,
+          token: token,
+          peutTerminer: asBool(data?['peut_terminer']),
+          reunion: SalonReunion.fromJson(data?['reunion']),
+        );
+      }, "Impossible d'entrer dans la réunion");
+
+  Future<void> endReunion(String id) =>
+      _guard(() => _dio.post<dynamic>('/salons/$id/reunion/terminer/'), 'Impossible de terminer la réunion');
+
   Future<String> invite(String id, List<String> userIds) => _guard(() async {
         final response = await _dio.post<dynamic>('/salons/$id/inviter/', data: {'utilisateurs': userIds});
         return pickString(asJson(response.data), ['message']) ?? 'Invitation envoyée';

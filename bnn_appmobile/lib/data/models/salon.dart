@@ -140,6 +140,7 @@ class Salon {
     this.dateFermeture,
     this.dateOuverture,
     this.estOuvert = true,
+    this.reunionEnCours = false,
     this.createur,
     this.ressources = const [],
     this.epingles = const [],
@@ -164,6 +165,7 @@ class Salon {
       dateFermeture: DateTime.tryParse(pickString(json, ['date_fermeture']) ?? '')?.toLocal(),
       dateOuverture: DateTime.tryParse(pickString(json, ['date_ouverture']) ?? ''),
       estOuvert: json['est_ouvert'] is bool ? json['est_ouvert'] as bool : true,
+      reunionEnCours: asBool(json['reunion_en_cours']),
       createur: personJson(json['createur']),
       ressources: extractList(json['ressources']).map(SalonResource.fromJson).toList(),
       epingles: extractList(json['messages_epingles']).map(SalonMessage.fromJson).toList(),
@@ -193,13 +195,16 @@ class Salon {
 
   /// Le salon n'est pas encore ouvert pour l'utilisateur courant.
   bool get pasEncoreOuvert => !estOuvert && !estCreateur;
+
+  /// Une réunion vidéo est en cours (connu des membres seulement).
+  final bool reunionEnCours;
   final Json? createur;
   final List<SalonResource> ressources;
   final List<SalonMessage> epingles;
 
   bool get hasUnread => nonLus > 0;
 
-  Salon copyWith({int? nonLus, int? messagesCount}) => Salon(
+  Salon copyWith({int? nonLus, int? messagesCount, bool? reunionEnCours}) => Salon(
         id: id,
         titre: titre,
         description: description,
@@ -216,6 +221,7 @@ class Salon {
         dateFermeture: dateFermeture,
         dateOuverture: dateOuverture,
         estOuvert: estOuvert,
+        reunionEnCours: reunionEnCours ?? this.reunionEnCours,
         createur: createur,
         ressources: ressources,
         epingles: epingles,
@@ -437,4 +443,33 @@ class SalonReport {
   final String excerpt;
   final String motif;
   final bool messageDeleted;
+}
+
+/// Réunion vidéo en cours dans un salon.
+class SalonReunion {
+  SalonReunion({required this.id, this.lanceePar, this.participantsCount});
+
+  static SalonReunion? fromJson(dynamic value) {
+    final json = asJson(value);
+    if (json == null || pickString(json, ['id']) == null) return null;
+    return SalonReunion(
+      id: pickString(json, ['id'])!,
+      lanceePar: pickString(asJson(json['lance_par']), ['nom']),
+      participantsCount: asInt(json['participants_count']),
+    );
+  }
+
+  final String id;
+  final String? lanceePar;
+  final int? participantsCount;
+}
+
+/// Réponse de l'entrée dans une réunion : adresse du serveur vidéo et jeton.
+class SalonReunionAcces {
+  SalonReunionAcces({required this.url, required this.token, required this.peutTerminer, this.reunion});
+
+  final String url;
+  final String token;
+  final bool peutTerminer;
+  final SalonReunion? reunion;
 }

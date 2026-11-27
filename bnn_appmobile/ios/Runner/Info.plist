@@ -7,7 +7,13 @@
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>La BNN a besoin d'accéder à vos photos pour mettre à jour votre photo de profil et partager des images dans les salons.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>La BNN a besoin de l'appareil photo pour prendre votre photo de profil.</string>
+	<string>La BNN a besoin de l'appareil photo pour prendre votre photo de profil et pour la caméra pendant les réunions des salons.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>La BNN a besoin du micro pour que vous puissiez parler pendant les réunions des salons.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
