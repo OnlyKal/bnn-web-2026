@@ -1,15 +1,18 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
     FaBookOpen,
     FaEdit,
     FaFileAlt,
     FaFlag,
+    FaArrowDown,
+    FaRegSmile,
     FaReply,
     FaThumbtack,
     FaTrash
 } from 'react-icons/fa';
 import {
+    REACTIONS,
     SHARE_SOURCES,
     formatMessageTime,
     formatSize,
@@ -65,7 +68,48 @@ const Attachment = ({ attachment }) => {
     );
 };
 
-const MessageItem = ({ message, previous, own, isCreator, readOnly, onReply, onEdit, onDelete, onPin, onReport, highlight }) => {
+/** Réactions sous un message : un clic ajoute ou retire la sienne. */
+const Reactions = ({ message, currentUserId, readOnly, onReact }) => {
+    const reactions = message.reactions || [];
+    if (!reactions.length) return null;
+    return (
+        <div className="salon-reactions">
+            {reactions.map((reaction) => {
+                const mine = reaction.moi || (reaction.utilisateurs || []).includes(currentUserId);
+                return (
+                    <button
+                        type="button"
+                        key={reaction.emoji}
+                        className={`salon-reaction ${mine ? 'mine' : ''}`}
+                        onClick={() => !readOnly && onReact(message, reaction.emoji)}
+                        disabled={readOnly}
+                        title={mine ? 'Retirer ma réaction' : 'Réagir aussi'}
+                    >
+                        <span>{reaction.emoji}</span> {reaction.count}
+                    </button>
+                );
+            })}
+        </div>
+    );
+};
+
+const ReactionPicker = ({ onPick }) => {
+    const [open, setOpen] = useState(false);
+    return (
+        <span className="salon-reaction-picker">
+            <button type="button" title="Réagir" aria-label="Réagir" onClick={() => setOpen((v) => !v)}><FaRegSmile /></button>
+            {open && (
+                <span className="salon-reaction-menu" role="menu">
+                    {REACTIONS.map((emoji) => (
+                        <button type="button" key={emoji} role="menuitem" onClick={() => { setOpen(false); onPick(emoji); }}>{emoji}</button>
+                    ))}
+                </span>
+            )}
+        </span>
+    );
+};
+
+const MessageItem = ({ message, previous, own, isCreator, readOnly, currentUserId, onReply, onEdit, onDelete, onPin, onReport, onReact, highlight, firstUnread }) => {
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState(message.contenu || '');
     const date = message.date_envoi;
@@ -87,11 +131,14 @@ const MessageItem = ({ message, previous, own, isCreator, readOnly, onReply, onE
             {!sameDay && (
                 <div className="salon-date-separator"><span>{getDateLabel(date)}</span></div>
             )}
+            {firstUnread && (
+                <div className="salon-unread-separator" role="separator"><span>Nouveaux messages</span></div>
+            )}
             <div
                 id={`salon-message-${message.id}`}
                 className={`salon-message-row ${own ? 'own' : 'other'} ${grouped ? 'grouped' : ''} ${highlight ? 'highlight' : ''}`}
             >
-                <div className={`salon-message-bubble ${message.supprime ? 'deleted' : ''}`}>
+                <div className={`salon-message-bubble ${message.supprime ? 'deleted' : ''}`} tabIndex={-1}>
                     {!grouped && (
                         <div className="salon-message-author">
                             <strong>{personName(message.expediteur)}</strong>
@@ -130,6 +177,10 @@ const MessageItem = ({ message, previous, own, isCreator, readOnly, onReply, onE
                         </div>
                     )}
 
+                    {!message.supprime && (
+                        <Reactions message={message} currentUserId={currentUserId} readOnly={readOnly} onReact={onReact} />
+                    )}
+
                     <div className="salon-message-status">
                         <time dateTime={date}>{formatMessageTime(date)}</time>
                         {message.modifie && <span className="salon-edited">modifié</span>}
@@ -137,6 +188,7 @@ const MessageItem = ({ message, previous, own, isCreator, readOnly, onReply, onE
 
                     {!message.supprime && !editing && (
                         <div className="salon-message-actions">
+                            {!readOnly && <ReactionPicker onPick={(emoji) => onReact(message, emoji)} />}
                             {!readOnly && <button type="button" title="Répondre" onClick={() => onReply(message)}><FaReply /></button>}
                             {own && !readOnly && <button type="button" title="Modifier" onClick={() => setEditing(true)}><FaEdit /></button>}
                             {isCreator && !readOnly && (
@@ -165,37 +217,62 @@ const MessageList = ({
     readOnly = false,
     typingNames,
     highlightId,
+    firstUnreadId = null,
     endRef,
+    containerRef,
     ...actions
-}) => (
-    <div className="salon-messages-list">
-        {hasMore && (
-            <button type="button" className="salon-load-more" onClick={onLoadMore} disabled={loadingMore}>
-                {loadingMore ? 'Chargement…' : 'Charger les messages précédents'}
-            </button>
-        )}
-        {loading && <div className="salons-empty-state">Chargement des messages…</div>}
-        {!loading && messages.length === 0 && <div className="salons-empty-state">Aucun message pour le moment</div>}
-        {messages.map((message, index) => (
-            <MessageItem
-                key={message.id}
-                message={message}
-                previous={messages[index - 1]}
-                own={message.expediteur?.id === currentUserId}
-                isCreator={isCreator}
-                readOnly={readOnly}
-                highlight={highlightId === message.id}
-                {...actions}
-            />
-        ))}
-        {typingNames.length > 0 && (
-            <div className="salon-typing-indicator">
-                <span></span><span></span><span></span>
-                {typingNames.join(', ')} {typingNames.length > 1 ? 'écrivent' : 'écrit'}…
+}) => {
+    // Bouton « dernier message » quand on est remonté dans la conversation.
+    const [awayFromBottom, setAwayFromBottom] = useState(false);
+    const onScroll = (event) => {
+        const el = event.currentTarget;
+        setAwayFromBottom(el.scrollHeight - el.scrollTop - el.clientHeight > 240);
+    };
+    useEffect(() => { setAwayFromBottom(false); }, [firstUnreadId]);
+
+    return (
+        <div className="salon-messages-scroll">
+            <div className="salon-messages-list" ref={containerRef} onScroll={onScroll}>
+                {hasMore && (
+                    <button type="button" className="salon-load-more" onClick={onLoadMore} disabled={loadingMore}>
+                        {loadingMore ? 'Chargement…' : 'Charger les messages précédents'}
+                    </button>
+                )}
+                {loading && <div className="salons-empty-state">Chargement des messages…</div>}
+                {!loading && messages.length === 0 && <div className="salons-empty-state">Aucun message pour le moment. Lancez la discussion !</div>}
+                {messages.map((message, index) => (
+                    <MessageItem
+                        key={message.id}
+                        message={message}
+                        previous={messages[index - 1]}
+                        own={message.expediteur?.id === currentUserId}
+                        currentUserId={currentUserId}
+                        isCreator={isCreator}
+                        readOnly={readOnly}
+                        highlight={highlightId === message.id}
+                        firstUnread={firstUnreadId === message.id}
+                        {...actions}
+                    />
+                ))}
+                {typingNames.length > 0 && (
+                    <div className="salon-typing-indicator">
+                        <span></span><span></span><span></span>
+                        {typingNames.join(', ')} {typingNames.length > 1 ? 'écrivent' : 'écrit'}…
+                    </div>
+                )}
+                <div ref={endRef} />
             </div>
-        )}
-        <div ref={endRef} />
-    </div>
-);
+            {awayFromBottom && (
+                <button
+                    type="button"
+                    className="salon-scroll-bottom"
+                    onClick={() => endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })}
+                >
+                    <FaArrowDown /> Dernier message
+                </button>
+            )}
+        </div>
+    );
+};
 
 export default MessageList;

@@ -2,7 +2,7 @@ import React from 'react';
 import { FaPaperPlane, FaPlus, FaSearch, FaUsers } from 'react-icons/fa';
 import { CreateSalonForm } from './SalonForms';
 import VisibilityBadge from './VisibilityBadge';
-import { formatOuverture } from './salonUtils';
+import { formatListTime, formatOuverture } from './salonUtils';
 
 const FILTERS = [
     { id: '', label: 'Tous' },
@@ -35,6 +35,7 @@ const SalonList = ({
     filter,
     onFilter,
     closedCount = 0,
+    currentUserId = null,
     showCreateForm,
     onToggleCreate,
     onCreate,
@@ -97,6 +98,11 @@ const SalonList = ({
                                     <span className="salon-list-title-row">
                                         <span className={`salon-conversation-dot ${status}`} aria-hidden="true"></span>
                                         <span className="salon-list-title">{salon.titre}</span>
+                                        {salon.dernier_message?.date && (
+                                            <time className="salon-list-time" dateTime={salon.dernier_message.date}>
+                                                {formatListTime(salon.dernier_message.date)}
+                                            </time>
+                                        )}
                                         {selectedId === salon.id && <span className="salon-badge salon-badge-current">En cours</span>}
                                         {salon.ferme && <span className="salon-badge salon-badge-closed">Fermé</span>}
                                         {salon.est_ouvert === false && (
@@ -111,7 +117,15 @@ const SalonList = ({
                                             </span>
                                         )}
                                     </span>
-                                    <span className="salon-list-description">{salon.description}</span>
+                                    {/* Membre : aperçu du dernier message ; sinon la description du salon. */}
+                                    {salon.dernier_message ? (
+                                        <span className={`salon-list-description salon-list-last ${unread > 0 ? 'unread' : ''}`}>
+                                            <strong>{salon.dernier_message.auteur_id === currentUserId ? 'Vous' : salon.dernier_message.auteur}</strong>
+                                            {' : '}{salon.dernier_message.extrait}
+                                        </span>
+                                    ) : (
+                                        <span className="salon-list-description">{salon.description}</span>
+                                    )}
                                     <span className="salon-list-stats">
                                         <FaUsers /> {salon.membres_count || 0}
                                         <FaPaperPlane /> {salon.messages_count || 0}

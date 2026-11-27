@@ -51,7 +51,29 @@ export const personName = (person) => person?.nom_complet
     || person?.username
     || 'Utilisateur';
 
-export const initials = (person) => personName(person).charAt(0).toUpperCase();
+/** Initiales sur deux lettres (prénom + nom), pour distinguer les membres d'un coup d'œil. */
+export const initials = (person) => {
+    const prenom = (person?.prenom || '').trim();
+    const nom = (person?.nom || '').trim();
+    if (prenom || nom) return `${prenom.charAt(0)}${nom.charAt(0)}`.toUpperCase() || '?';
+    const words = personName(person).trim().split(/\s+/).filter(Boolean);
+    return (words.length > 1 ? `${words[0][0]}${words[words.length - 1][0]}` : (words[0] || '?').slice(0, 2)).toUpperCase();
+};
+
+/** Heure courte pour la liste des salons : « 14:05 », « Hier » ou « 24/11 ». */
+export const formatListTime = (value) => {
+    if (!value) return '';
+    const date = new Date(value);
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+    if (date.toDateString() === today.toDateString()) return formatMessageTime(value);
+    if (date.toDateString() === yesterday.toDateString()) return 'Hier';
+    return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+};
+
+/** Réactions proposées sur les messages (la même liste que le serveur). */
+export const REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
 export const formatMessageTime = (value) => {
     if (!value) return '';

@@ -670,6 +670,10 @@ export const salonsAPI = {
         () => api.post(`/salons/${salonId}/messages/${messageId}/epingler/`, { epingle }),
         "Erreur lors de l'épinglage"
     ),
+    reactToMessage: (salonId, messageId, emoji) => salonRequest(
+        () => api.post(`/salons/${salonId}/messages/${messageId}/reactions/`, { emoji }),
+        'Erreur lors de la réaction'
+    ),
     reportMessage: (salonId, messageId, motif) => salonRequest(
         () => api.post(`/salons/${salonId}/messages/${messageId}/signaler/`, { motif }),
         'Erreur lors du signalement'

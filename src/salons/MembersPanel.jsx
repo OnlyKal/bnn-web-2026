@@ -111,11 +111,10 @@ const InvitationLinkBox = ({ salon, onInfo, onError }) => {
 
     return (
         <div className="salon-link-share">
-            <div className="salon-link-share-title"><FaLink /> Lien du salon</div>
-            <input type="text" readOnly value={link || 'Création du lien…'} onFocus={(event) => event.target.select()} aria-label="Lien d'invitation" />
+            <div className="salon-link-share-title"><FaLink /> Inviter avec un lien</div>
             <div className="salon-link-share-actions">
                 <button type="button" className="salons-primary-btn" onClick={copy} disabled={!link}>
-                    <FaCopy /> Copier
+                    <FaCopy /> {link ? 'Copier le lien' : 'Création du lien…'}
                 </button>
                 {canShare && (
                     <button type="button" className="salons-secondary-btn" onClick={share} disabled={!link}>
@@ -133,6 +132,12 @@ const MembersPanel = ({ salon, members, requests, invites, isCreator, onAction, 
     const isPrivate = salon?.visibilite === 'prive';
     // Le créateur partage toujours le lien ; dans un salon public, chaque membre peut aussi le partager.
     const canShareLink = !!salon && !salon.ferme && (isCreator || (salon.est_membre && !isPrivate));
+    // Les membres en ligne d'abord, puis par ordre alphabétique.
+    const sortedMembers = [...members].sort((a, b) => (
+        (b.en_ligne ? 1 : 0) - (a.en_ligne ? 1 : 0)
+        || personName(a.utilisateur).localeCompare(personName(b.utilisateur), 'fr')
+    ));
+    const onlineCount = members.filter((m) => m.en_ligne).length;
 
     if (!salon) {
         return (
@@ -189,9 +194,13 @@ const MembersPanel = ({ salon, members, requests, invites, isCreator, onAction, 
             )}
             {members.length > 0 && (
                 <div className="salons-left-members-list">
-                    {members.map((member) => (
-                        <div className="salons-left-member" key={member.id}>
-                            <span>{initials(member.utilisateur)}</span>
+                    {onlineCount > 0 && <div className="salon-online-count">{onlineCount} en ligne</div>}
+                    {sortedMembers.map((member) => (
+                        <div className={`salons-left-member ${member.en_ligne ? 'online' : ''}`} key={member.id}>
+                            <span className="salon-member-avatar" title={member.en_ligne ? 'En ligne' : 'Hors ligne'}>
+                                {initials(member.utilisateur)}
+                                {member.en_ligne && <i className="salon-online-dot" aria-label="En ligne" />}
+                            </span>
                             <strong>
                                 {personName(member.utilisateur)}
                                 {member.est_createur && <small className="salon-role-tag">Créateur</small>}

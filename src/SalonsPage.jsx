@@ -1,7 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+    FaArrowLeft,
     FaBell,
+    FaChevronDown,
+    FaChevronRight,
     FaClock,
     FaEdit,
     FaFileAlt,
@@ -34,6 +37,7 @@ import ReportsPanel from './salons/ReportsPanel';
 import { AddResourcesForm, EditSalonForm } from './salons/SalonForms';
 import useSalonSocket from './salons/useSalonSocket';
 import OpeningPopup from './salons/OpeningPopup';
+import { ActionsMenu, ConfirmDialog, SalonsWelcome } from './salons/SalonUi';
 import {
     MAX_RESOURCES,
     STATUT_LABELS,
@@ -87,6 +91,14 @@ const SalonsPage = () => {
     const [searchResults, setSearchResults] = useState([]);
     const [highlightId, setHighlightId] = useState(null);
     const [reports, setReports] = useState(null);
+    // Téléphone : un seul écran à la fois (liste des salons, salon, membres).
+    const [mobileView, setMobileView] = useState('list');
+    const [showAbout, setShowAbout] = useState(false);
+    const [showResources, setShowResources] = useState(false);
+    const [showPinned, setShowPinned] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState(false);
+    const [firstUnreadId, setFirstUnreadId] = useState(null);
+    const messagesContainerRef = useRef(null);
     const messagesEndRef = useRef(null);
     const selectedIdRef = useRef(null);
     const stickToBottomRef = useRef(true);
@@ -148,12 +160,15 @@ const SalonsPage = () => {
             const response = await salonsAPI.getMessages(salonId);
             if (salonId !== selectedIdRef.current) return;
             stickToBottomRef.current = true;
-            setMessages(extractList(response));
+            const list = extractList(response);
+            setMessages(list);
             setHasMore(!!response?.has_more);
             // Le serveur a marqué le salon comme lu : on remet le compteur à zéro ici aussi.
-            setSalons((list) => list.map((s) => (s.id === salonId ? { ...s, non_lus_count: 0 } : s)));
+            setSalons((items) => items.map((s) => (s.id === salonId ? { ...s, non_lus_count: 0 } : s)));
+            return list;
         } catch (error) {
             showError(error.message);
+            return [];
         } finally {
             setMessagesLoading(false);
         }
@@ -255,6 +270,13 @@ const SalonsPage = () => {
                     setMessages([]);
                 }
                 fetchSalons();
+                break;
+            case 'presence.changed':
+                if (payload.salon_id === current) {
+                    setMembers((list) => list.map((m) => (
+                        m.utilisateur?.id === payload.user_id ? { ...m, en_ligne: payload.en_ligne } : m
+                    )));
+                }
                 break;
             case 'members.updated':
                 if (payload.salon_id === current) {
@@ -370,9 +392,18 @@ const SalonsPage = () => {
         return () => clearInterval(interval);
     }, [connected, selectedId, isMember, lastMessageId, fetchNewMessages]);
 
+    // Seule la zone des messages défile (la page et la barre d'écriture restent en place).
     useEffect(() => {
-        if (stickToBottomRef.current) messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-    }, [messages]);
+        const el = messagesContainerRef.current;
+        if (!el || !stickToBottomRef.current) return;
+        const separator = firstUnreadId && el.querySelector('.salon-unread-separator');
+        if (separator) {
+            el.scrollTop = Math.max(0, separator.offsetTop - 24);
+            stickToBottomRef.current = false;
+        } else {
+            el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+        }
+    }, [messages, firstUnreadId]);
 
     useEffect(() => {
         const timer = setInterval(() => {
@@ -405,8 +436,14 @@ const SalonsPage = () => {
     };
 
     const openSalon = async (salon) => {
+        const unreadBefore = salon.non_lus_count || salons.find((s) => s.id === salon.id)?.non_lus_count || 0;
         selectedIdRef.current = salon.id;
         setSelectedSalon(salon);
+        setMobileView('salon');
+        setShowAbout(false);
+        setShowResources(false);
+        setShowPinned(false);
+        setFirstUnreadId(null);
         setMessages([]);
         setMembers([]);
         setRequests([]);
@@ -433,7 +470,11 @@ const SalonsPage = () => {
             }
             if (detail?.est_membre || detail?.est_createur) fetchMembers(salon.id);
             if (detail?.est_membre) {
-                await fetchLatestMessages(salon.id);
+                const list = await fetchLatestMessages(salon.id);
+                // Ligne « Nouveaux messages » avant le premier message non lu.
+                if (unreadBefore > 0 && list.length > 0) {
+                    setFirstUnreadId(list[Math.max(0, list.length - unreadBefore)].id);
+                }
                 // Le serveur a aussi marqué les notifications de ce salon comme lues.
                 fetchNotifications();
             }
@@ -492,11 +533,29 @@ const SalonsPage = () => {
     };
 
     const deleteSalon = async () => {
-        if (!window.confirm(`Supprimer le salon « ${selectedSalon?.titre} » ?`)) return;
         if (await run(() => salonsAPI.deleteSalon(selectedId), 'Salon supprimé.')) {
+            setConfirmDelete(false);
             setSelectedSalon(null);
             setMessages([]);
+            setMobileView('list');
             fetchSalons();
+        }
+    };
+
+    // Rejoindre un salon en collant un lien d'invitation reçu.
+    const joinWithLink = async () => {
+        const input = window.prompt("Collez le lien d'invitation du salon :", '');
+        if (!input) return;
+        const match = input.match(/[?&]invitation=([^\s&#]+)/);
+        const token = match ? decodeURIComponent(match[1]) : (/^\S+$/.test(input.trim()) && !input.includes('://') ? input.trim() : null);
+        if (!token) {
+            showError("Ce lien d'invitation n'est pas valide.");
+            return;
+        }
+        const response = await run(() => salonsAPI.joinByInvitation(token), (r) => r?.message || 'Vous avez rejoint le salon');
+        if (response?.data?.salon_id) {
+            await fetchSalons();
+            openSalon({ id: response.data.salon_id });
         }
     };
 
@@ -597,6 +656,16 @@ const SalonsPage = () => {
             await salonsAPI.pinMessage(selectedId, message.id, !message.epingle);
             setMessages((list) => list.map((m) => (m.id === message.id ? { ...m, epingle: !message.epingle } : m)));
             fetchDetail(selectedId);
+        } catch (error) {
+            showError(error.message);
+        }
+    };
+
+    const reactToMessage = async (message, emoji) => {
+        try {
+            const response = await salonsAPI.reactToMessage(selectedId, message.id, emoji);
+            stickToBottomRef.current = false;
+            if (response?.data) setMessages((list) => list.map((m) => (m.id === message.id ? response.data : m)));
         } catch (error) {
             showError(error.message);
         }
@@ -706,14 +775,48 @@ const SalonsPage = () => {
 
     const ressources = selectedSalon?.ressources || [];
     const pinned = selectedSalon?.messages_epingles || [];
+    const canSeeContent = isMember || isCreator;
+
+    // Actions secondaires de l'en-tête, regroupées dans le menu « ⋯ ».
+    const menuItems = [
+        isCreator && !isClosed && { label: 'Modifier le salon', icon: <FaEdit />, onClick: () => setEditing(true) },
+        isCreator && !isClosed && {
+            label: 'Ajouter des ressources',
+            icon: <FaPlus />,
+            disabled: ressources.length >= MAX_RESOURCES,
+            onClick: () => { setShowResourceForm(true); setShowResources(true); }
+        },
+        isCreator && { label: 'Signalements', icon: <FaFlag />, onClick: openReports },
+        isCreator && { label: isClosed ? 'Rouvrir le salon' : 'Fermer le salon', icon: isClosed ? <FaLockOpen /> : <FaLock />, onClick: toggleClosed },
+        !isCreator && (isMember || selectedSalon?.statut_membre === 'en_attente') && {
+            label: isMember ? 'Quitter le salon' : 'Annuler la demande',
+            icon: <FaSignOutAlt />,
+            onClick: quitSalon
+        },
+        isCreator && { label: 'Supprimer le salon', icon: <FaTrash />, danger: true, onClick: () => setConfirmDelete(true) }
+    ];
 
     return (
         <div className="salons-page">
             <ToastContainer toasts={toasts} onClose={removeToast} />
             <OpeningPopup message={openingMessage} onClose={closeOpeningPopup} />
+            <ConfirmDialog
+                open={confirmDelete}
+                title="Supprimer le salon ?"
+                confirmLabel="Supprimer définitivement"
+                busy={submitting}
+                onConfirm={deleteSalon}
+                onCancel={() => setConfirmDelete(false)}
+            >
+                <p>
+                    Le salon <strong>« {selectedSalon?.titre} »</strong> sera supprimé pour tous ses membres,
+                    avec ses messages, ses fichiers et ses ressources.
+                </p>
+                <p className="salon-dialog-warning">Cette action est définitive. Pour garder les messages en lecture seule, fermez plutôt le salon.</p>
+            </ConfirmDialog>
             <AppNavigation />
 
-            <main className={`salons-main with-members${selectedSalon ? '' : ' no-members'}`}>
+            <main className={`salons-main with-members${selectedSalon ? '' : ' no-members'} mobile-${selectedSalon ? mobileView : 'list'}`}>
                 <div className="salons-page-toolbar">
                     <span className={`salon-live-status ${connected ? 'on' : 'off'}`} title={connected ? 'Mises à jour en direct' : 'Mises à jour périodiques'}>
                         {connected ? 'En direct' : 'Hors ligne direct'}
@@ -754,6 +857,7 @@ const SalonsPage = () => {
                         filter={filter}
                         onFilter={setFilter}
                         closedCount={closedCount}
+                        currentUserId={currentUserId}
                         showCreateForm={showCreateForm}
                         onToggleCreate={() => setShowCreateForm((v) => !v)}
                         onCreate={createSalon}
@@ -763,19 +867,22 @@ const SalonsPage = () => {
                     />
                 </aside>
 
-
                 <section className="salons-detail-panel">
                     {!selectedSalon && (
-                        <div className="salons-detail-empty">
-                            <FaUsers />
-                            <h2>Sélectionnez un salon</h2>
-                            <p>Choisissez un salon dans la liste pour voir ses ressources et participer aux messages.</p>
-                        </div>
+                        <SalonsWelcome
+                            salons={salons}
+                            onCreate={() => setShowCreateForm(true)}
+                            onJoinWithLink={joinWithLink}
+                            onOpen={openSalon}
+                        />
                     )}
 
                     {selectedSalon && (
                         <>
                             <div className="salon-detail-header">
+                                <button type="button" className="salon-mobile-back" onClick={() => setMobileView('list')} aria-label="Retour à la liste des salons">
+                                    <FaArrowLeft /> Salons
+                                </button>
                                 {editing ? (
                                     <EditSalonForm
                                         salon={selectedSalon}
@@ -785,31 +892,20 @@ const SalonsPage = () => {
                                     />
                                 ) : (
                                     <div className="salon-conversation-title">
-                                        <h2>Messages</h2>
+                                        <h2>{selectedSalon.titre}</h2>
                                         <p>
-                                            {selectedSalon.titre}
                                             <VisibilityBadge salon={selectedSalon} />
                                             {isClosed && <span className="salon-badge salon-badge-closed">Fermé</span>}
+                                            <span className="salon-title-meta">
+                                                <FaUsers />
+                                                {selectedSalon.membres_count || 0} participant(s)
+                                                {selectedSalon.statut_membre && !isMember && ` · ${STATUT_LABELS[selectedSalon.statut_membre] || ''}`}
+                                            </span>
                                         </p>
-                                        <span>
-                                            <FaUsers />
-                                            {selectedSalon.membres_count || 0} participant(s)
-                                            {selectedSalon.statut_membre && !isMember && ` · ${STATUT_LABELS[selectedSalon.statut_membre] || ''}`}
-                                        </span>
                                     </div>
                                 )}
 
                                 <div className="salon-detail-actions">
-                                    {isMember && (
-                                        <button className="salons-secondary-btn" onClick={() => setMessageSearch((v) => (v === null ? '' : null))}>
-                                            <FaSearch />
-                                            Rechercher
-                                        </button>
-                                    )}
-                                    <button className="salons-secondary-btn" onClick={() => showInfo(selectedSalon.description || 'Aucune description disponible.')}>
-                                        <FaInfoCircle />
-                                        Infos
-                                    </button>
                                     {!isMember && !isCreator && !isClosed && selectedSalon.statut_membre !== 'en_attente' && (
                                         <button className="salons-primary-btn" onClick={joinSalon} disabled={submitting}>
                                             <FaUsers />
@@ -818,43 +914,44 @@ const SalonsPage = () => {
                                                 : selectedSalon.visibilite === 'prive' ? 'Demander à rejoindre' : 'Rejoindre'}
                                         </button>
                                     )}
-                                    {!isCreator && (isMember || selectedSalon.statut_membre === 'en_attente') && (
-                                        <button className="salons-secondary-btn" onClick={quitSalon} disabled={submitting}>
-                                            <FaSignOutAlt />
-                                            {isMember ? 'Quitter' : 'Annuler la demande'}
+                                    {isMember && (
+                                        <button
+                                            className={`salons-secondary-btn ${messageSearch !== null ? 'active' : ''}`}
+                                            onClick={() => setMessageSearch((v) => (v === null ? '' : null))}
+                                            title="Rechercher dans les messages"
+                                        >
+                                            <FaSearch />
+                                            <span className="salon-btn-label">Rechercher</span>
                                         </button>
                                     )}
-                                    {isCreator && (
-                                        <>
-                                            <button className="salons-secondary-btn" onClick={toggleClosed} disabled={submitting}>
-                                                {isClosed ? <FaLockOpen /> : <FaLock />}
-                                                {isClosed ? 'Rouvrir' : 'Fermer'}
-                                            </button>
-                                            {!isClosed && (
-                                            <>
-                                            <button className="salons-secondary-btn" onClick={() => setEditing(true)}>
-                                                <FaEdit />
-                                                Modifier
-                                            </button>
-                                            <button className="salons-secondary-btn" onClick={() => setShowResourceForm((v) => !v)} disabled={ressources.length >= MAX_RESOURCES}>
-                                                <FaPlus />
-                                                Ressources
-                                            </button>
-                                            </>
-                                            )}
-                                            <button className="salons-secondary-btn" onClick={openReports}>
-                                                <FaFlag />
-                                                Signalements
-                                            </button>
-                                            <button className="salons-danger-btn" onClick={deleteSalon} disabled={submitting} aria-label="Supprimer le salon">
-                                                <FaTrash />
-                                            </button>
-                                        </>
-                                    )}
+                                    <button
+                                        className={`salons-secondary-btn ${showAbout ? 'active' : ''}`}
+                                        onClick={() => setShowAbout((v) => !v)}
+                                        title="Infos du salon"
+                                    >
+                                        <FaInfoCircle />
+                                        <span className="salon-btn-label">Infos</span>
+                                    </button>
+                                    <button type="button" className="salons-secondary-btn salon-mobile-members" onClick={() => setMobileView('members')}>
+                                        <FaUsers />
+                                        <span className="salon-btn-label">Membres</span>
+                                    </button>
+                                    <ActionsMenu items={menuItems} />
                                 </div>
                             </div>
 
                             {detailLoading && <div className="salons-empty-state">Chargement du détail…</div>}
+
+                            {showAbout && (
+                                <div className="salon-about">
+                                    <p>{selectedSalon.description || 'Aucune description.'}</p>
+                                    <small>
+                                        Créé par {personName(selectedSalon.createur)}
+                                        {selectedSalon.date_creation && ` le ${new Date(selectedSalon.date_creation).toLocaleDateString('fr-FR')}`}
+                                        {selectedSalon.date_ouverture && ` · ouverture le ${formatOuverture(selectedSalon.date_ouverture)}`}
+                                    </small>
+                                </div>
+                            )}
 
                             {selectedSalon.est_ouvert === false && (
                                 <div className="salon-closed-banner salon-opening-banner" role="status">
@@ -874,18 +971,9 @@ const SalonsPage = () => {
                                     <span>
                                         Ce salon est fermé{selectedSalon.date_fermeture ? ` depuis le ${new Date(selectedSalon.date_fermeture).toLocaleDateString('fr-FR')}` : ''} :
                                         {' '}les messages et les fichiers restent consultables, mais plus personne ne peut écrire.
-                                        {isCreator && ' Vous pouvez le rouvrir ou le supprimer.'}
+                                        {isCreator && ' Vous pouvez le rouvrir ou le supprimer depuis le menu « ⋯ ».'}
                                     </span>
                                 </div>
-                            )}
-
-                            {showResourceForm && isCreator && !isClosed && (
-                                <AddResourcesForm
-                                    existing={ressources.length}
-                                    submitting={submitting}
-                                    onSubmit={addResources}
-                                    onError={showError}
-                                />
                             )}
 
                             {reports && (
@@ -897,28 +985,47 @@ const SalonsPage = () => {
                                 />
                             )}
 
-                            <div className="salon-detail-grid salon-detail-grid-single">
-                                <div className="salon-resources-section">
-                                    <h3>Ressources</h3>
+                            {/* Ressources et messages épinglés : repliés par défaut, on les ouvre au besoin. */}
+                            {(ressources.length > 0 || (isMember && pinned.length > 0) || (showResourceForm && isCreator)) && (
+                                <div className="salon-collapsibles">
+                                    {(ressources.length > 0 || showResourceForm) && (
+                                        <button type="button" className="salon-collapsible-toggle" onClick={() => setShowResources((v) => !v)} aria-expanded={showResources}>
+                                            {showResources ? <FaChevronDown /> : <FaChevronRight />}
+                                            <FaFileAlt /> Ressources ({ressources.length})
+                                        </button>
+                                    )}
+                                    {isMember && pinned.length > 0 && (
+                                        <button type="button" className="salon-collapsible-toggle" onClick={() => setShowPinned((v) => !v)} aria-expanded={showPinned}>
+                                            {showPinned ? <FaChevronDown /> : <FaChevronRight />}
+                                            <FaThumbtack /> {pinned.length} message{pinned.length > 1 ? 's' : ''} épinglé{pinned.length > 1 ? 's' : ''}
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+
+                            {showResources && (
+                                <div className="salon-resources-section salon-collapsible-body">
                                     <div className="salon-resources-list">
                                         {ressources.length > 0
                                             ? ressources.map(renderResource)
-                                            : (
-                                                <span className="salons-muted">
-                                                    {selectedSalon.visibilite === 'prive' && !isMember
-                                                        ? 'Ressources réservées aux membres'
-                                                        : 'Aucune ressource affichée'}
-                                                </span>
-                                            )}
+                                            : <span className="salons-muted">Aucune ressource</span>}
                                     </div>
+                                    {showResourceForm && isCreator && !isClosed && (
+                                        <AddResourcesForm
+                                            existing={ressources.length}
+                                            submitting={submitting}
+                                            onSubmit={addResources}
+                                            onError={showError}
+                                        />
+                                    )}
                                 </div>
-                            </div>
+                            )}
 
-                            {isMember && pinned.length > 0 && (
-                                <div className="salon-pinned-bar">
-                                    <FaThumbtack />
+                            {showPinned && isMember && pinned.length > 0 && (
+                                <div className="salon-pinned-bar salon-collapsible-body">
                                     {pinned.map((message) => (
                                         <button type="button" key={message.id} onClick={() => jumpTo(message.id)}>
+                                            <FaThumbtack />
                                             <strong>{personName(message.expediteur)}</strong> : {(message.contenu || message.ressource_partagee?.titre || 'Pièce jointe').slice(0, 80)}
                                         </button>
                                     ))}
@@ -949,7 +1056,8 @@ const SalonsPage = () => {
 
                             <div className="salon-messages-section">
                                 {!isMember && (
-                                    <div className="salons-empty-state">
+                                    <div className="salons-empty-state salon-not-member">
+                                        {!canSeeContent && selectedSalon.description && <p>{selectedSalon.description}</p>}
                                         {selectedSalon.statut_membre === 'en_attente'
                                             ? 'Votre demande est en attente de validation par le créateur du salon.'
                                             : selectedSalon.statut_membre === 'retire'
@@ -975,12 +1083,15 @@ const SalonsPage = () => {
                                             readOnly={isClosed}
                                             typingNames={typingNames}
                                             highlightId={highlightId}
+                                            firstUnreadId={firstUnreadId}
                                             endRef={messagesEndRef}
+                                            containerRef={messagesContainerRef}
                                             onReply={setReplyTo}
                                             onEdit={editMessage}
                                             onDelete={deleteMessage}
                                             onPin={pinMessage}
                                             onReport={reportMessage}
+                                            onReact={reactToMessage}
                                         />
                                         {!isClosed && (
                                         <MessageComposer
@@ -1001,9 +1112,12 @@ const SalonsPage = () => {
                 </section>
 
                 {/* Membres du salon : colonne à droite, à l'opposé de la liste des salons.
-                    Masquée tant qu'aucun salon n'est sélectionné. */}
+                    Masquée tant qu'aucun salon n'est sélectionné. Sur téléphone : écran à part. */}
                 {selectedSalon && (
                 <aside className="salons-members-panel">
+                    <button type="button" className="salon-mobile-back" onClick={() => setMobileView('salon')}>
+                        <FaArrowLeft /> Retour au salon
+                    </button>
                     <MembersPanel
                         salon={selectedSalon}
                         members={members}

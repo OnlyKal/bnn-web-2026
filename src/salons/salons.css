@@ -144,7 +144,9 @@
 .salon-message-actions button { border: none; background: none; color: #5b6478; cursor: pointer; padding: 0.2rem 0.3rem; }
 .salon-message-actions button:hover { color: #1e42ac; }
 @media (hover: none) {
-  .salon-message-actions { position: static; display: flex; margin-top: 0.3rem; box-shadow: none; }
+  /* Écran tactile : les actions apparaissent quand on touche le message. */
+  .salon-message-actions { position: static; display: none; margin-top: 0.3rem; box-shadow: none; width: fit-content; }
+  .salon-message-bubble:focus-within .salon-message-actions { display: flex; }
 }
 
 .salon-edit-message textarea { width: 100%; border-radius: 6px; border: 1px solid #dfe3ec; padding: 0.35rem; color: #1b2233; }
@@ -338,4 +340,174 @@
 /* Aucun salon sélectionné : pas de colonne des membres, la conversation prend la place. */
 @media (min-width: 901px) {
   .salons-main.with-members.no-members { grid-template-columns: minmax(250px, 300px) minmax(0, 1fr); }
+}
+
+/* =====================================================================
+   Page Salon, version « professionnelle » (en-tête, conversation fixe,
+   un écran à la fois sur téléphone, réactions, accueil).
+   ===================================================================== */
+
+/* 1. En-tête : nom du salon en titre, 2 boutons visibles, le reste dans « ⋯ ». */
+.salons-page .salon-detail-header { display: flex; align-items: flex-start; gap: 0.6rem; flex-wrap: wrap; }
+.salons-page .salon-conversation-title { flex: 1 1 260px; min-width: 0; }
+.salons-page .salon-conversation-title h2 { margin: 0; font-size: 1.15rem; line-height: 1.25; color: #152033; }
+.salons-page .salon-conversation-title p { display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem; margin: 0.3rem 0 0; }
+.salons-page .salon-conversation-title .salon-badge { margin-left: 0; }
+.salons-page .salon-title-meta { display: inline-flex; align-items: center; gap: 0.3rem; color: #1e42ac; font-weight: 700; font-size: var(--font-size-xs, 0.65rem); }
+.salons-page .salon-detail-actions { display: flex; align-items: center; gap: 0.35rem; flex-wrap: nowrap; }
+.salons-page .salon-detail-actions .salons-secondary-btn.active { background: #e3ebfb; border-color: #1e42ac; color: #1e42ac; }
+.salon-actions-menu { position: relative; }
+.salon-actions-toggle { min-width: 38px; justify-content: center; }
+.salon-actions-dropdown {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; min-width: 220px; padding: 0.3rem;
+  background: #ffffff; border: 1px solid #dce4f0; border-radius: 10px; box-shadow: 0 12px 28px rgba(20, 32, 70, 0.16);
+  display: flex; flex-direction: column;
+}
+.salon-actions-dropdown button {
+  display: flex; align-items: center; gap: 0.55rem; width: 100%; padding: 0.5rem 0.6rem; border: none; border-radius: 7px;
+  background: none; color: #152033; font: inherit; font-size: 0.85rem; text-align: left; cursor: pointer;
+}
+.salon-actions-dropdown button:hover:not(:disabled) { background: #f1f4fb; }
+.salon-actions-dropdown button:disabled { opacity: 0.45; cursor: not-allowed; }
+.salon-actions-dropdown button.danger { color: #b42318; border-top: 1px solid #eef0f4; border-radius: 0 0 7px 7px; margin-top: 0.2rem; }
+.salon-actions-dropdown button.danger:hover { background: #fdecec; }
+.salon-mobile-back, .salon-mobile-members { display: none; }
+
+.salon-about {
+  margin: 0.6rem 0 0; padding: 0.6rem 0.75rem; border-radius: 8px; background: #f6f9ff; border: 1px solid #e1e8f5;
+  color: #152033; font-size: 0.85rem;
+}
+.salon-about p { margin: 0 0 0.3rem; white-space: pre-wrap; }
+.salon-about small { color: #5b6478; }
+
+/* 2. Conversation à hauteur fixe : seule la zone des messages défile. */
+@media (min-width: 901px) {
+  .salons-main.with-members:not(.no-members) .salons-detail-panel {
+    display: flex; flex-direction: column; height: calc(100vh - 130px); min-height: 520px; overflow: hidden;
+  }
+  .salons-main.with-members:not(.no-members) .salons-detail-panel > * { flex: none; }
+  .salons-main.with-members:not(.no-members) .salon-messages-section {
+    flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;
+  }
+}
+.salon-messages-scroll { position: relative; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.salons-main.with-members .salon-messages-scroll .salon-messages-list { flex: 1 1 auto; min-height: 0; max-height: none; }
+.salon-messages-section .salon-composer { position: static; flex: none; }
+
+/* 8. Nouveaux messages et retour au dernier message. */
+.salon-unread-separator { display: flex; align-items: center; gap: 0.6rem; margin: 0.6rem 0; color: #c2410c; font-size: 0.75rem; font-weight: 800; }
+.salon-unread-separator::before, .salon-unread-separator::after { content: ''; flex: 1; height: 1px; background: #f3b38a; }
+.salon-scroll-bottom {
+  position: absolute; right: 1rem; bottom: 0.8rem; z-index: 4; display: inline-flex; align-items: center; gap: 0.35rem;
+  border: none; border-radius: 999px; padding: 0.45rem 0.8rem; background: #1e42ac; color: #ffffff;
+  font-size: 0.78rem; font-weight: 700; cursor: pointer; box-shadow: 0 6px 16px rgba(30, 66, 172, 0.3);
+}
+
+/* 4. Ressources et épinglés repliables. */
+.salon-collapsibles { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.6rem; }
+.salon-collapsible-toggle {
+  display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.3rem 0.6rem; border-radius: 999px;
+  border: 1px solid #dce4f0; background: #ffffff; color: #152033; font-size: 0.78rem; font-weight: 700; cursor: pointer;
+}
+.salon-collapsible-toggle:hover, .salon-collapsible-toggle[aria-expanded="true"] { border-color: #1e42ac; color: #1e42ac; background: #f3f6fd; }
+.salon-collapsible-body { margin-top: 0.45rem; max-height: 180px; overflow-y: auto; }
+.salon-pinned-bar.salon-collapsible-body { display: flex; flex-direction: column; align-items: stretch; gap: 0.2rem; }
+.salon-pinned-bar.salon-collapsible-body button { display: flex; gap: 0.35rem; align-items: center; color: #152033; padding: 0.25rem 0; }
+
+/* 5. Liste : dernier message et heure ; filtres sur une ligne. */
+.salons-list .salon-list-time { flex: none; margin-left: auto; color: #7a8194; font-size: 0.7rem; font-weight: 600; }
+.salon-list-last { color: #52657c; }
+.salon-list-last strong { color: #152033; font-weight: 700; }
+.salon-list-last.unread { color: #152033; font-weight: 600; }
+.salon-filter-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+.salon-filter-tabs::-webkit-scrollbar { display: none; }
+.salon-filter-tabs button { flex: none; white-space: nowrap; padding: 0.2rem 0.55rem; }
+
+/* 6. Membres : initiales sur deux lettres et pastille « en ligne ». */
+.salons-left-member .salon-member-avatar { position: relative; font-size: 0.7rem; letter-spacing: 0.02em; }
+.salon-online-dot {
+  position: absolute; right: -1px; bottom: -1px; width: 9px; height: 9px; border-radius: 50%;
+  background: #16a34a; border: 2px solid #ffffff;
+}
+.salon-online-count { padding: 0.15rem 0.1rem 0.35rem; color: #15803d; font-size: 0.72rem; font-weight: 700; }
+.salon-link-share-actions .salons-primary-btn, .salon-link-share-actions .salons-secondary-btn { flex: 1; justify-content: center; }
+
+/* 9. Réactions et actions au survol. */
+.salon-reactions { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.35rem; }
+.salon-reaction {
+  display: inline-flex; align-items: center; gap: 0.2rem; padding: 0.05rem 0.45rem; border-radius: 999px;
+  border: 1px solid #dce4f0; background: #ffffff; color: #152033; font-size: 0.75rem; cursor: pointer;
+}
+.salon-reaction.mine { border-color: #1e42ac; background: #e8eefc; color: #1e42ac; font-weight: 700; }
+.salon-reaction:disabled { cursor: default; }
+.salon-message-row.own .salon-reaction { background: rgba(255, 255, 255, 0.92); }
+.salon-reaction-picker { position: relative; display: inline-flex; }
+.salon-reaction-menu {
+  position: absolute; bottom: calc(100% + 6px); right: -0.4rem; z-index: 30; display: flex; gap: 0.1rem; padding: 0.25rem;
+  background: #ffffff; border: 1px solid #dce4f0; border-radius: 999px; box-shadow: 0 8px 20px rgba(20, 32, 70, 0.16);
+}
+.salon-reaction-menu button { font-size: 1.1rem; line-height: 1; padding: 0.2rem 0.25rem !important; border-radius: 50%; }
+.salon-reaction-menu button:hover { background: #f1f4fb; transform: scale(1.15); }
+
+/* 7. Accueil quand aucun salon n'est ouvert. */
+.salons-welcome { max-width: 560px; margin: 3rem auto; padding: 0 1rem; text-align: center; color: #152033; }
+.salons-welcome-icon { font-size: 2.6rem; color: #1e42ac; opacity: 0.85; }
+.salons-welcome h2 { margin: 0.6rem 0 0.3rem; font-size: 1.25rem; }
+.salons-welcome p { margin: 0 0 1rem; color: #52657c; }
+.salons-welcome-actions { display: flex; justify-content: center; gap: 0.5rem; flex-wrap: wrap; }
+.salons-welcome-suggestions { margin-top: 1.6rem; text-align: left; display: flex; flex-direction: column; gap: 0.4rem; }
+.salons-welcome-suggestions h3 { display: flex; align-items: center; gap: 0.4rem; margin: 0 0 0.2rem; font-size: 0.85rem; color: #1e42ac; }
+.salons-welcome-suggestions button {
+  display: flex; flex-direction: column; gap: 0.15rem; padding: 0.6rem 0.75rem; border: 1px solid #dce4f0; border-radius: 10px;
+  background: #ffffff; color: #152033; text-align: left; cursor: pointer; font: inherit;
+}
+.salons-welcome-suggestions button:hover { border-color: #1e42ac; background: #f6f9ff; }
+.salons-welcome-suggestions span {
+  color: #52657c; font-size: 0.8rem; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
+}
+.salons-welcome-suggestions small { display: flex; align-items: center; gap: 0.35rem; color: #7a8194; }
+.salon-not-member p { margin: 0 0 0.5rem; color: #152033; }
+
+/* 10. Fenêtre de confirmation. */
+.salon-dialog-backdrop {
+  position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem;
+  background: rgba(15, 23, 42, 0.45);
+}
+.salon-dialog {
+  width: min(440px, 100%); padding: 1.2rem 1.3rem; border-radius: 12px; background: #ffffff; color: #152033;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.3);
+}
+.salon-dialog h3 { margin: 0 0 0.6rem; font-size: 1.1rem; }
+.salon-dialog-body p { margin: 0 0 0.6rem; font-size: 0.9rem; line-height: 1.45; }
+.salon-dialog-warning { color: #b42318; }
+.salon-dialog-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.4rem; }
+.salon-dialog-confirm { padding: 0.45rem 0.9rem; font-weight: 700; }
+
+/* 3. Téléphone : un écran à la fois. */
+@media (max-width: 900px) {
+  .salons-main.mobile-list:not(.no-members) .salons-detail-panel,
+  .salons-main.mobile-list .salons-members-panel,
+  .salons-main.mobile-salon .salons-list-panel,
+  .salons-main.mobile-salon .salons-members-panel,
+  .salons-main.mobile-members .salons-list-panel,
+  .salons-main.mobile-members .salons-detail-panel { display: none; }
+  .salons-main.no-members .salons-welcome { margin: 1.2rem auto; }
+
+  .salon-mobile-back {
+    display: inline-flex; align-items: center; gap: 0.4rem; width: 100%; margin-bottom: 0.4rem; padding: 0.3rem 0;
+    border: none; background: none; color: #1e42ac; font-weight: 700; font-size: 0.85rem; cursor: pointer;
+  }
+  .salon-mobile-members { display: inline-flex; }
+  .salons-page .salon-detail-actions { width: 100%; justify-content: flex-end; }
+  .salons-page .salon-detail-actions .salons-primary-btn,
+  .salons-page .salon-detail-actions .salons-secondary-btn { width: auto; }
+  .salons-page .salon-detail-actions .salon-btn-label { display: none; }
+  .salons-page .salon-detail-actions .salons-primary-btn { margin-right: auto; }
+
+  .salons-main.mobile-salon .salons-detail-panel {
+    display: flex; flex-direction: column; height: calc(100dvh - 120px); min-height: 460px; overflow: hidden; padding: 0.6rem;
+  }
+  .salons-main.mobile-salon .salons-detail-panel > * { flex: none; }
+  .salons-main.mobile-salon .salon-messages-section { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  .salons-main.mobile-members .salons-members-panel { min-height: calc(100dvh - 140px); }
 }
