@@ -1,8 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show Platform;
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter_background/flutter_background.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart' show Helper;
 import 'package:livekit_client/livekit_client.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -12,6 +16,10 @@ import '../../widgets/feedback.dart';
 /// Même sujet et même format que le site web (src/salons/MeetingRoom.jsx).
 const _chatTopic = 'bnn.chat';
 const _handKey = 'main';
+
+/// Partage d'écran depuis le téléphone : Android (service au premier plan).
+/// Sur iPhone il faudrait une extension « Broadcast Upload » dans Xcode.
+final bool _canShareScreen = !kIsWeb && Platform.isAndroid;
 
 bool _handRaised(Participant p) => p.attributes[_handKey] == 'levee';
 String _name(Participant p) => p.name.isNotEmpty ? p.name : p.identity;
@@ -95,6 +103,8 @@ class _SalonMeetingScreenState extends State<SalonMeetingScreen> {
   final List<_ChatMessage> _messages = [];
   int _unread = 0;
   bool _chatOpen = false;
+  bool _sharing = false;
+  bool _backgroundOn = false;
 
   @override
   void initState() {
@@ -184,6 +194,53 @@ class _SalonMeetingScreenState extends State<SalonMeetingScreen> {
     }
   }
 
+  Future<void> _toggleScreenShare() async {
+    final local = _room.localParticipant;
+    if (local == null) return;
+    if (_sharing) {
+      await _stopScreenShare();
+      return;
+    }
+    try {
+      // 1. Autorisation Android de capturer l'écran (fenêtre du système).
+      if (!await Helper.requestCapturePermission()) return;
+      // 2. Service au premier plan obligatoire pendant la capture (notification visible).
+      final ready = await FlutterBackground.initialize(
+        androidConfig: const FlutterBackgroundAndroidConfig(
+          notificationTitle: 'BNN : partage d\'écran',
+          notificationText: 'Votre écran est partagé dans la réunion du salon.',
+          notificationImportance: AndroidNotificationImportance.normal,
+          notificationIcon: AndroidResource(name: 'ic_launcher', defType: 'mipmap'),
+          shouldRequestBatteryOptimizationsOff: false,
+        ),
+      );
+      if (!ready) throw Exception('service');
+      _backgroundOn = await FlutterBackground.enableBackgroundExecution();
+      await local.setScreenShareEnabled(
+        true,
+        screenShareCaptureOptions: const ScreenShareCaptureOptions(captureScreenAudio: false),
+      );
+      if (mounted) setState(() => _sharing = true);
+      if (mounted) showInfo(context, 'Votre écran est partagé. Revenez ici pour arrêter.');
+    } catch (_) {
+      await _stopScreenShare();
+      if (mounted) showError(context, "Partage d'écran impossible sur cet appareil.");
+    }
+  }
+
+  Future<void> _stopScreenShare() async {
+    try {
+      await _room.localParticipant?.setScreenShareEnabled(false);
+    } catch (_) {}
+    if (_backgroundOn) {
+      _backgroundOn = false;
+      try {
+        await FlutterBackground.disableBackgroundExecution();
+      } catch (_) {}
+    }
+    if (mounted) setState(() => _sharing = false);
+  }
+
   void _close() {
     if (_leaving) return;
     _leaving = true;
@@ -191,6 +248,7 @@ class _SalonMeetingScreenState extends State<SalonMeetingScreen> {
   }
 
   Future<void> _leave() async {
+    await _stopScreenShare();
     await _room.disconnect();
     _close();
   }
@@ -204,6 +262,7 @@ class _SalonMeetingScreenState extends State<SalonMeetingScreen> {
   void dispose() {
     _room.removeListener(_onRoomChanged);
     _listener?.dispose();
+    if (_backgroundOn) unawaited(FlutterBackground.disableBackgroundExecution().catchError((_) => false));
     unawaited(_room.disconnect().then((_) => _room.dispose()));
     super.dispose();
   }
@@ -268,6 +327,14 @@ class _SalonMeetingScreenState extends State<SalonMeetingScreen> {
                   active: camOn,
                   onTap: local == null ? null : () => _safely(() => local.setCameraEnabled(!camOn)),
                 ),
+                if (_canShareScreen)
+                  _ControlButton(
+                    icon: _sharing ? CupertinoIcons.stop_fill : CupertinoIcons.rectangle_on_rectangle,
+                    label: _sharing ? 'Arrêter' : 'Écran',
+                    active: true,
+                    highlight: _sharing,
+                    onTap: local == null ? null : _toggleScreenShare,
+                  ),
                 _ControlButton(
                   icon: CupertinoIcons.hand_raised_fill,
                   label: handUp ? 'Baisser' : 'Main',
@@ -301,7 +368,8 @@ class _SalonMeetingScreenState extends State<SalonMeetingScreen> {
     // Un partage d'écran passe en grand, les autres en bande en dessous.
     TrackPublication? screen;
     Participant? sharer;
-    for (final p in _participants) {
+    // Son propre écran n'est pas affiché en grand (effet miroir infini).
+    for (final p in _room.remoteParticipants.values) {
       final pub = p.getTrackPublicationBySource(TrackSource.screenShareVideo);
       if (pub != null && !pub.muted && pub.track != null) {
         screen = pub;
